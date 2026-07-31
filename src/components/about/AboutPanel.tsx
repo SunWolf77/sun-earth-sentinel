@@ -343,7 +343,7 @@ export function AboutPanel() {
           <div>
             <p className="font-semibold text-fg">Lineage</p>
             <p>
-              <XPerson profile="sunwolf" /> — SolWatch → WolfWatch / Sentinel, node monitors, this
+              <XPerson profile="sunwolf" /> — SolWatch continuum → node monitors → this Sentinel
               observatory.
             </p>
             <p className="mt-1">
@@ -383,11 +383,11 @@ export function AboutPanel() {
           </div>
 
           <div>
-            <p className="font-semibold text-fg">Public seismic globe (inspiration)</p>
+            <p className="font-semibold text-fg">Public seismic globe (inspiration only)</p>
             <p>
               Optional globe / multi-agency patterns were inspired by the free public seismic tool
               released by <XHandle profile="dutchsinse" /> for community use — thank you. Rebuilt
-              inside WolfWatch's own stack (not a fork or UI clone).
+              inside the Sun-Earth Sentinel stack (not a fork or UI clone).
             </p>
             <a
               href="https://www.dutchsinse.com/beta-test-new-earthquake-program-for-public-use/"
