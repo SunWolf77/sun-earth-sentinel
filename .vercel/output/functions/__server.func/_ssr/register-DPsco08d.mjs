@@ -4,10 +4,10 @@
 *
 * X caches cards per exact URL. Bump `ogImageVersion` when the image or
 * copy changes so scrapers fetch a new image. For a full card re-scrape of
-* the *page*, post a new URL variant (e.g. ?v=3) or /share.html.
+* the *page*, post a new URL variant (e.g. ?v=8) or /share.html.
 */
 /** Live production origin (no trailing slash). */
-var PRODUCTION_ORIGIN = "https://sol-earth-wolfwatch-sentinel.grok.me";
+var PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 var ENV_CANDIDATES = () => {
 	return [
 		(() => {
@@ -38,14 +38,14 @@ function resolveShareOrigin() {
 	return getSiteOrigin();
 }
 var SITE = {
-	name: "Sol-Earth WolfWatch Sentinel",
-	shortName: "WolfWatch Sentinel",
-	description: "Free Sol-Earth observatory: live earthquakes, plate boundaries, volcano watches, space weather and SUPT resonance. By SunWolf (@Sunwolf77).",
+	name: "Sun Earth Sentinel",
+	shortName: "Sun Earth Sentinel",
+	description: "Free Sun Earth observatory: live earthquakes, plate boundaries, volcano watches, space weather and SUPT continuum. By SunWolf (@Sunwolf77).",
 	twitter: "@Sunwolf77",
 	twitterCreator: "@Sunwolf77",
 	ogImagePath: "/og.png",
 	/** Bump when og.png changes — forces X image CDN re-fetch */
-	ogImageVersion: "3",
+	ogImageVersion: "8",
 	/** Post this if root URL card is stuck in X cache */
 	sharePath: "/share.html",
 	themeColor: "#070b12"
@@ -56,7 +56,7 @@ var X_PROFILES = {
 		name: "SunWolf",
 		handle: "Sunwolf77",
 		url: "https://x.com/Sunwolf77",
-		role: "Primary technical lineage · WolfWatch / Sentinel"
+		role: "Primary technical lineage · Sun Earth Sentinel"
 	},
 	sheppard: {
 		name: "Paul Sheppard",
@@ -100,11 +100,10 @@ function xCardDebugReport(origin = getSiteOrigin()) {
 		card: "summary_large_image",
 		notes: [
 			"X caches cards per exact URL — old tweets keep old scrapes forever.",
-			"Post a NEW tweet with a new URL (?v=3 or /share.html) to force re-scrape.",
+			"Post a NEW tweet with a new URL (?v=8 or /share.html) to force re-scrape.",
 			"Root HTTPS returns full twitter:* + og:* tags to Twitterbot (verified).",
-			"og.png is 1200x630 PNG ~375KB — within X limits.",
-			"HTTP 308 → HTTPS; always share https:// links.",
-			"Card Validator UI is deprecated; X scrapes on post time only."
+			"og.png is 1200x630 PNG — within X limits.",
+			"Always share https:// links."
 		]
 	};
 }
