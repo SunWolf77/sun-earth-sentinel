@@ -50,7 +50,7 @@ export const SITE = {
   twitterCreator: "@Sunwolf77",
   ogImagePath: "/og.png",
   /** Bump when og.png or branding changes — forces X image CDN re-fetch */
-  ogImageVersion: "7",
+  ogImageVersion: "8",
   sharePath: "/share.html",
   themeColor: "#070b12",
   slug: "sun-earth-sentinel",
@@ -114,7 +114,7 @@ export function xCardDebugReport(origin = getSiteOrigin()) {
     card: "summary_large_image",
     notes: [
       "X caches cards per exact URL — old tweets keep old scrapes forever.",
-      "Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=7 to force re-scrape.",
+      "Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=8 to force re-scrape.",
       "SSR head tags use PRODUCTION_ORIGIN so Twitterbot sees the right host (no JS).",
       "og.png must be image/png on this host — not HTML.",
       "Always share https:// links.",
