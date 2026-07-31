@@ -153,7 +153,7 @@ export function AboutPanel() {
           </a>
           <a
             href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-              `${SITE.name}\n${absoluteUrl("/?v=3")}`,
+              `${SITE.name}\n${absoluteUrl("/?v=5")}`,
             )}`}
             target="_blank"
             rel="noopener noreferrer"

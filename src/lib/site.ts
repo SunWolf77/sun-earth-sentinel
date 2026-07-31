@@ -1,36 +1,15 @@
 /**
  * Public site identity for Open Graph / X (Twitter) cards.
  *
- * X caches cards per exact URL. Bump `ogImageVersion` when the image or
- * copy changes so scrapers fetch a new image. For a full card re-scrape of
- * the *page*, post a new URL variant (e.g. ?v=4) or /share.html.
+ * IMPORTANT: Twitterbot does NOT run JS. SSR head tags must use the public
+ * production origin — never ephemeral VERCEL_URL. Bump ogImageVersion when
+ * the image changes; post a new URL (?v=N or /share.html) for a full re-scrape.
  *
  * Published slug: sun-earth-sentinel (replaces sol-earth-wolfwatch-sentinel).
  */
 
-/** Live production origin (no trailing slash). */
+/** Live production origin (no trailing slash). Canonical for share cards. */
 export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.grok.me";
-
-const ENV_CANDIDATES = () => {
-  const fromVite = (() => {
-    try {
-      return (import.meta as ImportMeta & { env?: Record<string, string> }).env
-        ?.VITE_SITE_URL;
-    } catch {
-      return undefined;
-    }
-  })();
-
-  const fromProcess =
-    typeof process !== "undefined"
-      ? process.env.VITE_SITE_URL ||
-        process.env.SITE_URL ||
-        process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-        process.env.VERCEL_URL
-      : undefined;
-
-  return [fromVite, fromProcess, PRODUCTION_ORIGIN].filter(Boolean) as string[];
-};
 
 function normalizeOrigin(raw: string): string {
   let s = (raw || "").trim();
@@ -39,9 +18,22 @@ function normalizeOrigin(raw: string): string {
   return s.replace(/\/$/, "");
 }
 
+/**
+ * Origin used for og:url / twitter:image / canonical.
+ * Prefer explicit VITE_SITE_URL (local override), else always the public slug.
+ * Do NOT use VERCEL_URL — it breaks X cards when the project was renamed.
+ */
 export function getSiteOrigin(): string {
-  for (const c of ENV_CANDIDATES()) {
-    const n = normalizeOrigin(c);
+  try {
+    const vite = (import.meta as ImportMeta & { env?: Record<string, string> })
+      .env?.VITE_SITE_URL;
+    const n = normalizeOrigin(vite || "");
+    if (n) return n;
+  } catch {
+    /* SSR / edge */
+  }
+  if (typeof process !== "undefined") {
+    const n = normalizeOrigin(process.env.VITE_SITE_URL || process.env.SITE_URL || "");
     if (n) return n;
   }
   return PRODUCTION_ORIGIN;
@@ -59,12 +51,10 @@ export const SITE = {
   twitter: "@Sunwolf77",
   twitterCreator: "@Sunwolf77",
   ogImagePath: "/og.png",
-  /** Bump when og.png changes — forces X image CDN re-fetch */
-  ogImageVersion: "4",
-  /** Post this if root URL card is stuck in X cache */
+  /** Bump when og.png or branding changes — forces X image CDN re-fetch */
+  ogImageVersion: "5",
   sharePath: "/share.html",
   themeColor: "#070b12",
-  /** Published app slug (path / project name) */
   slug: "sun-earth-sentinel",
 };
 
@@ -126,11 +116,10 @@ export function xCardDebugReport(origin = getSiteOrigin()) {
     card: "summary_large_image",
     notes: [
       "X caches cards per exact URL — old tweets keep old scrapes forever.",
-      "Post a NEW tweet with the NEW host (sun-earth-sentinel) or ?v=4 to force re-scrape.",
-      "Unpublishing the old sol-earth-wolfwatch-sentinel slug is fine — new URL = fresh card.",
-      "og.png is 1200x630 PNG — within X limits.",
-      "HTTP 308 → HTTPS; always share https:// links.",
-      "Card Validator UI is deprecated; X scrapes on post time only.",
+      "Post a NEW tweet with https://sun-earth-sentinel.grok.me/?v=5 to force re-scrape.",
+      "SSR head tags use PRODUCTION_ORIGIN so Twitterbot sees the right host (no JS).",
+      "og.png must be image/png on this host — not HTML.",
+      "Always share https:// links.",
     ],
   };
 }
