@@ -3,8 +3,9 @@
  * Spec: https://www.w3.org/TR/appmanifest/#shortcuts-member
  */
 
-import type { TabId, TimeWindow } from "@/store/observatory";
-import type { MapOverlayId } from "@/lib/feeds/mapStyles";
+import type { TabId, TimeWindow, MapView } from "@/store/observatory";
+import type { MapOverlayId, BasemapStyleId } from "@/lib/feeds/mapStyles";
+import type { PerformanceMode } from "@/lib/feeds/modes";
 
 export const TAB_IDS: TabId[] = ["live", "solar", "resonance", "analytics", "about"];
 
@@ -78,9 +79,17 @@ export type ViewDeepLink = {
   window?: TimeWindow;
   minMag?: number;
   layers?: Partial<Record<MapOverlayId, boolean>>;
+  mode?: PerformanceMode;
+  mapView?: MapView;
+  basemap?: BasemapStyleId;
+  /** When true, layers list is exclusive (unlisted = off). */
+  layersExclusive?: boolean;
 };
 
 const WINDOWS: TimeWindow[] = ["hour", "day", "week", "month"];
+const MODES: PerformanceMode[] = ["lite", "standard", "full"];
+const MAP_VIEWS: MapView[] = ["2d", "3d"];
+const BASEMAPS: BasemapStyleId[] = ["soft", "dark", "satellite", "topo"];
 const LAYER_IDS: MapOverlayId[] = [
   "quakes",
   "heatmap",
@@ -95,7 +104,7 @@ const LAYER_IDS: MapOverlayId[] = [
   "corridors",
 ];
 
-/** Parse shareable view: ?tab=&node=&window=&mag=&layers=quakes,plates */
+/** Parse shareable view: ?tab=&node=&window=&mag=&layers=&mode=&view=&basemap= */
 export function viewFromLocation(loc?: Location): ViewDeepLink {
   if (typeof window === "undefined" && !loc) return {};
   const L = loc ?? window.location;
@@ -106,6 +115,7 @@ export function viewFromLocation(loc?: Location): ViewDeepLink {
     if (tab) out.tab = tab;
     const node = q.get("node");
     if (node) out.node = node;
+    else if (q.has("node")) out.node = null;
     const w = q.get("window") as TimeWindow | null;
     if (w && WINDOWS.includes(w)) out.window = w;
     const mag = q.get("mag");
@@ -113,8 +123,14 @@ export function viewFromLocation(loc?: Location): ViewDeepLink {
       const n = Number(mag);
       if (Number.isFinite(n) && n >= 2 && n <= 8) out.minMag = n;
     }
+    const mode = q.get("mode") as PerformanceMode | null;
+    if (mode && MODES.includes(mode)) out.mode = mode;
+    const view = q.get("view") as MapView | null;
+    if (view && MAP_VIEWS.includes(view)) out.mapView = view;
+    const basemap = q.get("basemap") as BasemapStyleId | null;
+    if (basemap && BASEMAPS.includes(basemap)) out.basemap = basemap;
     const layers = q.get("layers");
-    if (layers) {
+    if (layers != null && layers !== "") {
       const on = new Set(
         layers
           .split(",")
@@ -123,10 +139,10 @@ export function viewFromLocation(loc?: Location): ViewDeepLink {
       );
       const partial: Partial<Record<MapOverlayId, boolean>> = {};
       for (const id of LAYER_IDS) {
-        if (on.has(id)) partial[id] = true;
+        partial[id] = on.has(id);
       }
-      // If any layer named, turn listed on; leave others for apply side
-      if (Object.keys(partial).length) out.layers = partial;
+      out.layers = partial;
+      out.layersExclusive = true;
     }
   } catch {
     /* */
@@ -141,6 +157,9 @@ export function syncViewToUrl(opts: {
   window: TimeWindow;
   minMag: number;
   overlays: Record<MapOverlayId, boolean>;
+  mode?: PerformanceMode;
+  mapView?: MapView;
+  basemap?: BasemapStyleId;
 }): void {
   if (typeof window === "undefined") return;
   try {
@@ -151,6 +170,12 @@ export function syncViewToUrl(opts: {
     else url.searchParams.delete("node");
     url.searchParams.set("window", opts.window);
     url.searchParams.set("mag", String(opts.minMag));
+    if (opts.mode) url.searchParams.set("mode", opts.mode);
+    else url.searchParams.delete("mode");
+    if (opts.mapView) url.searchParams.set("view", opts.mapView);
+    else url.searchParams.delete("view");
+    if (opts.basemap) url.searchParams.set("basemap", opts.basemap);
+    else url.searchParams.delete("basemap");
     const on = LAYER_IDS.filter((id) => opts.overlays[id]);
     if (on.length) url.searchParams.set("layers", on.join(","));
     else url.searchParams.delete("layers");

@@ -86,6 +86,27 @@ export type MobileSheet = "closed" | "filters" | "events";
 export type MapView = "2d" | "3d";
 export type TimeWindow = "hour" | "day" | "week" | "month";
 
+/** Wall-clock ms of last successful pull per domain (null = never this session). */
+export type FeedTimestamps = {
+  eq: number | null;
+  solar: number | null;
+  volc: number | null;
+  geofon: number | null;
+  global: number | null;
+  pulse: number | null;
+  donki: number | null;
+};
+
+export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
+  eq: null,
+  solar: null,
+  volc: null,
+  geofon: null,
+  global: null,
+  pulse: null,
+  donki: null,
+};
+
 export type DijHistoryPoint = {
   t: number;
   d_ij: number | null;
@@ -176,6 +197,14 @@ type ObservatoryState = {
   /** Marker opacity 0.2–1. */
   globeMarkerOpacity: number;
 
+  /** Per-domain last successful fetch (honest layer health). */
+  feedTimestamps: FeedTimestamps;
+
+  /** Event replay: only show quakes with time <= cursor (educational). */
+  replayActive: boolean;
+  replayCursorMs: number | null;
+  replayPlaying: boolean;
+
   eq: EqCollection | null;
   volc: EqCollection | null;
   usgsVolcAlerts: UsgsVolcanoAlert[];
@@ -241,6 +270,10 @@ type ObservatoryState = {
   clearMapFlyTo: () => void;
   antipodeOf: (lat: number, lon: number) => void;
   clearGlobeAntipode: () => void;
+  setReplayActive: (on: boolean) => void;
+  setReplayCursorMs: (ms: number | null) => void;
+  setReplayPlaying: (on: boolean) => void;
+  exitReplay: () => void;
   refresh: (force?: boolean) => Promise<void>;
   pulseRealtime: (kind?: "hour" | "significant" | "ws") => Promise<void>;
   /** Call once on client mount — applies saved/mobile mode without SSR mismatch */
@@ -395,6 +428,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   globeMarkerScale: 1.2,
   globeSpinSpeed: 1,
   globeMarkerOpacity: 0.82,
+  feedTimestamps: { ...EMPTY_FEED_TIMESTAMPS },
+  replayActive: false,
+  replayCursorMs: null,
+  replayPlaying: false,
 
   eq: null,
   volc: null,
@@ -721,6 +758,33 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }
   },
 
+  setReplayActive: (on) => {
+    if (!on) {
+      set({ replayActive: false, replayPlaying: false, replayCursorMs: null });
+      return;
+    }
+    const feats = get().eq?.features ?? [];
+    const times = feats
+      .map((f) => f.properties.time)
+      .filter((t): t is number => typeof t === "number")
+      .sort((a, b) => a - b);
+    const start = times[0] ?? Date.now() - 86_400_000;
+    set({
+      replayActive: true,
+      replayPlaying: false,
+      replayCursorMs: start,
+      autoRefresh: false,
+    });
+  },
+  setReplayCursorMs: (ms) => set({ replayCursorMs: ms }),
+  setReplayPlaying: (on) => set({ replayPlaying: on }),
+  exitReplay: () =>
+    set({
+      replayActive: false,
+      replayPlaying: false,
+      replayCursorMs: null,
+    }),
+
   refresh: async (force = false) => {
     const { mode, timeWindow, loading, useGeofon, audioAlerts } = get();
     if (loading && !force) return;
@@ -752,6 +816,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       const tasks: Promise<void>[] = [];
       let pulse: EqCollection | null = null;
       let geofon: EqCollection | null = null;
+      const stamps: Partial<FeedTimestamps> = {};
+      const stamp = (k: keyof FeedTimestamps) => {
+        stamps[k] = Date.now();
+      };
 
       if (!eq) {
         tasks.push(
@@ -759,15 +827,20 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .then((d) => {
               eq = d;
               setCache("eq", d);
+              stamp("eq");
             })
             .catch(() => {}),
         );
+      } else if (!get().feedTimestamps.eq) {
+        stamps.eq = Date.now();
       }
       tasks.push(
         withTimeout(fetchRealtimePulse(), 12_000, "usgs-pulse")
           .then((d) => {
             pulse = d;
             setCache("eq_pulse", d);
+            stamp("pulse");
+            stamp("eq");
           })
           .catch(() => {
             pulse = getCache<EqCollection>("eq_pulse", 120_000);
@@ -779,6 +852,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .then((d) => {
               geofon = d;
               setCache("geofon", d);
+              stamp("geofon");
             })
             .catch(() => {
               geofon = getCache<EqCollection>("geofon", 300_000);
@@ -816,17 +890,20 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               if (d.ovation) setCache("ovation", d.ovation);
               if (d.protons.length) setCache("protons", d.protons);
               if (d.kpForecast?.length) setCache("kp_fc", d.kpForecast);
+              stamp("solar");
             })
             .catch(() => {
               /* keep cached */
             }),
         );
       } else {
+        if ((kp?.length || scales) && !get().feedTimestamps.solar) stamps.solar = Date.now();
         if (!kp) {
           tasks.push(
             withTimeout(fetchKp(), 15_000, "kp")
               .then((d) => {
                 kp = d;
+                stamp("solar");
                 setCache("kp", d);
               })
               .catch(() => {}),
@@ -837,6 +914,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             withTimeout(fetchXrays(), 15_000, "xray")
               .then((d) => {
                 xray = d;
+                stamp("solar");
                 setCache("xray", d);
               })
               .catch(() => {}),
@@ -847,6 +925,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             withTimeout(fetchAlerts(), 12_000, "alerts")
               .then((d) => {
                 alerts = d;
+                stamp("solar");
                 setCache("alerts", d);
               })
               .catch(() => {}),
@@ -860,6 +939,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .then((d) => {
               donki = d;
               setCache("donki", d);
+              stamp("donki");
+              stamp("solar");
             })
             .catch(() => {}),
         );
@@ -871,6 +952,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .then((d) => {
               volc = d;
               if (d) setCache("volc", d);
+              stamp("volc");
             })
             .catch(() => {}),
         );
@@ -883,6 +965,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .then((d) => {
               usgsVolcAlerts = d;
               setCache("usgs_volc_alerts", d);
+              stamp("volc");
             })
             .catch(() => {}),
         );
@@ -897,6 +980,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .then((d) => {
               globalSeismic = d;
               setCache("global_seismic", d);
+              stamp("global");
             })
             .catch(() => {}),
         );
@@ -1032,6 +1116,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         lastUpdate: Date.now(),
         newestEventAgeMs,
         livePulseAt: pulse ? Date.now() : get().livePulseAt,
+        feedTimestamps: { ...get().feedTimestamps, ...stamps },
         error: null,
       });
 
@@ -1119,10 +1204,16 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           minMag: 4.5,
         });
       }
+      const now = Date.now();
       set({
         eq: eqFinal,
-        livePulseAt: Date.now(),
+        livePulseAt: now,
         newestEventAgeMs: latestEventAgeMs(eqFinal?.features),
+        feedTimestamps: {
+          ...get().feedTimestamps,
+          pulse: now,
+          eq: now,
+        },
       });
     } catch {
       /* silent */
@@ -1161,6 +1252,25 @@ export function viewEvents(
     list = list.filter((f) => {
       const [lon, lat] = f.geometry.coordinates;
       return pointInBounds(lat, lon, node.bounds);
+    });
+  }
+  return list;
+}
+
+/** Events visible under current filters + optional replay cursor. */
+export function replayFilteredFeatures(
+  features: EqFeature[] | undefined,
+  minMag: number,
+  maxMag: number,
+  focusNodeId: string | null,
+  replayActive: boolean,
+  replayCursorMs: number | null,
+): EqFeature[] {
+  let list = viewEvents(features, minMag, focusNodeId, maxMag);
+  if (replayActive && replayCursorMs != null) {
+    list = list.filter((f) => {
+      const t = f.properties.time;
+      return typeof t === "number" && t <= replayCursorMs;
     });
   }
   return list;

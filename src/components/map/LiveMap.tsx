@@ -30,6 +30,7 @@ import { NodeFocusBanner } from "@/components/nodes/NodeFocusPanel";
 import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
+import { EventReplayBar } from "@/components/map/EventReplayBar";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -78,6 +79,8 @@ export function LiveMap() {
   const focusMmi = useObservatory((s) => s.focusMmi);
   const mapFlyTo = useObservatory((s) => s.mapFlyTo);
   const clearMapFlyTo = useObservatory((s) => s.clearMapFlyTo);
+  const replayActive = useObservatory((s) => s.replayActive);
+  const replayCursorMs = useObservatory((s) => s.replayCursorMs);
 
   useEffect(() => {
     try {
@@ -290,6 +293,14 @@ export function LiveMap() {
     // Significant M6+ mode: keep only strong events when filter is on
     if (overlays.significant) {
       features = features.filter((f) => (f.properties.mag ?? 0) >= 6);
+    }
+
+    // Event replay cursor — educational filter (time <= cursor)
+    if (replayActive && replayCursorMs != null) {
+      features = features.filter((f) => {
+        const t = f.properties.time;
+        return typeof t === "number" && t <= replayCursorMs;
+      });
     }
 
     heatLayer.current?.setData(
@@ -540,6 +551,9 @@ export function LiveMap() {
     globalSeismic,
     overlays.globalActivity,
     overlays.significant,
+  ,
+    replayActive,
+    replayCursorMs,
   ]);
 
   useEffect(() => {
@@ -637,6 +651,7 @@ export function LiveMap() {
         <>
           <MapLegend />
           <MapStyleControl />
+          <EventReplayBar />
         </>
       )}
 

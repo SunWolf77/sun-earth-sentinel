@@ -124,32 +124,51 @@ function ObservatoryApp() {
   const overlays = useObservatory((s) => s.overlays);
   const setOverlaysBulk = useObservatory((s) => s.setOverlaysBulk);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
+  const setBasemapStyle = useObservatory((s) => s.setBasemapStyle);
+  const basemapStyle = useObservatory((s) => s.basemapStyle);
 
   useEffect(() => {
     bootstrapClientDefaults();
     // Apply shareable deep link once
     try {
       const v = viewFromLocation();
+      if (v.mode) setMode(v.mode);
       if (v.tab) setTab(v.tab);
       if (v.window) setTimeWindow(v.window);
       if (v.minMag != null) setMinMag(v.minMag);
+      if (v.mapView) setMapView(v.mapView);
+      if (v.basemap) setBasemapStyle(v.basemap);
       if (v.node) {
         const ok = getAllFocusNodes().some((n) => n.id === v.node);
         if (ok) setFocusNode(v.node);
       }
       if (v.layers && setOverlaysBulk) {
-        const next = { ...useObservatory.getState().overlays };
+        const base = useObservatory.getState().overlays;
+        const next = { ...base };
+        if (v.layersExclusive) {
+          for (const k of Object.keys(next) as (keyof typeof next)[]) next[k] = false;
+        }
         for (const [k, on] of Object.entries(v.layers)) {
           if (k in next) next[k as keyof typeof next] = !!on;
         }
-        // If layers param listed some on, turn those on (keep others as bootstrapped)
         setOverlaysBulk(next);
       }
     } catch {
       /* */
     }
     void refresh(true);
-  }, [refresh, bootstrapClientDefaults, setTab, setTimeWindow, setMinMag, setFocusNode, setOverlaysBulk]);
+  }, [
+    refresh,
+    bootstrapClientDefaults,
+    setTab,
+    setTimeWindow,
+    setMinMag,
+    setFocusNode,
+    setOverlaysBulk,
+    setMode,
+    setMapView,
+    setBasemapStyle,
+  ]);
 
   // Surface stuck first load (never leave users on "updated —" with a black map)
   useEffect(() => {
@@ -172,14 +191,28 @@ function ObservatoryApp() {
     if (t) setTab(t);
     const onPop = () => {
       const v = viewFromLocation();
+      if (v.mode) setMode(v.mode);
       if (v.tab) setTab(v.tab);
       if (v.window) setTimeWindow(v.window);
       if (v.minMag != null) setMinMag(v.minMag);
+      if (v.mapView) setMapView(v.mapView);
+      if (v.basemap) setBasemapStyle(v.basemap);
       if (v.node !== undefined) setFocusNode(v.node);
+      if (v.layers && setOverlaysBulk) {
+        const base = useObservatory.getState().overlays;
+        const next = { ...base };
+        if (v.layersExclusive) {
+          for (const k of Object.keys(next) as (keyof typeof next)[]) next[k] = false;
+        }
+        for (const [k, on] of Object.entries(v.layers)) {
+          if (k in next) next[k as keyof typeof next] = !!on;
+        }
+        setOverlaysBulk(next);
+      }
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [setTab, setTimeWindow, setMinMag, setFocusNode]);
+  }, [setTab, setTimeWindow, setMinMag, setFocusNode, setMode, setMapView, setBasemapStyle, setOverlaysBulk]);
 
   useEffect(() => {
     syncViewToUrl({
@@ -188,8 +221,11 @@ function ObservatoryApp() {
       window: timeWindow,
       minMag,
       overlays,
+      mode,
+      mapView,
+      basemap: basemapStyle,
     });
-  }, [tab, focusNodeId, timeWindow, minMag, overlays]);
+  }, [tab, focusNodeId, timeWindow, minMag, overlays, mode, mapView, basemapStyle]);
 
   useEffect(() => {
     if (fullTimer.current) clearInterval(fullTimer.current);
@@ -464,9 +500,12 @@ function ObservatoryApp() {
                 try {
                   await navigator.clipboard.writeText(shareableViewUrl());
                   setCopiedShare(true);
+                  setToast("Shareable view link copied");
                   window.setTimeout(() => setCopiedShare(false), 1600);
+                  window.setTimeout(() => setToast(null), 2000);
                 } catch {
-                  /* */
+                  setToast("Could not copy link — copy the address bar URL");
+                  window.setTimeout(() => setToast(null), 2500);
                 }
               }}
             >

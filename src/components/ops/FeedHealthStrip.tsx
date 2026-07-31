@@ -7,6 +7,7 @@ export function FeedHealthStrip({ compact = false }: { compact?: boolean }) {
   const loading = useObservatory((s) => s.loading);
   const lastUpdate = useObservatory((s) => s.lastUpdate);
   const livePulseAt = useObservatory((s) => s.livePulseAt);
+  const feedTimestamps = useObservatory((s) => s.feedTimestamps);
   const eq = useObservatory((s) => s.eq);
   const scales = useObservatory((s) => s.scales);
   const usgsVolcAlerts = useObservatory((s) => s.usgsVolcAlerts);
@@ -14,7 +15,7 @@ export function FeedHealthStrip({ compact = false }: { compact?: boolean }) {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTick((n) => n + 1), 15_000);
+    const id = window.setInterval(() => setTick((n) => n + 1), 10_000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -28,18 +29,29 @@ export function FeedHealthStrip({ compact = false }: { compact?: boolean }) {
       hasScales: !!scales,
       hasVolc: usgsVolcAlerts.length > 0 || !!(eq && lastUpdate),
       error,
+      feedTimestamps,
     });
-  }, [tick, loading, lastUpdate, livePulseAt, eq, scales, usgsVolcAlerts.length, error]);
+  }, [
+    tick,
+    loading,
+    lastUpdate,
+    livePulseAt,
+    eq,
+    scales,
+    usgsVolcAlerts.length,
+    error,
+    feedTimestamps,
+  ]);
 
   return (
     <div
       className={`flex flex-wrap items-center gap-1 ${compact ? "text-[0.55rem]" : "text-[0.6rem]"}`}
-      aria-label="Feed health"
+      aria-label="Feed health — per-layer timestamps"
     >
       {rows.map((r) => (
         <span
           key={r.id}
-          title={`${r.label}: ${r.detail}`}
+          title={`${r.label}: last successful pull ${r.detail}`}
           className={`inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 font-mono ${
             r.status === "ok"
               ? "border-ok/30 bg-ok/10 text-ok"
