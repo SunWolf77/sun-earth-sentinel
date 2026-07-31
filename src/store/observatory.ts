@@ -1,0 +1,1167 @@
+import { create } from "zustand";
+import {
+  fetchEarthquakes,
+  fetchVolcanoes,
+  fetchRealtimePulse,
+  fetchSignificantPulse,
+  mergeEqCollections,
+  capFeaturesForMode,
+  latestEventAgeMs,
+  DRAGON_NODES,
+  priorityNodeBounds,
+  type DragonNode,
+  type EqCollection,
+  type EqFeature,
+} from "@/lib/feeds/usgs";
+import { fetchGeofonWeek } from "@/lib/feeds/geofon";
+import { alertNewEvents } from "@/lib/audio/alerts";
+import {
+  fetchKp,
+  fetchXrays,
+  fetchAlerts,
+  type KpPoint,
+  type XrayPoint,
+  type SolarWind,
+  type NoaaScales,
+  type Flux10cm,
+  type ProtonPoint,
+  type ForecastBundle,
+  type EnlilFrame,
+  type OvationFrame,
+  type KpForecastPoint,
+} from "@/lib/feeds/swpc";
+import type { DonkiBundle } from "@/lib/feeds/donki";
+import { fetchDonkiBundle, fetchSolarCore } from "@/lib/feeds/solarProxy";
+import { MODES, type PerformanceMode } from "@/lib/feeds/modes";
+import {
+  diffVolcWatch,
+  fetchUsgsElevatedVolcanoes,
+  type UsgsVolcanoAlert,
+  type VolcWatchTransition,
+} from "@/lib/feeds/usgsVolcanoAlerts";
+import { fetchGlobalSeismic, type GlobalSeismicBundle } from "@/lib/feeds/globalSeismic";
+import {
+  buildWatchNodes,
+  loadMutes,
+  loadPins,
+  saveMutes,
+  savePins,
+  alertKey,
+} from "@/lib/feeds/watchlistOverride";
+import type { LiveStatus } from "@/lib/realtime/transport";
+import {
+  resonanceScore,
+  readingSummary,
+  interEventSeconds,
+  type ResonanceScore,
+} from "@/lib/supt/probe";
+import {
+  getCache,
+  setCache,
+  getHistory,
+  pushHistory,
+  pruneCache,
+  type AttentionHistoryPoint,
+} from "@/lib/cache/localCache";
+import { defaultPerformanceMode, historyCap, isMobileViewport } from "@/lib/device";
+import { interpretSolar, type SolarAssessment } from "@/lib/solar/suptInterpreter";
+import { fluxToClass, longChannelXrays } from "@/lib/feeds/swpc";
+import {
+  loadBasemapStyle,
+  loadOverlays,
+  type BasemapStyleId,
+  type MapOverlayId,
+} from "@/lib/feeds/mapStyles";
+import {
+  resolveFocusMmiEvent,
+  fetchMmiContours,
+  type MmiContourCollection,
+} from "@/lib/seismology/shakemap";
+import { pointInBounds } from "@/lib/geo/bounds";
+
+type AlertItem = { message?: string; issue_datetime?: string };
+
+export type TabId = "live" | "solar" | "resonance" | "analytics" | "about";
+export type MobileSheet = "closed" | "filters" | "events";
+export type MapView = "2d" | "3d";
+export type TimeWindow = "hour" | "day" | "week" | "month";
+
+export type DijHistoryPoint = {
+  t: number;
+  d_ij: number | null;
+  n: number;
+  z?: number | null;
+};
+
+export type FocusMmiState = {
+  status: "idle" | "loading" | "ready" | "empty" | "error";
+  eventId: string | null;
+  place: string | null;
+  mag: number | null;
+  mmi: number | null;
+  shakeMapUrl: string | null;
+  contours: MmiContourCollection | null;
+  error: string | null;
+  dismissed: boolean;
+};
+
+/** Picked quake from globe click / event list (for antipode + highlight). */
+export type PickedEvent = {
+  id: string;
+  lat: number;
+  lon: number;
+  mag: number;
+  place: string;
+  depth: number;
+  time: number | null;
+  url?: string;
+};
+
+const EMPTY_FOCUS_MMI: FocusMmiState = {
+  status: "idle",
+  eventId: null,
+  place: null,
+  mag: null,
+  mmi: null,
+  shakeMapUrl: null,
+  contours: null,
+  error: null,
+  dismissed: false,
+};
+
+export function filteredEq(
+  features: EqFeature[] | undefined,
+  minMag: number,
+  maxMag = 10,
+): EqFeature[] {
+  if (!features?.length) return [];
+  return features.filter((f) => {
+    const m = f.properties.mag ?? 0;
+    return m >= minMag && m <= maxMag;
+  });
+}
+
+type ObservatoryState = {
+  mode: PerformanceMode;
+  tab: TabId;
+  mobileSheet: MobileSheet;
+  mapView: MapView;
+  timeWindow: TimeWindow;
+  minMag: number;
+  maxMag: number;
+  autoRefresh: boolean;
+  loading: boolean;
+  lastUpdate: number | null;
+  newestEventAgeMs: number | null;
+  livePulseAt: number | null;
+  error: string | null;
+  focusNodeId: string | null;
+  focusMmi: FocusMmiState;
+  mapFlyTo: { lat: number; lon: number; zoom?: number; id?: string } | null;
+  globeAntipode: { lat: number; lon: number } | null;
+  pickedEvent: PickedEvent | null;
+
+  basemapStyle: BasemapStyleId;
+  overlays: Record<MapOverlayId, boolean>;
+
+  useGeofon: boolean;
+  audioAlerts: boolean;
+  globeAutoSpin: boolean;
+  /** Public-globe style: depth stem height multiplier (0.04–0.4). */
+  globeStemScale: number;
+  /** Public-globe style: hex / marker size multiplier. */
+  globeMarkerScale: number;
+  /** Auto-rotate speed multiplier. */
+  globeSpinSpeed: number;
+  /** Marker opacity 0.2–1. */
+  globeMarkerOpacity: number;
+
+  eq: EqCollection | null;
+  volc: EqCollection | null;
+  usgsVolcAlerts: UsgsVolcanoAlert[];
+  /** Dynamic watch nodes while elevated (gone when green) */
+  volcWatchNodes: DragonNode[];
+  /** Recent elevate / baseline transitions for toasts & list */
+  volcWatchTransitions: VolcWatchTransition[];
+  /** Manual pin (keep after green) / mute (hide while elevated) — vnum keys */
+  volcWatchPins: string[];
+  volcWatchMutes: string[];
+  globalSeismic: GlobalSeismicBundle | null;
+  liveStatus: LiveStatus;
+  liveStatusDetail: string | null;
+  kp: KpPoint[];
+  xray: XrayPoint[];
+  solarWind: SolarWind | null;
+  scales: NoaaScales | null;
+  alerts: AlertItem[];
+  flux10cm: Flux10cm | null;
+  protons: ProtonPoint[];
+  forecast: ForecastBundle | null;
+  enlil: EnlilFrame | null;
+  ovation: OvationFrame | null;
+  donki: DonkiBundle | null;
+  kpForecast: KpForecastPoint[];
+  /** Cached SUPT solar assessment — single compute per refresh */
+  solarAssessment: SolarAssessment | null;
+  attentionHistory: AttentionHistoryPoint[];
+
+  resonance: ResonanceScore | null;
+  reading: string;
+  dijHistory: DijHistoryPoint[];
+
+  setMode: (m: PerformanceMode) => void;
+  setTab: (t: TabId) => void;
+  setMobileSheet: (s: MobileSheet) => void;
+  setMapView: (v: MapView) => void;
+  setTimeWindow: (w: TimeWindow) => void;
+  setMinMag: (m: number) => void;
+  setMaxMag: (m: number) => void;
+  setAutoRefresh: (v: boolean) => void;
+  setFocusNode: (id: string | null) => void;
+  setBasemapStyle: (id: BasemapStyleId) => void;
+  setOverlay: (id: MapOverlayId, on: boolean) => void;
+  setOverlaysBulk: (next: Record<MapOverlayId, boolean>) => void;
+  pinVolcWatch: (key: string) => void;
+  unpinVolcWatch: (key: string) => void;
+  muteVolcWatch: (key: string) => void;
+  unmuteVolcWatch: (key: string) => void;
+  setLiveStatus: (s: LiveStatus, detail?: string | null) => void;
+  rebuildVolcWatch: () => void;
+  setUseGeofon: (v: boolean) => void;
+  setAudioAlerts: (v: boolean) => void;
+  setGlobeAutoSpin: (v: boolean) => void;
+  setGlobeStemScale: (v: number) => void;
+  setGlobeMarkerScale: (v: number) => void;
+  setGlobeSpinSpeed: (v: number) => void;
+  setGlobeMarkerOpacity: (v: number) => void;
+  pickEvent: (ev: PickedEvent | null) => void;
+  dismissFocusMmi: () => void;
+  loadFocusMmi: () => Promise<void>;
+  flyMapTo: (lat: number, lon: number, zoom?: number, id?: string) => void;
+  clearMapFlyTo: () => void;
+  antipodeOf: (lat: number, lon: number) => void;
+  clearGlobeAntipode: () => void;
+  refresh: (force?: boolean) => Promise<void>;
+  pulseRealtime: (kind?: "hour" | "significant" | "ws") => Promise<void>;
+  /** Call once on client mount — applies saved/mobile mode without SSR mismatch */
+  bootstrapClientDefaults: () => void;
+};
+
+function loadMode(): PerformanceMode {
+  try {
+    const m = localStorage.getItem("wolfwatch_mode");
+    if (m === "lite" || m === "standard" || m === "full") return m;
+    // First open — no preference yet
+    const def = defaultPerformanceMode();
+    try {
+      localStorage.setItem("wolfwatch_mode", def);
+      localStorage.setItem("wolfwatch_first_open", isMobileViewport() ? "mobile" : "desktop");
+    } catch { /* ignore */ }
+    return def;
+  } catch {
+    /* ignore */
+  }
+  return defaultPerformanceMode();
+}
+
+function loadBool(key: string, fallback: boolean): boolean {
+  try {
+    const v = localStorage.getItem(key);
+    if (v === "1" || v === "true") return true;
+    if (v === "0" || v === "false") return false;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+function loadNum(key: string, fallback: number, min: number, max: number): number {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return fallback;
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  } catch {
+    return fallback;
+  }
+}
+
+function saveNum(key: string, v: number) {
+  try {
+    localStorage.setItem(key, String(v));
+  } catch {
+    /* ignore */
+  }
+}
+
+function safeHistory(): DijHistoryPoint[] {
+  if (typeof window === "undefined") return [];
+  return getHistory<DijHistoryPoint>("dij", historyCap());
+}
+
+function safeAttentionHistory(): AttentionHistoryPoint[] {
+  if (typeof window === "undefined") return [];
+  return getHistory<AttentionHistoryPoint>("attn", historyCap());
+}
+
+function buildSolarAssessmentFromState(s: {
+  scales: NoaaScales | null;
+  solarWind: SolarWind | null;
+  kp: KpPoint[];
+  xray: XrayPoint[];
+  donki: DonkiBundle | null;
+  protons: ProtonPoint[];
+  enlil: EnlilFrame | null;
+  mode: PerformanceMode;
+}): SolarAssessment {
+  const long = longChannelXrays(s.xray);
+  const latest = long.length ? long[long.length - 1] : null;
+  const flux = latest ? latest.flux || latest.observed_flux || 0 : 0;
+  const kpVal = s.kp.length ? Number(s.kp[s.kp.length - 1]!.Kp) : null;
+  return interpretSolar({
+    scales: s.scales,
+    wind: s.solarWind,
+    kp: kpVal,
+    xClass: latest ? fluxToClass(flux) : "—",
+    xray: s.xray,
+    cmes: s.donki?.cmes ?? [],
+    flares: s.donki?.flares ?? [],
+    protons: s.protons,
+    enlilTimeHint: s.enlil?.timeHint,
+    shuffleN: s.mode === "lite" ? 40 : 60,
+  });
+}
+
+let seenEqIds = new Set<string>();
+let mmiAbort: AbortController | null = null;
+
+
+/** Bound hung network so one slow feed cannot freeze lastUpdate forever. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timeout (${ms}ms)`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+export const useObservatory = create<ObservatoryState>((set, get) => ({
+  // SSR-safe defaults (must match server HTML). Client bootstrap adjusts mode.
+  mode: "standard",
+  tab: "live",
+  mobileSheet: "closed",
+  mapView: "2d",
+  timeWindow: "day",
+  minMag: 3.5,
+  maxMag: 10,
+  autoRefresh: true,
+  loading: false,
+  lastUpdate: null,
+  newestEventAgeMs: null,
+  livePulseAt: null,
+  error: null,
+  focusNodeId: null,
+  focusMmi: { ...EMPTY_FOCUS_MMI },
+  mapFlyTo: null,
+  globeAntipode: null,
+  pickedEvent: null,
+  basemapStyle: "satellite",
+  overlays: {
+    quakes: true,
+    heatmap: false,
+    nodes: true,
+    volcanoes: true,
+    corridors: true,
+    depthColor: true,
+    timeDecay: true,
+    mmiContours: true,
+    plates: true,
+    significant: false,
+    globalActivity: false,
+  },
+  useGeofon: false,
+  audioAlerts: false,
+  globeAutoSpin: true,
+  globeStemScale: 0.16,
+  globeMarkerScale: 1.2,
+  globeSpinSpeed: 1,
+  globeMarkerOpacity: 0.82,
+
+  eq: null,
+  volc: null,
+  usgsVolcAlerts: [],
+  volcWatchNodes: [],
+  volcWatchTransitions: [],
+  volcWatchPins: [],
+  volcWatchMutes: [],
+  globalSeismic: null,
+  liveStatus: "polling",
+  liveStatusDetail: null,
+  kp: [],
+  xray: [],
+  solarWind: null,
+  scales: null,
+  alerts: [],
+  flux10cm: null,
+  protons: [],
+  forecast: null,
+  enlil: null,
+  ovation: null,
+  donki: null,
+  kpForecast: [],
+  solarAssessment: null,
+  attentionHistory: [],
+
+  resonance: null,
+  reading: "",
+  dijHistory: [],
+
+  setMode: (m) => {
+    try {
+      localStorage.setItem("wolfwatch_mode", m);
+    } catch {
+      /* ignore */
+    }
+    const prev = get().mode;
+    const prevMin = MODES[prev].minMag;
+    const patch: Partial<ObservatoryState> = { mode: m };
+    // Align mag floor with mode when user was still on previous mode default
+    if (get().minMag === prevMin) patch.minMag = MODES[m].minMag;
+    if (m !== "full" && get().mapView === "3d") patch.mapView = "2d";
+    if (m === "lite") {
+      // Data saver: no 3d, no geofon unless user re-enables
+      patch.mapView = "2d";
+    }
+    set(patch);
+    // Drop heavy caches when entering lite
+    if (m === "lite") {
+      try {
+        pruneCache(true);
+      } catch { /* */ }
+    }
+    void get().refresh(true);
+  },
+  setTab: (t) => set({ tab: t, mobileSheet: "closed" as const }),
+  setMobileSheet: (mobileSheet) => set({ mobileSheet }),
+  setMapView: (v) => set({ mapView: v }),
+  setTimeWindow: (w) => {
+    set({ timeWindow: w });
+    void get().refresh(true);
+  },
+  setMinMag: (m) => set({ minMag: m }),
+  setMaxMag: (m) => set({ maxMag: m }),
+  setAutoRefresh: (v) => set({ autoRefresh: v }),
+  setFocusNode: (id) => {
+    if (mmiAbort) {
+      mmiAbort.abort();
+      mmiAbort = null;
+    }
+    set({
+      focusNodeId: id,
+      mapView: id ? "2d" : get().mapView,
+      tab: "live",
+      mobileSheet: "closed",
+      focusMmi: { ...EMPTY_FOCUS_MMI },
+      pickedEvent: null,
+    });
+    if (id) void get().loadFocusMmi();
+  },
+  flyMapTo: (lat, lon, zoom = 6, id) => {
+    set({
+      tab: "live",
+      mobileSheet: "closed",
+      mapView: "2d",
+      mapFlyTo: { lat, lon, zoom, id },
+    });
+  },
+  clearMapFlyTo: () => set({ mapFlyTo: null }),
+  antipodeOf: (lat, lon) => {
+    const aLat = -lat;
+    let aLon = lon + 180;
+    if (aLon > 180) aLon -= 360;
+    if (aLon < -180) aLon += 360;
+    const full = get().mode === "full";
+    set({
+      tab: "live",
+      mobileSheet: "closed",
+      mapView: full ? "3d" : "2d",
+      globeAntipode: full ? { lat: aLat, lon: aLon } : null,
+      mapFlyTo: full ? null : { lat: aLat, lon: aLon, zoom: 3 },
+    });
+  },
+  clearGlobeAntipode: () => set({ globeAntipode: null }),
+  pickEvent: (ev) => set({ pickedEvent: ev }),
+  setBasemapStyle: (id) => {
+    try {
+      localStorage.setItem("wolfwatch_basemap", id);
+    } catch {
+      /* ignore */
+    }
+    set({ basemapStyle: id });
+  },
+  setOverlay: (id, on) => {
+    const overlays = { ...get().overlays, [id]: on };
+    try {
+      localStorage.setItem("wolfwatch_overlays", JSON.stringify(overlays));
+    } catch {
+      /* ignore */
+    }
+    set({ overlays });
+  },
+  setOverlaysBulk: (next) => {
+    const overlays = { ...next };
+    try {
+      localStorage.setItem("wolfwatch_overlays", JSON.stringify(overlays));
+    } catch {
+      /* ignore */
+    }
+    set({ overlays });
+  },
+  setLiveStatus: (liveStatus, detail = null) =>
+    set({ liveStatus, liveStatusDetail: detail ?? null }),
+  rebuildVolcWatch: () => {
+    const pins = new Set<string>(get().volcWatchPins);
+    const mutes = new Set<string>(get().volcWatchMutes);
+    set({
+      volcWatchNodes: buildWatchNodes(get().usgsVolcAlerts, pins, mutes),
+    });
+  },
+  pinVolcWatch: (key: string) => {
+    const pins = new Set<string>(get().volcWatchPins);
+    pins.add(key);
+    const mutes = new Set<string>(get().volcWatchMutes);
+    mutes.delete(key);
+    savePins(pins);
+    saveMutes(mutes);
+    set({
+      volcWatchPins: [...pins],
+      volcWatchMutes: [...mutes],
+      volcWatchNodes: buildWatchNodes(get().usgsVolcAlerts, pins, mutes),
+    });
+  },
+  unpinVolcWatch: (key: string) => {
+    const pins = new Set<string>(get().volcWatchPins);
+    pins.delete(key);
+    savePins(pins);
+    set({
+      volcWatchPins: [...pins],
+      volcWatchNodes: buildWatchNodes(
+        get().usgsVolcAlerts,
+        pins,
+        new Set<string>(get().volcWatchMutes),
+      ),
+    });
+  },
+  muteVolcWatch: (key: string) => {
+    const mutes = new Set<string>(get().volcWatchMutes);
+    mutes.add(key);
+    const pins = new Set<string>(get().volcWatchPins);
+    pins.delete(key);
+    saveMutes(mutes);
+    savePins(pins);
+    const focus = get().focusNodeId;
+    const nodeId = `usgs-volc-${key}`;
+    set({
+      volcWatchMutes: [...mutes],
+      volcWatchPins: [...pins],
+      volcWatchNodes: buildWatchNodes(get().usgsVolcAlerts, pins, mutes),
+      focusNodeId: focus === nodeId ? null : focus,
+    });
+  },
+  unmuteVolcWatch: (key: string) => {
+    const mutes = new Set<string>(get().volcWatchMutes);
+    mutes.delete(key);
+    saveMutes(mutes);
+    set({
+      volcWatchMutes: [...mutes],
+      volcWatchNodes: buildWatchNodes(
+        get().usgsVolcAlerts,
+        new Set<string>(get().volcWatchPins),
+        mutes,
+      ),
+    });
+  },
+  setUseGeofon: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_geofon", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    set({ useGeofon: v });
+    void get().refresh(true);
+  },
+  setAudioAlerts: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_audio", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    set({ audioAlerts: v });
+  },
+  setGlobeAutoSpin: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_globe_spin", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    set({ globeAutoSpin: v });
+  },
+  setGlobeStemScale: (v) => {
+    const n = Math.min(0.42, Math.max(0.04, v));
+    saveNum("wolfwatch_globe_stem", n);
+    set({ globeStemScale: n });
+  },
+  setGlobeMarkerScale: (v) => {
+    const n = Math.min(3.5, Math.max(0.4, v));
+    saveNum("wolfwatch_globe_hex", n);
+    set({ globeMarkerScale: n });
+  },
+  setGlobeSpinSpeed: (v) => {
+    const n = Math.min(3, Math.max(0.1, v));
+    saveNum("wolfwatch_globe_spd", n);
+    set({ globeSpinSpeed: n });
+  },
+  setGlobeMarkerOpacity: (v) => {
+    const n = Math.min(1, Math.max(0.2, v));
+    saveNum("wolfwatch_globe_opac", n);
+    set({ globeMarkerOpacity: n });
+  },
+  dismissFocusMmi: () =>
+    set({ focusMmi: { ...get().focusMmi, dismissed: true } }),
+
+  loadFocusMmi: async () => {
+    const nodeId = get().focusNodeId;
+    if (!nodeId) return;
+    const node = DRAGON_NODES.find((n) => n.id === nodeId);
+    if (!node || node.kind === "volcano") {
+      set({
+        focusMmi: {
+          ...EMPTY_FOCUS_MMI,
+          status: "empty",
+          error: "No seismic focus for MMI",
+        },
+      });
+      return;
+    }
+    if (!get().overlays.mmiContours) return;
+
+    if (mmiAbort) mmiAbort.abort();
+    const ac = new AbortController();
+    mmiAbort = ac;
+    const signal = ac.signal;
+
+    set({
+      focusMmi: {
+        ...EMPTY_FOCUS_MMI,
+        status: "loading",
+      },
+    });
+
+    try {
+      const features = get().eq?.features ?? [];
+      const candidate = await resolveFocusMmiEvent(features, node.bounds, signal);
+      if (signal.aborted) return;
+      if (!candidate?.id) {
+        set({
+          focusMmi: {
+            ...EMPTY_FOCUS_MMI,
+            status: "empty",
+            error: "No suitable event for ShakeMap MMI",
+          },
+        });
+        return;
+      }
+      const result = await fetchMmiContours(String(candidate.id), signal);
+      if (signal.aborted) return;
+      if (!result) {
+        set({
+          focusMmi: {
+            ...EMPTY_FOCUS_MMI,
+            status: "empty",
+            eventId: String(candidate.id),
+            place: candidate.properties.place,
+            mag: candidate.properties.mag,
+            mmi: candidate.properties.mmi ?? null,
+            error: "No cont_mmi product for this event",
+          },
+        });
+        return;
+      }
+      set({
+        focusMmi: {
+          status: "ready",
+          eventId: result.eventId,
+          place: result.place,
+          mag: result.mag,
+          mmi: result.mmi,
+          shakeMapUrl: result.shakeMapUrl,
+          contours: result.contours,
+          error: null,
+          dismissed: false,
+        },
+      });
+    } catch (e) {
+      if (signal.aborted) return;
+      set({
+        focusMmi: {
+          ...EMPTY_FOCUS_MMI,
+          status: "error",
+          error: e instanceof Error ? e.message : "MMI fetch failed",
+        },
+      });
+    }
+  },
+
+  refresh: async (force = false) => {
+    const { mode, timeWindow, loading, useGeofon, audioAlerts } = get();
+    if (loading && !force) return;
+    const cfg = MODES[mode];
+    try {
+      pruneCache(false);
+    } catch { /* */ }
+    set({ loading: true, error: null });
+
+    try {
+      let eq = force ? null : getCache<EqCollection>("eq", cfg.refreshMs);
+      let kp = force ? null : getCache<KpPoint[]>("kp", cfg.refreshMs);
+      let xray = force ? null : getCache<XrayPoint[]>("xray", cfg.refreshMs * 2);
+      let solarWind = force ? null : getCache<SolarWind>("sw", cfg.refreshMs);
+      let scales = force ? null : getCache<NoaaScales>("scales", 180_000);
+      let alerts = force ? null : getCache<AlertItem[]>("alerts", 120_000);
+      let flux10cm = force ? null : getCache<Flux10cm>("flux10", 300_000);
+      let protons = force ? null : getCache<ProtonPoint[]>("protons", 180_000);
+      let forecast = force ? null : getCache<ForecastBundle>("forecast", 600_000);
+      let enlil = force ? null : getCache<EnlilFrame>("enlil", 600_000);
+      let ovation = force ? null : getCache<OvationFrame>("ovation", 300_000);
+      let donki = force ? null : getCache<DonkiBundle>("donki", 600_000);
+      let kpForecast = force ? null : getCache<KpForecastPoint[]>("kp_fc", 600_000);
+      let volc = force ? null : getCache<EqCollection>("volc", 300_000);
+      let usgsVolcAlerts: UsgsVolcanoAlert[] | null = force
+        ? null
+        : getCache<UsgsVolcanoAlert[]>("usgs_volc_alerts", 300_000);
+
+      const tasks: Promise<void>[] = [];
+      let pulse: EqCollection | null = null;
+      let geofon: EqCollection | null = null;
+
+      if (!eq) {
+        tasks.push(
+          withTimeout(fetchEarthquakes(timeWindow), 20_000, "usgs-eq")
+            .then((d) => {
+              eq = d;
+              setCache("eq", d);
+            })
+            .catch(() => {}),
+        );
+      }
+      tasks.push(
+        withTimeout(fetchRealtimePulse(), 12_000, "usgs-pulse")
+          .then((d) => {
+            pulse = d;
+            setCache("eq_pulse", d);
+          })
+          .catch(() => {
+            pulse = getCache<EqCollection>("eq_pulse", 120_000);
+          }),
+      );
+      if (useGeofon) {
+        tasks.push(
+          withTimeout(fetchGeofonWeek(Math.min(cfg.minMag, 2.5)), 18_000, "geofon")
+            .then((d) => {
+              geofon = d;
+              setCache("geofon", d);
+            })
+            .catch(() => {
+              geofon = getCache<EqCollection>("geofon", 300_000);
+            }),
+        );
+      }
+      // Solar stack via server proxy (CORS-safe) + DONKI
+      if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !forecast || !flux10cm || force)) {
+        tasks.push(
+          withTimeout(
+            fetchSolarCore({ data: { heavy: cfg.loadChart || cfg.loadImage } }),
+            28_000,
+            "solar-core",
+          )
+            .then((d) => {
+              kp = d.kp;
+              xray = d.xray;
+              solarWind = d.solarWind;
+              scales = d.scales;
+              alerts = d.alerts;
+              flux10cm = d.flux10cm;
+              forecast = d.forecast;
+              enlil = d.enlil;
+              ovation = d.ovation;
+              protons = d.protons;
+              kpForecast = d.kpForecast;
+              setCache("kp", d.kp);
+              if (d.xray.length) setCache("xray", d.xray);
+              setCache("sw", d.solarWind);
+              if (d.scales) setCache("scales", d.scales);
+              setCache("alerts", d.alerts);
+              setCache("flux10", d.flux10cm);
+              setCache("forecast", d.forecast);
+              if (d.enlil) setCache("enlil", d.enlil);
+              if (d.ovation) setCache("ovation", d.ovation);
+              if (d.protons.length) setCache("protons", d.protons);
+              if (d.kpForecast?.length) setCache("kp_fc", d.kpForecast);
+            })
+            .catch(() => {
+              /* keep cached */
+            }),
+        );
+      } else {
+        if (!kp) {
+          tasks.push(
+            withTimeout(fetchKp(), 15_000, "kp")
+              .then((d) => {
+                kp = d;
+                setCache("kp", d);
+              })
+              .catch(() => {}),
+          );
+        }
+        if (cfg.loadChart && !xray) {
+          tasks.push(
+            withTimeout(fetchXrays(), 15_000, "xray")
+              .then((d) => {
+                xray = d;
+                setCache("xray", d);
+              })
+              .catch(() => {}),
+          );
+        }
+        if (!alerts) {
+          tasks.push(
+            withTimeout(fetchAlerts(), 12_000, "alerts")
+              .then((d) => {
+                alerts = d;
+                setCache("alerts", d);
+              })
+              .catch(() => {}),
+          );
+        }
+      }
+      // DONKI catalogs: skip on Lite (mobile first-open) unless forced later via mode bump
+      if (cfg.loadSolarWind && mode !== "lite" && !donki) {
+        tasks.push(
+          withTimeout(fetchDonkiBundle(), 25_000, "donki")
+            .then((d) => {
+              donki = d;
+              setCache("donki", d);
+            })
+            .catch(() => {}),
+        );
+      }
+      
+      if (cfg.loadVolc && !volc) {
+        tasks.push(
+          withTimeout(fetchVolcanoes(), 18_000, "volc")
+            .then((d) => {
+              volc = d;
+              if (d) setCache("volc", d);
+            })
+            .catch(() => {}),
+        );
+      }
+
+      // USGS HANS elevated volcanoes — small; always refresh when missing
+      if (!usgsVolcAlerts) {
+        tasks.push(
+          withTimeout(fetchUsgsElevatedVolcanoes(), 18_000, "usgs-volc")
+            .then((d) => {
+              usgsVolcAlerts = d;
+              setCache("usgs_volc_alerts", d);
+            })
+            .catch(() => {}),
+        );
+      }
+
+      let globalSeismic = force
+        ? null
+        : getCache<GlobalSeismicBundle>("global_seismic", 180_000);
+      if (!globalSeismic) {
+        tasks.push(
+          withTimeout(fetchGlobalSeismic(), 20_000, "global-seismic")
+            .then((d) => {
+              globalSeismic = d;
+              setCache("global_seismic", d);
+            })
+            .catch(() => {}),
+        );
+      }
+
+      await Promise.allSettled(tasks); /* each task should be timeout-wrapped */
+
+      let eqFinal = mergeEqCollections(eq ?? get().eq, pulse);
+      if (useGeofon && geofon) {
+        eqFinal = mergeEqCollections(eqFinal, geofon);
+      }
+      if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
+        eqFinal = {
+          ...eqFinal,
+          features: capFeaturesForMode(
+            eqFinal.features,
+            cfg.maxMarkers,
+            priorityNodeBounds(get().volcWatchNodes),
+          ),
+        };
+      }
+      const newestEventAgeMs = latestEventAgeMs(eqFinal?.features);
+
+      if (eqFinal?.features) {
+        seenEqIds = alertNewEvents(eqFinal.features, seenEqIds, {
+          enabled: audioAlerts,
+          minMag: 4.5,
+        });
+      }
+
+      let resonance = get().resonance;
+      let reading = get().reading;
+      let dijHistory = get().dijHistory;
+      if (eqFinal?.features?.length) {
+        const times = eqFinal.features
+          .map((f) => f.properties.time)
+          .filter((t): t is number => typeof t === "number");
+        const inter = interEventSeconds(times);
+        const score = resonanceScore(inter, cfg.shuffleN);
+        resonance = score;
+        reading = readingSummary(score);
+        dijHistory = pushHistory<DijHistoryPoint>(
+          "dij",
+          {
+            t: Date.now(),
+            d_ij: score.d_ij,
+            n: score.n,
+            z: score.z,
+          },
+          historyCap(),
+        );
+      }
+
+      const kpFinal = kp ?? get().kp;
+      const xrayFinal = xray ?? get().xray;
+      const swFinal = solarWind ?? get().solarWind;
+      const scalesFinal = scales ?? get().scales;
+      const protonsFinal = protons ?? get().protons;
+      const donkiFinal = donki ?? get().donki;
+      const enlilFinal = enlil ?? get().enlil;
+
+      const solarAssessment = buildSolarAssessmentFromState({
+        scales: scalesFinal,
+        solarWind: swFinal,
+        kp: kpFinal,
+        xray: xrayFinal,
+        donki: donkiFinal,
+        protons: protonsFinal,
+        enlil: enlilFinal,
+        mode,
+      });
+
+      let attentionHistory = get().attentionHistory;
+      if (solarAssessment) {
+        attentionHistory = pushHistory<AttentionHistoryPoint>(
+          "attn",
+          {
+            t: Date.now(),
+            attention: solarAssessment.attention,
+            level: solarAssessment.impact.level,
+            kp: kpFinal.length ? Number(kpFinal[kpFinal.length - 1]!.Kp) : null,
+          },
+          historyCap(),
+        );
+      }
+
+      set({
+        eq: eqFinal,
+        volc: volc ?? get().volc,
+        usgsVolcAlerts: usgsVolcAlerts ?? get().usgsVolcAlerts,
+        globalSeismic: globalSeismic ?? get().globalSeismic,
+        volcWatchNodes: (() => {
+          const next = usgsVolcAlerts ?? get().usgsVolcAlerts;
+          return buildWatchNodes(
+            next,
+            new Set<string>(get().volcWatchPins),
+            new Set<string>(get().volcWatchMutes),
+          );
+        })(),
+        volcWatchTransitions: (() => {
+          const prev = get().usgsVolcAlerts;
+          const next = usgsVolcAlerts ?? prev;
+          if (usgsVolcAlerts == null) return get().volcWatchTransitions;
+          // Skip noisy "all elevated" on first empty→full load? Still useful.
+          const hadPrev = prev.length > 0 || get().volcWatchNodes.length > 0;
+          const deltas = diffVolcWatch(prev, next);
+          if (!deltas.length) return get().volcWatchTransitions;
+          // First successful fetch: treat as elevated seed without baseline spam
+          const filtered =
+            !hadPrev && prev.length === 0
+              ? deltas.filter((d) => d.kind === "elevated")
+              : deltas;
+          return [...filtered, ...get().volcWatchTransitions].slice(0, 24);
+        })(),
+        kp: kpFinal,
+        xray: xrayFinal,
+        solarWind: swFinal,
+        scales: scalesFinal,
+        alerts: alerts ?? get().alerts,
+        flux10cm: flux10cm ?? get().flux10cm,
+        protons: protonsFinal,
+        forecast: forecast ?? get().forecast,
+        enlil: enlilFinal,
+        ovation: ovation ?? get().ovation,
+        donki: donkiFinal,
+        kpForecast: kpForecast ?? get().kpForecast,
+        solarAssessment,
+        attentionHistory,
+        resonance,
+        reading,
+        dijHistory,
+        loading: false,
+        lastUpdate: Date.now(),
+        newestEventAgeMs,
+        livePulseAt: pulse ? Date.now() : get().livePulseAt,
+        error: null,
+      });
+
+      if (get().focusNodeId && get().overlays.mmiContours) {
+        void get().loadFocusMmi();
+      }
+    } catch (e) {
+      set({
+        loading: false,
+        error: e instanceof Error ? e.message : "Refresh failed",
+      });
+    } finally {
+      // Never leave the shell stuck on "updated —" if a path forgot loading:false
+      if (get().loading) set({ loading: false });
+    }
+  },
+
+  bootstrapClientDefaults: () => {
+    if (typeof window === "undefined") return;
+    try {
+      const patch: Partial<ObservatoryState> = {
+        basemapStyle: loadBasemapStyle(),
+        overlays: loadOverlays(),
+        useGeofon: loadBool("wolfwatch_geofon", false),
+        audioAlerts: loadBool("wolfwatch_audio", false),
+        globeAutoSpin: loadBool("wolfwatch_globe_spin", true),
+        globeStemScale: loadNum("wolfwatch_globe_stem", 0.16, 0.04, 0.42),
+        globeMarkerScale: loadNum("wolfwatch_globe_hex", 1.2, 0.4, 3.5),
+        globeSpinSpeed: loadNum("wolfwatch_globe_spd", 1, 0.1, 3),
+        globeMarkerOpacity: loadNum("wolfwatch_globe_opac", 0.82, 0.2, 1),
+        dijHistory: safeHistory(),
+        attentionHistory: safeAttentionHistory(),
+        volcWatchPins: [...loadPins()],
+        volcWatchMutes: [...loadMutes()],
+      };
+
+      const m = loadMode();
+      const saved = localStorage.getItem("wolfwatch_mode");
+      if (saved === "lite" || saved === "standard" || saved === "full") {
+        patch.mode = m;
+        patch.minMag = MODES[m].minMag;
+        if (m !== "full") patch.mapView = "2d";
+      } else if (isMobileViewport()) {
+        try {
+          localStorage.setItem("wolfwatch_mode", "lite");
+          localStorage.setItem("wolfwatch_first_open", "mobile");
+        } catch { /* */ }
+        patch.mode = "lite";
+        patch.minMag = MODES.lite.minMag;
+        patch.mapView = "2d";
+      }
+
+      set(patch);
+    } catch {
+      /* ignore */
+    }
+  },
+
+  pulseRealtime: async (kind = "hour") => {
+    try {
+      const pulse =
+        kind === "significant"
+          ? await fetchSignificantPulse().catch(() => fetchRealtimePulse())
+          : await fetchRealtimePulse();
+      setCache("eq_pulse", pulse);
+      let eqFinal = mergeEqCollections(get().eq, pulse);
+      if (get().useGeofon) {
+        const g = getCache<EqCollection>("geofon", 600_000);
+        if (g) eqFinal = mergeEqCollections(eqFinal, g);
+      }
+      const cfg = MODES[get().mode];
+      if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
+        eqFinal = {
+          ...eqFinal,
+          features: capFeaturesForMode(
+            eqFinal.features,
+            cfg.maxMarkers,
+            priorityNodeBounds(get().volcWatchNodes),
+          ),
+        };
+      }
+      if (eqFinal?.features) {
+        seenEqIds = alertNewEvents(eqFinal.features, seenEqIds, {
+          enabled: get().audioAlerts,
+          minMag: 4.5,
+        });
+      }
+      set({
+        eq: eqFinal,
+        livePulseAt: Date.now(),
+        newestEventAgeMs: latestEventAgeMs(eqFinal?.features),
+      });
+    } catch {
+      /* silent */
+    }
+  },
+}));
+
+export function getFocusNode(id: string | null) {
+  if (!id) return null;
+  const dynamic = useObservatory.getState().volcWatchNodes;
+  return (
+    dynamic.find((n) => n.id === id) ??
+    DRAGON_NODES.find((n) => n.id === id) ??
+    null
+  );
+}
+
+/** Static corridors + live USGS elevated volcano watches. */
+export function getAllFocusNodes(): DragonNode[] {
+  const dynamic = useObservatory.getState().volcWatchNodes;
+  const staticIds = new Set(DRAGON_NODES.map((n) => n.id));
+  // Prefer dynamic USGS pins for same vnum if ever collides with manual watches
+  const dyn = dynamic.filter((n) => !staticIds.has(n.id));
+  return [...dyn, ...DRAGON_NODES];
+}
+
+export function viewEvents(
+  features: EqFeature[] | undefined,
+  minMag: number,
+  focusNodeId: string | null,
+  maxMag = 10,
+): EqFeature[] {
+  let list = filteredEq(features, minMag, maxMag);
+  const node = getFocusNode(focusNodeId);
+  if (node) {
+    list = list.filter((f) => {
+      const [lon, lat] = f.geometry.coordinates;
+      return pointInBounds(lat, lon, node.bounds);
+    });
+  }
+  return list;
+}

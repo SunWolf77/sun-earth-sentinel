@@ -1,0 +1,11 @@
+# Allow all crawlers (X/Twitterbot, Facebook, Slack, etc.)
+User-agent: *
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+Sitemap: https://sol-earth-wolfwatch-sentinel.grok.me/

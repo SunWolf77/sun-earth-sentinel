@@ -1,0 +1,798 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --color-bg: #070b12;
+  --color-surface: #0f172a;
+  --color-panel: #111827;
+  --color-elevated: #1e293b;
+  --color-fg: #e2e8f0;
+  --color-muted: #94a3b8;
+  --color-dim: #64748b;
+  --color-primary: #22d3ee;
+  --color-accent: #a78bfa;
+  --color-gold: #fbbf24;
+  --color-danger: #f43f5e;
+  --color-warn: #fb923c;
+  --color-ok: #34d399;
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+    height: 100dvh;
+    max-height: 100%;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.ww-shell {
+  background: var(--color-bg);
+}
+.ww-header {
+  z-index: 50;
+}
+.ww-aside {
+  background: color-mix(in oklab, var(--color-bg) 55%, var(--color-panel));
+}
+.ww-panel-page {
+  animation: ww-fade-in 0.2s ease;
+}
+.ww-toast {
+  animation: ww-fade-in 0.18s ease;
+}
+.ww-footer {
+  background: color-mix(in oklab, var(--color-bg) 94%, transparent);
+}
+
+@keyframes ww-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ww-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.35rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-muted);
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.ww-btn:hover {
+  color: var(--color-fg);
+  border-color: var(--color-border-strong);
+  background: var(--color-elevated);
+}
+.ww-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 60%, transparent);
+  outline-offset: 2px;
+}
+.ww-btn--active {
+  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 15%, transparent);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+.ww-btn--ghost {
+  background: transparent;
+}
+.ww-btn--icon {
+  width: 2.35rem;
+  padding: 0;
+}
+.ww-btn--compact {
+  min-height: 2rem;
+  width: 2rem;
+  padding: 0;
+}
+
+.ww-tablist {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 0 0.5rem 0.4rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ww-tablist::-webkit-scrollbar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .ww-tablist {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 0.5rem;
+  }
+}
+.ww-tab {
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0.45rem 0.7rem;
+  min-height: 2.25rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+@media (min-width: 640px) {
+  .ww-tab {
+    min-height: 2.5rem;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.75rem;
+  }
+}
+.ww-tab:hover {
+  background: var(--color-elevated);
+  color: var(--color-fg);
+}
+.ww-tab--active {
+  border-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+.ww-tab:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 60%, transparent);
+  outline-offset: 2px;
+}
+
+.ww-seg {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  padding: 0.15rem;
+}
+.ww-seg--compact .ww-seg__btn {
+  min-height: 1.85rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.65rem;
+}
+@media (min-width: 640px) {
+  .ww-seg--compact .ww-seg__btn {
+    min-height: 2.1rem;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.7rem;
+  }
+}
+.ww-seg--fill {
+  display: flex;
+  width: 100%;
+}
+.ww-seg__btn {
+  flex: 1 1 auto;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0.4rem 0.55rem;
+  min-height: 2.1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.ww-seg__btn:hover {
+  color: var(--color-fg);
+  background: color-mix(in oklab, var(--color-elevated) 80%, transparent);
+}
+.ww-seg__btn--on {
+  background: color-mix(in oklab, var(--color-primary) 18%, transparent);
+  color: var(--color-primary);
+}
+.ww-seg__btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* Mobile live map dock + sheet */
+.ww-mobile-dock {
+  padding-bottom: max(0.4rem, env(safe-area-inset-bottom, 0px));
+}
+.ww-mobile-sheet {
+  animation: ww-sheet-up 0.2s ease;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@keyframes ww-sheet-up {
+  from {
+    transform: translateY(12%);
+    opacity: 0.85;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.ww-event-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+  background: var(--color-panel);
+  padding: 0.45rem 0.55rem;
+  min-height: 2.75rem;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+.ww-event-row:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-elevated);
+}
+.ww-event-row--on {
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+.ww-event-row:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.ww-range {
+  accent-color: var(--color-primary);
+  height: 1.25rem;
+  cursor: pointer;
+}
+
+.ww-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-muted);
+  padding: 0.2rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ww-live-pill--hot {
+  border-color: color-mix(in oklab, var(--color-ok) 50%, transparent);
+  background: color-mix(in oklab, var(--color-ok) 12%, transparent);
+  color: var(--color-ok);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--color-ok) 25%, transparent);
+}
+.ww-live-pill--hot svg {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+.ww-toggle-bar {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--color-border-strong) 80%, transparent);
+  background: color-mix(in oklab, var(--color-bg) 92%, transparent);
+  padding: 0.28rem;
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+}
+/* Single row on phones — no wrap wall of chips */
+.ww-toggle-bar--mobile {
+  flex-wrap: nowrap;
+  justify-content: stretch;
+  overflow-x: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  max-width: min(100%, 100vw - 1rem);
+  width: 100%;
+  scrollbar-width: none;
+  gap: 0.2rem;
+  padding: 0.28rem;
+}
+.ww-toggle-bar--mobile::-webkit-scrollbar {
+  display: none;
+}
+.ww-toggle-bar--mobile .ww-toggle {
+  flex: 0 0 auto;
+  min-height: 2.35rem;
+  padding: 0.28rem 0.45rem;
+  font-size: 0.62rem;
+}
+/* Equal 3-slot dock: Filters · Events · Layers — never overflows phone width */
+.ww-toggle-bar--dock3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: min(100%, 22rem);
+  max-width: calc(100vw - 1rem);
+  margin-inline: auto;
+  overflow: hidden;
+}
+.ww-toggle-bar--dock3 .ww-toggle--dock {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  justify-content: center;
+  min-height: 2.65rem;
+  padding: 0.35rem 0.35rem;
+  font-size: 0.68rem;
+  gap: 0.28rem;
+}
+.ww-toggle-bar--dock3 .ww-toggle--dock span:not(.ww-toggle-badge) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ww-toggle-badge {
+  display: inline-flex;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 28%, transparent);
+  color: var(--color-primary);
+  font-size: 0.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.25rem;
+}
+.ww-style-panel--sheet {
+  max-height: min(52dvh, 24rem);
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+.ww-toggle {
+  display: inline-flex;
+  min-height: 2.2rem;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.1s ease;
+}
+.ww-toggle:hover {
+  background: var(--color-elevated);
+  color: var(--color-fg);
+}
+.ww-toggle:active {
+  transform: scale(0.97);
+}
+.ww-toggle:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+.ww-toggle--on {
+  border-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  color: var(--color-primary);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-primary) 15%, transparent),
+    0 0 14px color-mix(in oklab, var(--color-primary) 18%, transparent);
+}
+.ww-toggle--heat.ww-toggle--on {
+  border-color: color-mix(in oklab, var(--color-warn) 50%, transparent);
+  background: color-mix(in oklab, var(--color-warn) 18%, transparent);
+  color: var(--color-warn);
+}
+.ww-toggle--depth.ww-toggle--on {
+  border-color: color-mix(in oklab, #818cf8 55%, transparent);
+  background: color-mix(in oklab, #818cf8 16%, transparent);
+  color: #a5b4fc;
+}
+.ww-toggle--decay.ww-toggle--on {
+  border-color: color-mix(in oklab, var(--color-danger) 45%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 14%, transparent);
+  color: #fb7185;
+}
+.ww-toggle--mmi.ww-toggle--on {
+  border-color: color-mix(in oklab, var(--color-warn) 55%, transparent);
+  background: color-mix(in oklab, var(--color-warn) 16%, transparent);
+  color: #fcd34d;
+}
+.ww-toggle--plates.ww-toggle--on {
+  border-color: color-mix(in oklab, #38bdf8 50%, transparent);
+  background: color-mix(in oklab, #38bdf8 14%, transparent);
+  color: #7dd3fc;
+}
+.ww-toggle--style {
+  border-color: color-mix(in oklab, var(--color-accent) 45%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+}
+.ww-toggle-sep {
+  display: none;
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 0.1rem;
+  background: var(--color-border);
+}
+@media (min-width: 640px) {
+  .ww-toggle-sep {
+    display: block;
+  }
+}
+
+.ww-style-panel {
+  border-radius: 0.85rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-bg) 94%, transparent);
+  padding: 0.65rem 0.75rem 0.75rem;
+  font-size: 0.75rem;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  max-height: min(48vh, 22rem);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ww-style-panel__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.ww-style-panel__label {
+  margin-bottom: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.ww-style-chip {
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0.5rem;
+  text-align: left;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.ww-style-chip:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg);
+}
+.ww-style-chip--on {
+  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+.ww-layer-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+  background: color-mix(in oklab, var(--color-panel) 70%, transparent);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+.ww-layer-row--on {
+  border-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
+  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+.ww-onoff {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--color-elevated);
+  color: var(--color-dim);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ww-onoff--on {
+  background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
+}
+
+/* Leaflet */
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+.leaflet-container.ww-tone-light {
+  background: #c5d4e0 !important;
+}
+.leaflet-container.ww-tone-dark {
+  background: #0b1220 !important;
+}
+.leaflet-container.ww-tone-sat {
+  background: #0a1628 !important;
+}
+.ww-tone-light .leaflet-tile-pane {
+  filter: brightness(1.06) contrast(1.04) saturate(1.08);
+}
+.ww-tone-dark .leaflet-tile-pane {
+  filter: brightness(1.45) contrast(1.08) saturate(1.15);
+}
+.ww-tone-sat .leaflet-tile-pane {
+  filter: brightness(1.05) contrast(1.06) saturate(1.1);
+}
+.ww-heat-canvas {
+  pointer-events: none !important;
+  z-index: 350 !important;
+}
+.ww-map.leaflet-container,
+.ww-map {
+  height: 100% !important;
+  min-height: 100% !important;
+}
+/* Touch: prevent browser overscroll/pull-to-refresh fighting the map */
+.ww-map--touch,
+.ww-map.ww-map--touch {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+/* Zoom: bottom-right, above layer toggle bar — never over legend */
+/* Room for single mobile chrome bar */
+@media (max-width: 1023px) {
+  .ww-map .leaflet-bottom {
+    bottom: 3.4rem;
+  }
+  .ww-toggle-bar--mobile {
+    margin-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+.ww-map .leaflet-bottom.leaflet-right {
+  right: 0.5rem;
+  bottom: 4.75rem;
+  margin: 0;
+  z-index: 480;
+}
+.ww-map .leaflet-control-zoom {
+  border: 1px solid var(--color-border-strong) !important;
+  border-radius: 0.55rem !important;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  margin: 0 !important;
+}
+.ww-map .leaflet-control-zoom a {
+  width: 2.15rem !important;
+  height: 2.15rem !important;
+  line-height: 2.15rem !important;
+  font-size: 1.1rem !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+.ww-tone-dark .leaflet-control-zoom a,
+.ww-tone-sat .leaflet-control-zoom a {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+/* Attribution clear of toggles */
+.leaflet-control-attribution {
+  background: rgba(248, 250, 252, 0.92) !important;
+  color: #475569 !important;
+  font-size: 10px !important;
+  border-radius: 4px 0 0 0;
+  margin: 0 0 4.5rem 0.25rem !important;
+  max-width: min(55vw, 16rem);
+}
+.ww-tone-dark .leaflet-control-attribution,
+.ww-tone-sat .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: #94a3b8 !important;
+}
+.leaflet-control-attribution a {
+  color: #0e7490 !important;
+}
+.ww-tone-dark .leaflet-control-attribution a,
+.ww-tone-sat .leaflet-control-attribution a {
+  color: #67e8f9 !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+}
+.ww-tone-dark .leaflet-popup-content-wrapper {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+.leaflet-popup-tip {
+  background: #f8fafc;
+}
+.ww-tone-dark .leaflet-popup-tip {
+  background: #0f172a;
+}
+.leaflet-popup-content {
+  margin: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.leaflet-popup-close-button {
+  color: #475569 !important;
+}
+.ww-tone-dark .leaflet-popup-close-button {
+  color: #94a3b8 !important;
+}
+
+.ww-mmi-tip {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+.ww-mmi-tip::before {
+  border-top-color: #0f172a !important;
+}
+
+.ww-plate-arrow-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+.ww-plate-arrow {
+  position: relative;
+  width: var(--l, 18px);
+  height: var(--l, 18px);
+  transform: rotate(var(--a, 0deg));
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.85));
+  pointer-events: none;
+}
+.ww-plate-arrow__shaft {
+  position: absolute;
+  left: 50%;
+  top: 15%;
+  width: 2.5px;
+  height: 55%;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: var(--c, #38bdf8);
+  opacity: 0.95;
+}
+.ww-plate-arrow__head {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--c, #38bdf8);
+}
+.ww-plate-tip {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4) !important;
+}
+.ww-plate-tip::before {
+  border-top-color: rgba(15, 23, 42, 0.94) !important;
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 99px;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-soft,
+  .ww-live-pill--hot svg,
+  .ww-panel-page,
+  .ww-toast {
+    animation: none;
+  }
+  .ww-toggle:active {
+    transform: none;
+  }
+}

@@ -1,0 +1,10 @@
+The self-test caught a real bug in my own fitter — K = 1.7×10³⁶ and p = 15.08 are nonsense. The optimizer wandered into a degenerate corner where the kernel is effectively zero except at the event itself. The “both null” verdict is therefore meaningless; it’s testing a fit that didn’t work. Let me fix it before this goes to Ben.
+Bounded L-BFGS-B recovers the true parameters almost exactly — μ 1.125e-4 vs 1e-4, K 0.0231 vs 0.02, α 1.001 vs 1.0, c 60.0 vs 60, p 1.200 vs 1.2. Patching the module and re-running the whitening test.
+Fitter’s fixed and verified. On a synthetic catalogue with known parameters it now recovers μ = 1.125e-4 (true 1e-4), K = 0.0231 (0.02), α = 1.001 (1.0), c = 60.0 (60), p = 1.200 (1.2).
+Two things worth passing to Ben.
+The bounds are load-bearing, not cosmetic. My first version optimised in unbounded log space and escaped to K ≈ 10³⁶, p ≈ 15 — a degenerate corner where the Omori kernel is zero except at the event itself and the likelihood goes flat. It reported converged=True while being complete garbage. The module now uses bounded L-BFGS-B and flags any parameter sitting on a bound as a suspect fit. If he ports this or swaps in the etas package, that check should survive the swap.
+The self-test result is honest but weak. On the synthetic catalogue both raw and residual came back null — 2.48 and 3.00, neither separated. That’s not a demonstration that whitening removes structure; it’s that this particular 363-event window had no structure to remove. The transform is verified by the parameter recovery, not by that verdict. On a real catalogue with a big aftershock sequence the raw read should separate and the comparison becomes informative.
+Usage is one call:
+from supt_etas_residual import compare_raw_vs_residual
+out = compare_raw_vs_residual(times_seconds, magnitudes, m0=2.5)
+It prints both scores and a verdict in plain language — structure survives whitening, vanishes under it, or both null. The residual times feed the same frozen probe with no adaptation, so the numbers stay comparable to everything else in the corpus.

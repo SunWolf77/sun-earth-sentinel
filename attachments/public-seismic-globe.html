@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Public Seismic Globe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0a0e17;
+    color: #e0e6f0;
+    overflow: hidden;
+    height: 100vh;
+  }
+  #app { display: flex; height: 100vh; }
+  #panel {
+    width: 340px;
+    background: #111827;
+    border-right: 1px solid #1f2937;
+    padding: 16px;
+    overflow-y: auto;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  #panel h1 {
+    font-size: 1.25rem;
+    color: #38bdf8;
+    margin-bottom: 2px;
+  }
+  .sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-bottom: 16px;
+  }
+  .block {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #1f2937;
+  }
+  .block:last-of-type { border-bottom: none; }
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  input[type="range"] { width: 100%; accent-color: #0ea5e9; }
+  input[type="checkbox"] { width: 15px; height: 15px; accent-color: #0ea5e9; }
+  button {
+    background: #1e3a5f;
+    color: #e0f2fe;
+    border: 1px solid #334155;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    width: 100%;
+    margin-top: 4px;
+  }
+  button:hover { background: #2563eb; }
+  button.on { background: #0ea5e9; color: #0f172a; }
+  button.sec { background: #334155; margin-top: 6px; }
+  #view { flex: 1; position: relative; background: #000; }
+  canvas { display: block; width: 100% !important; height: 100% !important; }
+  .val {
+    font-weight: 600;
+    color: #7dd3fc;
+    min-width: 48px;
+    text-align: right;
+  }
+  #list {
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    margin-top: 6px;
+  }
+  .item { padding: 4px 0; border-bottom: 1px solid #1f2937; }
+  .item strong { color: #fbbf24; }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-left: 6px;
+    background: #065f46;
+    color: #6ee7b7;
+  }
+  .hint { font-size: 0.7rem; color: #64748b; margin-top: 4px; }
+  #footer {
+    margin-top: auto;
+    padding-top: 14px;
+    font-size: 0.7rem;
+    color: #64748b;
+    border-top: 1px solid #1f2937;
+    line-height: 1.45;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="panel">
+    <h1>Public Seismic Globe</h1>
+    <div class="sub">
+      Live USGS + GEOFON • <span class="badge">LIVE</span>
+    </div>
+
+    <div class="block">
+      <label>Data Sources</label>
+      <div class="row">
+        <input type="checkbox" id="useUsgs" checked>
+        <label for="useUsgs" style="margin:0;">USGS 7-day (M0.0+)</label>
+      </div>
+      <div class="row">
+        <input type="checkbox" id="useGeofon">
+        <label for="useGeofon" style="margin:0;">GEOFON Potsdam</label>
+      </div>
+      <button id="btnFeeds">Apply Feeds</button>
+    </div>
+
+    <div class="block">
+      <label>Magnitude Range</label>
+      <div class="row">
+        <span style="font-size:0.75rem;">Min</span>
+        <input type="range" id="minMag" min="0" max="9.9" step="0.1" value="0">
+        <span class="val" id="minMagTxt">0.0</span>
+      </div>
+      <div class="row">
+        <span style="font-size:0.75rem;">Max</span>
+        <input type="range" id="maxMag" min="0" max="9.9" step="0.1" value="9.9">
+        <span class="val" id="maxMagTxt">9.9</span>
+      </div>
+      <div class="row">
+        <input type="checkbox" id="allMags" checked>
+        <label for="allMags" style="margin:0;">Show all magnitudes</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Time Window (left = newest)</label>
+      <input type="range" id="ageDays" min="0" max="7" step="0.05" value="7">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;">
+        <span>Now</span>
+        <span class="val" id="ageTxt">7.0 d</span>
+        <span>7 days</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Hexagon Size</label>
+      <input type="range" id="hexSize" min="0.3" max="4.5" step="0.05" value="1.6">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;">
+        <span>Small</span>
+        <span class="val" id="sizeTxt">1.6×</span>
+        <span>Large</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Hexagon Opacity</label>
+      <input type="range" id="hexOpac" min="0.15" max="0.95" step="0.01" value="0.78">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;">
+        <span>Solid</span>
+        <span class="val" id="opacTxt">78%</span>
+        <span>Faint</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Depth Stem Height</label>
+      <input type="range" id="stemH" min="0.04" max="0.45" step="0.01" value="0.16">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;">
+        <span>Low</span>
+        <span class="val" id="stemTxt">0.16</span>
+        <span>High</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Globe Rotation Speed</label>
+      <input type="range" id="rotSpd" min="0.05" max="2.0" step="0.05" value="0.30">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;">
+        <span>Slow</span>
+        <span class="val" id="spdTxt">0.30</span>
+        <span>Fast</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Auto Refresh</label>
+      <input type="range" id="refreshSec" min="60" max="3600" step="30" value="300">
+      <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;">
+        <span>1 min</span>
+        <span class="val" id="refTxt">5 min</span>
+        <span>1 hr</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Display Options</label>
+      <button id="btnSpin" class="on">Auto-Rotate: ON</button>
+      <button id="btnCenter" class="sec">Recenter Earth (R)</button>
+
+      <div class="row" style="margin-top:10px;">
+        <input type="checkbox" id="showBorders">
+        <label for="showBorders" style="margin:0;">Country Borders</label>
+      </div>
+
+      <div class="row">
+        <input type="checkbox" id="hexReflect" checked>
+        <label for="hexReflect" style="margin:0;">Hexagon Reflections</label>
+      </div>
+
+      <div class="row">
+        <input type="checkbox" id="antipodeMode">
+        <label for="antipodeMode" style="margin:0;">Antipode Mode (Ctrl+A)</label>
+      </div>
+      <button id="btnAnti" class="sec">Go to Antipode of Selected</button>
+
+      <div class="row" style="margin-top:8px;">
+        <input type="checkbox" id="audioOn" checked>
+        <label for="audioOn" style="margin:0;">Audio Alerts</label>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Status</label>
+      <button id="btnReload">Refresh Data Now</button>
+      <div style="font-size:0.8rem;color:#94a3b8;margin-top:8px;">
+        Showing: <span id="cnt">0</span> events<br>
+        Updated: <span id="upd">—</span>
+      </div>
+    </div>
+
+    <div class="block">
+      <label>Recent M5.0+</label>
+      <div id="list"></div>
+    </div>
+
+    <div id="footer">
+      Drag = rotate • Scroll = zoom<br>
+      Right-click hexagon = details / select<br>
+      Ctrl+A = antipode • R = recenter<br>
+      Public edition – basic live view
+    </div>
+  </div>
+
+  <div id="view"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/Pass.js"></script>
+
+<script>
+/* =========================================================
+   PUBLIC SEISMIC GLOBE – simplified public edition
+   Different structure & naming from the private stream build
+   ========================================================= */
+
+const FEED_USGS   = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
+const FEED_GEOFON = "https://geofon.gfz.de/fdsnws/event/1/query";
+
+const R_EARTH = 100;
+const MAX_DEP = 700;
+
+let scene, camera, renderer, labels, controls, composer;
+let sun, amb;
+let earth, bordersGroup, quakeGroup;
+let spinning = true;
+let quakes = [];
+let seenIds = new Set();
+let timer = null;
+let refreshMs = 300000;
+
+let scaleHex = 1.6;
+let opacHex  = 0.78;
+let stemMul  = 0.16;
+let useReflect = true;
+let audioOk  = true;
+
+let ray = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+let blink = 0;
+let selected = null;
+
+const audioMap = {};
+
+function boot() {
+  const box = document.getElementById("view");
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x02050c);
+
+  camera = new THREE.PerspectiveCamera(45, box.clientWidth / box.clientHeight, 0.1, 2000);
+  camera.position.set(0, 35, 230);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(box.clientWidth, box.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  box.appendChild(renderer.domElement);
+
+  composer = new THREE.EffectComposer(renderer);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  const bloom = new THREE.UnrealBloomPass(
+    new THREE.Vector2(box.clientWidth, box.clientHeight), 0.42, 0.35, 0.8
+  );
+  composer.addPass(bloom);
+
+  labels = new THREE.CSS2DRenderer();
+  labels.setSize(box.clientWidth, box.clientHeight);
+  labels.domElement.style.position = "absolute";
+  labels.domElement.style.top = "0";
+  labels.domElement.style.pointerEvents = "none";
+  box.appendChild(labels.domElement);
+
+  amb = new THREE.AmbientLight(0x334466, 0.4);
+  scene.add(amb);
+
+  sun = new THREE.DirectionalLight(0xfff5e6, 1.25);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 40;
+  sun.shadow.camera.far = 500;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -160;
+  sun.shadow.camera.right = sun.shadow.camera.top = 160;
+  sun.shadow.bias = -0.0004;
+  scene.add(sun);
+  scene.add(sun.target);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 115;
+  controls.maxDistance = 650;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.30;
+
+  controls.addEventListener("start", () => {
+    if (spinning) {
+      spinning = false;
+      controls.autoRotate = false;
+      const b = document.getElementById("btnSpin");
+      b.classList.remove("on");
+      b.textContent = "Auto-Rotate: OFF";
+    }
+  });
+
+  buildEarth();
+  bordersGroup = new THREE.Group();
+  bordersGroup.visible = false;
+  scene.add(bordersGroup);
+  loadBorders();
+
+  quakeGroup = new THREE.Group();
+  scene.add(quakeGroup);
+
+  renderer.domElement.addEventListener("contextmenu", onRightClick);
+
+  wireUI();
+  pullFeeds();
+  startTimer();
+
+  window.addEventListener("keydown", e => {
+    if (e.key === "r" || e.key === "R") centerGlobe();
+    if (e.ctrlKey && (e.key === "a" || e.key === "A")) {
+      e.preventDefault();
+      jumpAntipode();
+    }
+  });
+  window.addEventListener("resize", onResize);
+  loop();
+}
+
+function buildEarth() {
+  const geo = new THREE.SphereGeometry(R_EARTH, 96, 96);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.78,
+    metalness: 0.06
+  });
+  earth = new THREE.Mesh(geo, mat);
+  earth.receiveShadow = true;
+  scene.add(earth);
+
+  const loader = new THREE.TextureLoader();
+  loader.crossOrigin = "anonymous";
+  // Default public texture – replace the URL below with your own hosted arrow-map image later
+  loader.load(
+    "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth_atmos_2048.jpg",
+    tex => {
+      earth.material.map = tex;
+      earth.material.needsUpdate = true;
+    }
+  );
+}
+
+/* ---------- Country borders (lightweight GeoJSON) ---------- */
+async function loadBorders() {
+  try {
+    // Simplified 110m Natural Earth countries
+    const url = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const positions = [];
+    data.features.forEach(f => {
+      const geom = f.geometry;
+      if (!geom) return;
+      const coords = geom.type === "Polygon" ? [geom.coordinates] :
+                     geom.type === "MultiPolygon" ? geom.coordinates : [];
+      coords.forEach(poly => {
+        poly.forEach(ring => {
+          for (let i = 0; i < ring.length - 1; i++) {
+            const a = latLonToVec(ring[i][1], ring[i][0], R_EARTH * 1.004);
+            const b = latLonToVec(ring[i+1][1], ring[i+1][0], R_EARTH * 1.004);
+            positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+          }
+        });
+      });
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xffcc66,
+      transparent: true,
+      opacity: 0.55
+    });
+    const lines = new THREE.LineSegments(geo, mat);
+    bordersGroup.add(lines);
+  } catch (err) {
+    console.warn("Borders failed to load", err);
+  }
+}
+
+function latLonToVec(lat, lon, r) {
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (lon + 180) * Math.PI / 180;
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+     r * Math.cos(phi),
+     r * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+function styleFor(mag) {
+  if (mag >= 9.0) return { col: 0xaa00ff, em: 0x6600aa, neon: true };
+  if (mag >= 8.0) return { col: 0xff1493, em: 0xaa0033, neon: true };
+  if (mag >= 7.0) return { col: 0xf0f0f0, em: 0x555555, neon: true };
+  if (mag >= 6.0) return { col: 0xff2200, em: 0x550000, neon: false };
+  if (mag >= 5.0) return { col: 0xff8c00, em: 0x442200, neon: false };
+  if (mag >= 4.0) return { col: 0xffee00, em: 0x333300, neon: false };
+  if (mag >= 3.0) return { col: 0x00ee66, em: 0x003300, neon: false };
+  if (mag >= 2.0) return { col: 0x3399ff, em: 0x002244, neon: false };
+  if (mag >= 1.0) return { col: 0xf0f0f0, em: 0x222222, neon: false };
+  return { col: 0x333333, em: 0x111111, neon: false };
+}
+
+function makeRing(radius, thick, color, opacity, em, neon) {
+  const shape = new THREE.Shape();
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * radius;
+    const y = Math.sin(a) * radius;
+    i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y);
+  }
+  const hole = new THREE.Path();
+  const inner = Math.max(0.01, radius - thick);
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * inner;
+    const y = Math.sin(a) * inner;
+    i === 0 ? hole.moveTo(x, y) : hole.lineTo(x, y);
+  }
+  shape.holes.push(hole);
+
+  const geo = new THREE.ShapeGeometry(shape);
+  const metal = useReflect ? 0.55 : 0.08;
+  const rough = useReflect ? 0.35 : 0.75;
+  const mat = new THREE.MeshStandardMaterial({
+    color: color,
+    emissive: em,
+    emissiveIntensity: neon ? 0.7 : 0.35,
+    metalness: metal,
+    roughness: rough,
+    transparent: true,
+    opacity: opacity,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
+function makeMarker(q) {
+  const mag = q.mag || 0;
+  const dep = Math.max(0, q.depth || 0);
+  const st = styleFor(mag);
+
+  let base = 0.48 + Math.pow(Math.max(mag, 0.5), 1.1) * 0.28;
+  if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
+  const size = base * scaleHex;
+
+  const lift = (dep / MAX_DEP) * R_EARTH * stemMul;
+  const rad = R_EARTH + lift + size * 0.28;
+  const pos = latLonToVec(q.lat, q.lon, rad);
+
+  const g = new THREE.Group();
+  g.position.copy(pos);
+  g.lookAt(0, 0, 0);
+  g.userData = q;
+  g.renderOrder = 10 + Math.floor(mag * 10);
+
+  const scales = st.neon ? [1.1, 1.0, 0.7, 0.42] : [1.0, 0.7, 0.42];
+  const thick = size * 0.065;
+
+  scales.forEach((s, i) => {
+    const outer = i === 0;
+    const ring = makeRing(
+      size * s,
+      thick * (outer && st.neon ? 1.25 : 1),
+      outer ? st.col : st.col,
+      opacHex * (1 - i * 0.14),
+      st.em,
+      outer && st.neon
+    );
+    if (st.neon && outer) {
+      ring.userData.blink = true;
+      ring.userData.baseOp = opacHex;
+    }
+    g.add(ring);
+  });
+
+  if (dep > 35) {
+    const surf = latLonToVec(q.lat, q.lon, R_EARTH);
+    const stemGeo = new THREE.BufferGeometry().setFromPoints([surf, pos]);
+    const stem = new THREE.Line(stemGeo, new THREE.LineBasicMaterial({
+      color: st.col,
+      transparent: true,
+      opacity: Math.max(0.22, opacHex * 0.45)
+    }));
+    quakeGroup.add(stem);
+  }
+
+  const div = document.createElement("div");
+  div.textContent = mag.toFixed(1);
+  div.style.cssText = `
+    color:#fff;font-weight:700;font-size:${Math.max(9, 10 + size * 1.5)}px;
+    text-shadow:0 0 5px #000,0 0 3px #000;pointer-events:none;user-select:none;
+    opacity:${Math.min(1, opacHex + 0.35)};
+  `;
+  const lab = new THREE.CSS2DObject(div);
+  lab.position.set(0, 0, 0.12);
+  g.add(lab);
+  g.userData.label = lab;
+  g.userData.nrm = pos.clone().normalize();
+
+  return g;
+}
+
+function clearQuakes() {
+  while (quakeGroup.children.length) {
+    const o = quakeGroup.children[0];
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) {
+      if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+      else o.material.dispose();
+    }
+    if (o.children) {
+      o.children.forEach(c => {
+        if (c.element && c.element.parentNode) c.element.parentNode.removeChild(c.element);
+      });
+    }
+    quakeGroup.remove(o);
+  }
+}
+
+function redraw() {
+  clearQuakes();
+  const minM = parseFloat(document.getElementById("minMag").value);
+  const maxM = parseFloat(document.getElementById("maxMag").value);
+  const all  = document.getElementById("allMags").checked;
+  const maxAge = parseFloat(document.getElementById("ageDays").value);
+  const now = Date.now();
+
+  const list = quakes.filter(q => {
+    const m = q.mag || 0;
+    if (!all && (m < minM || m > maxM)) return false;
+    const age = (now - q.time) / 86400000;
+    if (age > maxAge) return false;
+    return true;
+  }).sort((a, b) => (a.mag || 0) - (b.mag || 0));
+
+  let n = 0;
+  const big = [];
+  list.forEach(q => {
+    quakeGroup.add(makeMarker(q));
+    n++;
+    if (q.mag >= 5) big.push(q);
+  });
+
+  document.getElementById("cnt").textContent = n;
+
+  const el = document.getElementById("list");
+  el.innerHTML = "";
+  big.sort((a, b) => b.mag - a.mag).slice(0, 12).forEach(q => {
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `<strong>M${q.mag.toFixed(1)}</strong> ${q.place || "—"}<br>
+      <span style="color:#64748b">${new Date(q.time).toLocaleString()} • ${Math.round(q.depth)} km</span>`;
+    el.appendChild(d);
+  });
+}
+
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; o.type = "sine";
+    g.gain.setValueAtTime(0.12, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+    o.start(); o.stop(ctx.currentTime + 0.22);
+  } catch (e) {}
+}
+
+function playSound(mag) {
+  if (!audioOk) return;
+  const m = Math.round(mag * 10) / 10;
+  if (m < 3.0) { beep(); return; }
+  // Public version uses only a simple beep for mid/high magnitudes
+  // (full custom audio files stay in the private edition)
+  beep();
+}
+
+function onRightClick(ev) {
+  ev.preventDefault();
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+  ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObjects(quakeGroup.children, true);
+  for (let i = 0; i < hits.length; i++) {
+    let o = hits[i].object;
+    while (o && !o.userData.id) o = o.parent;
+    if (o && o.userData && o.userData.id) {
+      selected = o.userData;
+      if (o.userData.url) window.open(o.userData.url, "_blank");
+      break;
+    }
+  }
+}
+
+function jumpAntipode() {
+  if (!selected) {
+    alert("Right-click a hexagon first to select an earthquake.");
+    return;
+  }
+  const lat = -selected.lat;
+  let lon = selected.lon + 180;
+  if (lon > 180) lon -= 360;
+  if (lon < -180) lon += 360;
+
+  const target = latLonToVec(lat, lon, R_EARTH * 2.35);
+  const start = camera.position.clone();
+  const t0 = performance.now();
+  const dur = 1600;
+
+  spinning = false;
+  controls.autoRotate = false;
+  document.getElementById("btnSpin").classList.remove("on");
+  document.getElementById("btnSpin").textContent = "Auto-Rotate: OFF";
+
+  function step() {
+    const t = Math.min(1, (performance.now() - t0) / dur);
+    const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    camera.position.lerpVectors(start, target, e);
+    controls.target.set(0, 0, 0);
+    controls.update();
+    if (t < 1) requestAnimationFrame(step);
+  }
+  step();
+}
+
+function parseUsgs(data) {
+  return data.features.map(f => {
+    const p = f.properties;
+    const c = f.geometry.coordinates;
+    return {
+      id: f.id || ("u" + p.time),
+      mag: p.mag,
+      place: p.place,
+      time: p.time,
+      lat: c[1],
+      lon: c[0],
+      depth: c[2] || 0,
+      url: p.url,
+      src: "USGS"
+    };
+  }).filter(q => q.mag != null);
+}
+
+function parseGeofon(text) {
+  const lines = text.trim().split("\n");
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split("|");
+    if (c.length < 10) continue;
+    const mag = parseFloat(c[10] || c[9]);
+    const lat = parseFloat(c[2]);
+    const lon = parseFloat(c[3]);
+    if (isNaN(mag) || isNaN(lat)) continue;
+    out.push({
+      id: "g" + c[0],
+      mag,
+      place: c[12] || "GEOFON",
+      time: new Date(c[1]).getTime(),
+      lat, lon,
+      depth: parseFloat(c[4]) || 0,
+      url: "https://geofon.gfz.de/eqinfo/event.php?id=" + c[0],
+      src: "GEOFON"
+    });
+  }
+  return out;
+}
+
+function dedup(list) {
+  const map = new Map();
+  const res = [];
+  list.forEach(q => {
+    const k = q.lat.toFixed(2) + "_" + q.lon.toFixed(2) + "_" + Math.round(q.mag * 10) + "_" + Math.floor(q.time / 60000);
+    if (!map.has(k)) {
+      map.set(k, true);
+      res.push(q);
+    }
+  });
+  return res;
+}
+
+async function pullFeeds() {
+  const u = document.getElementById("useUsgs").checked;
+  const g = document.getElementById("useGeofon").checked;
+  const jobs = [];
+  if (u) jobs.push(fetch(FEED_USGS).then(r => r.json()).then(parseUsgs).catch(() => []));
+  if (g) {
+    const end = new Date();
+    const start = new Date(end - 7 * 86400000);
+    const url = `${FEED_GEOFON}?starttime=${start.toISOString().slice(0,19)}&endtime=${end.toISOString().slice(0,19)}&minmag=0&format=text&limit=2000&orderby=time`;
+    jobs.push(fetch(url).then(r => r.text()).then(parseGeofon).catch(() => []));
+  }
+  if (!jobs.length) {
+    quakes = [];
+    redraw();
+    return;
+  }
+  try {
+    const parts = await Promise.all(jobs);
+    let all = [];
+    parts.forEach(p => all = all.concat(p));
+    const fresh = dedup(all);
+
+    if (seenIds.size > 0) {
+      fresh.forEach(q => {
+        if (!seenIds.has(q.id)) playSound(q.mag);
+      });
+    }
+    seenIds = new Set(fresh.map(q => q.id));
+    quakes = fresh;
+    document.getElementById("upd").textContent = new Date().toLocaleTimeString() + ` (${quakes.length})`;
+    redraw();
+  } catch (err) {
+    console.error(err);
+    document.getElementById("upd").textContent = "Feed error";
+  }
+}
+
+function startTimer() {
+  if (timer) clearInterval(timer);
+  timer = setInterval(pullFeeds, refreshMs);
+}
+
+function centerGlobe() {
+  controls.reset();
+  camera.position.set(0, 35, 230);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function wireUI() {
+  document.getElementById("btnFeeds").onclick = pullFeeds;
+
+  const minEl = document.getElementById("minMag");
+  const maxEl = document.getElementById("maxMag");
+  function syncMag() {
+    document.getElementById("minMagTxt").textContent = parseFloat(minEl.value).toFixed(1);
+    document.getElementById("maxMagTxt").textContent = parseFloat(maxEl.value).toFixed(1);
+    redraw();
+  }
+  minEl.oninput = maxEl.oninput = syncMag;
+  document.getElementById("allMags").onchange = redraw;
+
+  document.getElementById("ageDays").oninput = e => {
+    document.getElementById("ageTxt").textContent = parseFloat(e.target.value).toFixed(1) + " d";
+    redraw();
+  };
+
+  document.getElementById("hexSize").oninput = e => {
+    scaleHex = parseFloat(e.target.value);
+    document.getElementById("sizeTxt").textContent = scaleHex.toFixed(1) + "×";
+    redraw();
+  };
+
+  document.getElementById("hexOpac").oninput = e => {
+    opacHex = parseFloat(e.target.value);
+    document.getElementById("opacTxt").textContent = Math.round(opacHex * 100) + "%";
+    redraw();
+  };
+
+  document.getElementById("stemH").oninput = e => {
+    stemMul = parseFloat(e.target.value);
+    document.getElementById("stemTxt").textContent = stemMul.toFixed(2);
+    redraw();
+  };
+
+  document.getElementById("rotSpd").oninput = e => {
+    const v = parseFloat(e.target.value);
+    controls.autoRotateSpeed = v;
+    document.getElementById("spdTxt").textContent = v.toFixed(2);
+  };
+
+  document.getElementById("refreshSec").oninput = e => {
+    const s = parseInt(e.target.value);
+    refreshMs = s * 1000;
+    document.getElementById("refTxt").textContent =
+      s < 120 ? s + " sec" : s < 3600 ? Math.round(s / 60) + " min" : "1 hr";
+    startTimer();
+  };
+
+  document.getElementById("btnSpin").onclick = () => {
+    spinning = !spinning;
+    controls.autoRotate = spinning;
+    const b = document.getElementById("btnSpin");
+    if (spinning) {
+      b.classList.add("on");
+      b.textContent = "Auto-Rotate: ON";
+    } else {
+      b.classList.remove("on");
+      b.textContent = "Auto-Rotate: OFF";
+    }
+  };
+
+  document.getElementById("btnCenter").onclick = centerGlobe;
+  document.getElementById("btnAnti").onclick = jumpAntipode;
+
+  document.getElementById("showBorders").onchange = e => {
+    bordersGroup.visible = e.target.checked;
+  };
+
+  document.getElementById("hexReflect").onchange = e => {
+    useReflect = e.target.checked;
+    redraw();
+  };
+
+  document.getElementById("audioOn").onchange = e => {
+    audioOk = e.target.checked;
+  };
+
+  document.getElementById("btnReload").onclick = pullFeeds;
+}
+
+function onResize() {
+  const box = document.getElementById("view");
+  camera.aspect = box.clientWidth / box.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(box.clientWidth, box.clientHeight);
+  composer.setSize(box.clientWidth, box.clientHeight);
+  labels.setSize(box.clientWidth, box.clientHeight);
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  controls.update();
+  sun.position.copy(camera.position);
+  sun.target.position.set(0, 0, 0);
+
+  blink += 0.04;
+  const bo = 0.45 + 0.55 * Math.abs(Math.sin(blink));
+
+  quakeGroup.children.forEach(g => {
+    if (g.userData && g.userData.label && g.userData.nrm) {
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      g.userData.label.visible = g.userData.nrm.dot(dir) < -0.12;
+    }
+    g.children.forEach(c => {
+      if (c.userData && c.userData.blink && c.material) {
+        c.material.opacity = c.userData.baseOp * bo;
+      }
+    });
+  });
+
+  composer.render();
+  labels.render(scene, camera);
+}
+
+boot();
+</script>
+</body>
+</html>

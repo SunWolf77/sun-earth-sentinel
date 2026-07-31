@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Weather Dashboard, made by Grok</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #000 url('https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Hubble_Deep_Field.jpg/1280px-Hubble_Deep_Field.jpg') center/cover fixed;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 8px;
+    font-size: 12px;
+  }
+  /* subtle dark overlay so cards remain readable */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,5,0.55);
+    z-index: -1;
+  }
+  .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: rgba(10,15,30,0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(100,150,255,0.25);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    max-width: 1800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #7dd3fc;
+    letter-spacing: 0.3px;
+  }
+  .clock {
+    font-family: ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: #a5f3fc;
+    background: rgba(0,20,40,0.6);
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .refresh-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+  }
+  .refresh-ctrl input[type=range] {
+    width: 140px;
+    accent-color: #38bdf8;
+  }
+  .section {
+    max-width: 1800px;
+    margin: 14px auto 6px;
+    font-size: 0.88rem;
+    color: #7dd3fc;
+    text-shadow: 0 0 8px rgba(0,0,0,0.8);
+    padding-left: 4px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 10px;
+    max-width: 1800px;
+    margin: 0 auto 10px;
+  }
+  .card {
+    background: rgba(15,20,40,0.78);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(100,140,220,0.3);
+    border-radius: 9px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .card:hover {
+    border-color: #38bdf8;
+    transform: translateY(-2px);
+    box-shadow: 0 0 18px rgba(56,189,248,0.25);
+  }
+  .card h2 {
+    background: rgba(20,30,55,0.9);
+    padding: 6px 10px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card h2 a {
+    color: #38bdf8;
+    text-decoration: none;
+    font-size: 0.68rem;
+  }
+  .card .content {
+    min-height: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,10,25,0.5);
+  }
+  .card img {
+    max-width: 100%;
+    max-height: 230px;
+    width: auto;
+    height: auto;
+    display: block;
+  }
+  .placeholder {
+    text-align: center;
+    padding: 14px;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+  .placeholder a {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 5px 11px;
+    background: #0ea5e9;
+    color: #fff;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  footer {
+    text-align: center;
+    margin: 16px auto 8px;
+    font-size: 0.78rem;
+    color: #7dd3fc;
+    max-width: 600px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">Space Weather Dashboard, made by Grok</div>
+  <div class="clock" id="utcClock">UTC --:--:--</div>
+  <div class="refresh-ctrl">
+    <span>Auto-refresh</span>
+    <input type="range" id="refreshSlider" min="0" max="3600" step="30" value="300">
+    <span id="refreshLabel">5 min</span>
+  </div>
+</div>
+
+<!-- SDO / HMI -->
+<div class="section">SDO AIA & HMI</div>
+<div class="grid">
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 171 Å <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0171.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0171.jpg" id="aia171" alt="AIA 171"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 193 Å <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0193.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0193.jpg" id="aia193" alt="AIA 193"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 211 Å <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0211.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0211.jpg" id="aia211" alt="AIA 211"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 304 Å <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0304.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0304.jpg" id="aia304" alt="AIA 304"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 094 Å <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0094.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0094.jpg" id="aia094" alt="AIA 094"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 131 Å <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0131.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0131.jpg" id="aia131" alt="AIA 131"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>HMI Magnetogram <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIB.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIB.jpg" id="hmib" alt="HMI Mag"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>HMI Intensitygram <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMII.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMII.jpg" id="hmii" alt="HMI Int"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>HMI Continuum (color) <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIC.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIC.jpg" id="hmiic" alt="HMIIC"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>AIA 211/193/171 Composite <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_211193171.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_211193171.jpg" id="comp" alt="Composite"></div>
+  </div>
+</div>
+
+<!-- Active region / charmap -->
+<div class="section">Active Region Map & Solar Charts</div>
+<div class="grid">
+  <div class="card" onclick="window.open('https://solen.info/solar/','_blank')">
+    <h2>Solar Char Map (solen.info) <a href="https://solen.info/solar/images/charmap.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://solen.info/solar/images/charmap.jpg" id="charmap" alt="Charmap" onerror="this.parentElement.innerHTML='<div class=placeholder>Charmap temporarily unavailable<br><a href=https://solen.info/solar/ target=_blank>Open solen.info</a></div>'"></div>
+  </div>
+  <div class="card" onclick="window.open('https://sdo.gsfc.nasa.gov/data/','_blank')">
+    <h2>SDO Active Region Map <a href="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_ar_map.png" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://sdo.gsfc.nasa.gov/assets/img/latest/latest_ar_map.png" id="armap" alt="AR Map" onerror="this.style.display='none'"></div>
+  </div>
+</div>
+
+<!-- Coronagraphs -->
+<div class="section">Coronagraphs</div>
+<div class="grid">
+  <div class="card" onclick="window.open('https://soho.nascom.nasa.gov/data/realtime-images.html','_blank')">
+    <h2>SOHO LASCO C2 <a href="https://soho.nascom.nasa.gov/data/realtime/c2/512/latest.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://soho.nascom.nasa.gov/data/realtime/c2/512/latest.jpg" id="c2" alt="C2" onerror="this.parentElement.innerHTML='<div class=placeholder>LASCO C2<br><a href=https://soho.nascom.nasa.gov/data/realtime-images.html target=_blank>Open SOHO</a></div>'"></div>
+  </div>
+  <div class="card" onclick="window.open('https://soho.nascom.nasa.gov/data/realtime-images.html','_blank')">
+    <h2>SOHO LASCO C3 <a href="https://soho.nascom.nasa.gov/data/realtime/c3/512/latest.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://soho.nascom.nasa.gov/data/realtime/c3/512/latest.jpg" id="c3" alt="C3" onerror="this.parentElement.innerHTML='<div class=placeholder>LASCO C3<br><a href=https://soho.nascom.nasa.gov/data/realtime-images.html target=_blank>Open SOHO</a></div>'"></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/coronagraph','_blank')">
+    <h2>GOES CCOR-1 <a href="https://www.swpc.noaa.gov/products/coronagraph" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">GOES-19 Compact Coronagraph<br><a href="https://www.swpc.noaa.gov/products/coronagraph" target="_blank" onclick="event.stopPropagation()">Open SWPC</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://stereo-ssc.nascom.nasa.gov/beacon/beacon_secchi.shtml','_blank')">
+    <h2>STEREO-A COR2 <a href="https://stereo-ssc.nascom.nasa.gov/beacon/latest_256/ahead_cor2_latest.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://stereo-ssc.nascom.nasa.gov/beacon/latest_256/ahead_cor2_latest.jpg" id="cor2" alt="COR2" onerror="this.parentElement.innerHTML='<div class=placeholder>STEREO-A COR2<br><a href=https://stereo-ssc.nascom.nasa.gov/beacon/beacon_secchi.shtml target=_blank>Open STEREO</a></div>'"></div>
+  </div>
+</div>
+
+<!-- SWPC Enthusiasts / core products -->
+<div class="section">SWPC Enthusiasts Dashboard Products</div>
+<div class="grid">
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/goes-x-ray-flux','_blank')">
+    <h2>GOES X-ray Flux <a href="https://www.swpc.noaa.gov/products/goes-x-ray-flux" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Live X-ray (A–X class)<br><a href="https://www.swpc.noaa.gov/products/goes-x-ray-flux" target="_blank" onclick="event.stopPropagation()">Open plot</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/goes-proton-flux','_blank')">
+    <h2>GOES Proton Flux <a href="https://www.swpc.noaa.gov/products/goes-proton-flux" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Proton flux plots<br><a href="https://www.swpc.noaa.gov/products/goes-proton-flux" target="_blank" onclick="event.stopPropagation()">Open</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/real-time-solar-wind','_blank')">
+    <h2>Real-time Solar Wind <a href="https://www.swpc.noaa.gov/products/real-time-solar-wind" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">DSCOVR / ACE plasma & B<br><a href="https://www.swpc.noaa.gov/products/real-time-solar-wind" target="_blank" onclick="event.stopPropagation()">Open</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/planetary-k-index','_blank')">
+    <h2>Planetary Kp <a href="https://services.swpc.noaa.gov/images/station-k-index.png" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://services.swpc.noaa.gov/images/station-k-index.png" id="kp" alt="Kp"></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/aurora-30-minute-forecast','_blank')">
+    <h2>Aurora Forecast (N) <a href="https://services.swpc.noaa.gov/images/aurora-forecast-northern-hemisphere.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://services.swpc.noaa.gov/images/aurora-forecast-northern-hemisphere.jpg" id="auroraN" alt="Aurora N"></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/aurora-30-minute-forecast','_blank')">
+    <h2>Aurora Forecast (S) <a href="https://services.swpc.noaa.gov/images/aurora-forecast-southern-hemisphere.jpg" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><img src="https://services.swpc.noaa.gov/images/aurora-forecast-southern-hemisphere.jpg" id="auroraS" alt="Aurora S"></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/products/wsa-enlil-solar-wind-prediction','_blank')">
+    <h2>WSA-ENLIL <a href="https://www.swpc.noaa.gov/products/wsa-enlil-solar-wind-prediction" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Solar wind / CME model<br><a href="https://www.swpc.noaa.gov/products/wsa-enlil-solar-wind-prediction" target="_blank" onclick="event.stopPropagation()">Open ENLIL</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.spaceweather.gov/communities/space-weather-enthusiasts-dashboard','_blank')">
+    <h2>Full Enthusiasts Dashboard <a href="https://www.spaceweather.gov/communities/space-weather-enthusiasts-dashboard" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Official SWPC enthusiast view<br><a href="https://www.spaceweather.gov/communities/space-weather-enthusiasts-dashboard" target="_blank" onclick="event.stopPropagation()">Open</a></div></div>
+  </div>
+</div>
+
+<!-- CCMC / models -->
+<div class="section">NASA CCMC Models (Production / RT & Instant)</div>
+<div class="grid">
+  <div class="card" onclick="window.open('https://ccmc.gsfc.nasa.gov/models/modelinfo.php?model=WSA-ENLIL','_blank')">
+    <h2>WSA-ENLIL (CCMC) <a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Heliospheric solar wind model<br><a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">CCMC Catalog</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://ccmc.gsfc.nasa.gov/models/','_blank')">
+    <h2>SWMF / Geospace <a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Global magnetosphere<br><a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">Open CCMC</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://ccmc.gsfc.nasa.gov/models/','_blank')">
+    <h2>Flare Scoreboard <a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Continuous RT flare forecasts<br><a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">CCMC</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://ccmc.gsfc.nasa.gov/models/','_blank')">
+    <h2>SEP Scoreboard <a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Solar Energetic Particle intensity<br><a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">CCMC</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://ccmc.gsfc.nasa.gov/models/','_blank')">
+    <h2>ISWA Layouts / Data Tree <a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Integrated Space Weather Analysis<br><a href="https://ccmc.gsfc.nasa.gov/models/" target="_blank" onclick="event.stopPropagation()">Browse</a></div></div>
+  </div>
+  <div class="card" onclick="window.open('https://www.swpc.noaa.gov/models','_blank')">
+    <h2>All SWPC Models <a href="https://www.swpc.noaa.gov/models" target="_blank" onclick="event.stopPropagation()">↗</a></h2>
+    <div class="content"><div class="placeholder">Operational model list<br><a href="https://www.swpc.noaa.gov/models" target="_blank" onclick="event.stopPropagation()">Open</a></div></div>
+  </div>
+</div>
+
+<footer>Space Weather Dashboard, made by Grok</footer>
+
+<script>
+  // Live UTC clock (browser time, normally NTP-synced to USNO/NIST sources)
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getUTCHours()).padStart(2,'0');
+    const m = String(now.getUTCMinutes()).padStart(2,'0');
+    const s = String(now.getUTCSeconds()).padStart(2,'0');
+    document.getElementById('utcClock').textContent = `UTC ${h}:${m}:${s}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Image cache-bust (frequent light refresh)
+  function refreshImages() {
+    const t = Date.now();
+    const ids = ['aia171','aia193','aia211','aia304','aia094','aia131','hmib','hmii','hmiic','comp','charmap','armap','c2','c3','cor2','kp','auroraN','auroraS'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.src) el.src = el.src.split('?')[0] + '?t=' + t;
+    });
+  }
+  setInterval(refreshImages, 180000); // every 3 min
+  setTimeout(refreshImages, 4000);
+
+  // Full page auto-refresh controlled by slider
+  let reloadTimer = null;
+  const slider = document.getElementById('refreshSlider');
+  const label = document.getElementById('refreshLabel');
+
+  function formatLabel(sec) {
+    if (sec === 0) return 'Off';
+    if (sec < 60) return sec + 's';
+    if (sec < 3600) return Math.round(sec/60) + ' min';
+    return '1 hour';
+  }
+
+  function setRefresh(sec) {
+    label.textContent = formatLabel(sec);
+    if (reloadTimer) clearTimeout(reloadTimer);
+    if (sec > 0) {
+      reloadTimer = setTimeout(() => location.reload(), sec * 1000);
+    }
+  }
+
+  slider.addEventListener('input', () => setRefresh(parseInt(slider.value, 10)));
+  setRefresh(parseInt(slider.value, 10)); // initial 5 min
+</script>
+</body>
+</html>

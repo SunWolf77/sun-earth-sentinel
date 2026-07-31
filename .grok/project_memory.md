@@ -1,0 +1,5 @@
+- Sol-Earth WolfWatch Sentinel is the current free single-file HTML Sol-Earth observatory (EQ + volcano + solar/space weather + SUPT Resonance Layer) built for SunWolf. [2026-07-24]
+- Primary technical lineage is SunWolf’s own multi-year free HTML / GitHub Pages monitoring work + SolWatch continuum; Dutchsinse is only a secondary cultural/inspirational reference. [2026-07-25]
+- Lightweight Three.js 3D Globe implemented (Full mode only, lazy-loaded). NASA Blue Marble texture, EQ Points by magnitude, OrbitControls + auto-rotate, full dispose on exit to 2D. [2026-07-25]
+- Live Resonance Score: Paul Sheppard frozen SUPT probe (α = 0.01). ETAS Whitening Control documented. Space Weather: Kp, GOES X-ray (24 h peak), solar-wind speed/Bz/Bt, NOAA Scales.
+- Credits: SunWolf (primary), Paul Sheppard (SUPT + probe + ETAS residual), SolarHam, Carrington, Dutchsinse (inspirational only), Ethical Skeptic (ECDO), NOAA/USGS/NASA.

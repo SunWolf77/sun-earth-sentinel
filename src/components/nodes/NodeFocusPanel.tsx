@@ -1,0 +1,330 @@
+import { Crosshair, ExternalLink, Mountain, X } from "lucide-react";
+import { useObservatory, getFocusNode, getAllFocusNodes, viewEvents } from "@/store/observatory";
+import {
+  nodeEventStats,
+  nodeStatus,
+  type EqFeature,
+  type NodeStatus,
+} from "@/lib/feeds/usgs";
+import { AVIATION_COLOR, AVIATION_LABEL } from "@/lib/feeds/volcanoWatches";
+
+const STATUS_DOT: Record<NodeStatus, string> = {
+  quiet: "bg-primary border-primary",
+  elevated: "bg-gold border-gold",
+  active: "bg-warn border-warn",
+  watch: "bg-danger border-danger animate-pulse-soft",
+};
+
+const STATUS_LABEL: Record<NodeStatus, string> = {
+  quiet: "Quiet",
+  elevated: "Elevated",
+  active: "Active",
+  watch: "Watch",
+};
+
+/**
+ * Lightweight node focus — fly-to + filter + status.
+ * Includes seismic corridors, manual volcano watches, and live USGS elevated volcanoes (auto-drop when green).
+ */
+export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
+  const focusNodeId = useObservatory((s) => s.focusNodeId);
+  const setFocusNode = useObservatory((s) => s.setFocusNode);
+  const volcWatchNodes = useObservatory((s) => s.volcWatchNodes);
+  const focus = getFocusNode(focusNodeId);
+  // Recompute when dynamic USGS watches change
+  const allNodes = getAllFocusNodes();
+  void volcWatchNodes; // subscribe to dynamic watches
+
+  const ranked = [...allNodes].sort((a, b) => {
+    // Live USGS elevated volcanoes first, then manual watch-priority, then seismic
+    const aUsgs = a.id.startsWith("usgs-volc-");
+    const bUsgs = b.id.startsWith("usgs-volc-");
+    if (aUsgs && !bUsgs) return -1;
+    if (!aUsgs && bUsgs) return 1;
+    if (a.watchPriority && !b.watchPriority) return -1;
+    if (!a.watchPriority && b.watchPriority) return 1;
+    const rank = (id: string) => {
+      const n = allNodes.find((x) => x.id === id)!;
+      const st = nodeStatus(allFeatures, n);
+      if (st === "watch") return 0;
+      if (st === "active") return 1;
+      if (st === "elevated") return 2;
+      return 3;
+    };
+    const ra = rank(a.id);
+    const rb = rank(b.id);
+    if (ra !== rb) return ra - rb;
+    if (a.publishedFocus && !b.publishedFocus) return -1;
+    if (!a.publishedFocus && b.publishedFocus) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
+          <Crosshair className="h-3.5 w-3.5" />
+          Node Focus
+        </h3>
+        {focus && (
+          <button
+            type="button"
+            onClick={() => setFocusNode(null)}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[0.65rem] text-muted hover:text-fg"
+          >
+            <X className="h-3 w-3" />
+            Global
+          </button>
+        )}
+      </div>
+
+      <p className="text-[0.65rem] leading-snug text-dim">
+        Tap a node for swarm corridors or volcano watches — map zooms, list filters. Not a forecast
+        product.
+      </p>
+
+      {focus && (
+        <div
+          className={`rounded-lg border px-2.5 py-2 ${
+            focus.kind === "volcano"
+              ? "border-warn/50 bg-warn/10"
+              : "border-primary/40 bg-primary/10"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-fg">
+                {focus.kind === "volcano" && (
+                  <Mountain className="h-3.5 w-3.5 shrink-0 text-warn" />
+                )}
+                {focus.name}
+              </div>
+              <div className="text-[0.65rem] text-dim">{focus.role}</div>
+            </div>
+            <span
+              className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[0.6rem] font-medium ${
+                nodeStatus(allFeatures, focus) === "watch"
+                  ? "border-danger/50 text-danger"
+                  : nodeStatus(allFeatures, focus) === "active"
+                    ? "border-warn/50 text-warn"
+                    : "border-primary/40 text-primary"
+              }`}
+            >
+              {STATUS_LABEL[nodeStatus(allFeatures, focus)]}
+            </span>
+          </div>
+
+          {focus.kind === "volcano" && focus.aviationCode && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[0.68rem]">
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-semibold"
+                style={{
+                  borderColor: AVIATION_COLOR[focus.aviationCode],
+                  color: AVIATION_COLOR[focus.aviationCode],
+                }}
+              >
+                Aviation {AVIATION_LABEL[focus.aviationCode]}
+              </span>
+              <span className="text-dim">KVERT / GVP watch</span>
+            </div>
+          )}
+
+          {focus.focusNote && (
+            <p className="mt-1.5 text-[0.65rem] leading-snug text-muted">{focus.focusNote}</p>
+          )}
+
+          {(() => {
+            const s = nodeEventStats(allFeatures, focus);
+            return (
+              <div className="mt-1.5 text-[0.68rem] text-muted">
+                {s.count} seismic in box
+                {s.maxMag > 0 ? ` · max M${s.maxMag.toFixed(1)}` : ""}
+                {s.m5 > 0 ? ` · ${s.m5}× M5+` : ""}
+              </div>
+            );
+          })()}
+
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {focus.gvpUrl && (
+              <a
+                href={focus.gvpUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[0.68rem] font-medium text-warn hover:underline"
+              >
+                Smithsonian GVP
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {focus.agencyUrl && (
+              <a
+                href={focus.agencyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[0.68rem] font-medium text-primary hover:underline"
+              >
+                KVERT
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {focus.monitorUrl && focus.kind !== "volcano" && (
+              <a
+                href={focus.monitorUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[0.68rem] font-medium text-gold hover:underline"
+              >
+                Open full swarm board
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      <ul className="max-h-52 space-y-1 overflow-y-auto scroll-thin">
+        {ranked.map((node) => {
+          const st = nodeStatus(allFeatures, node);
+          const stats = nodeEventStats(allFeatures, node);
+          const active = focusNodeId === node.id;
+          const isVolc = node.kind === "volcano";
+          return (
+            <li key={node.id}>
+              <button
+                type="button"
+                onClick={() => setFocusNode(active ? null : node.id)}
+                className={`flex w-full items-start gap-2 rounded-md border px-2 py-1.5 text-left transition ${
+                  active
+                    ? isVolc
+                      ? "border-warn/50 bg-warn/15"
+                      : "border-primary/50 bg-primary/15"
+                    : "border-border/70 bg-panel hover:border-border-strong hover:bg-elevated/50"
+                }`}
+              >
+                <span
+                  className={`mt-1 h-2 w-2 shrink-0 rounded-full border ${STATUS_DOT[st]}`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-1">
+                    {isVolc && <Mountain className="h-3 w-3 text-warn" />}
+                    <span className="text-[0.75rem] font-medium text-fg">{node.name}</span>
+                    {node.watchPriority && (
+                      <span className="rounded border border-danger/40 px-1 text-[0.55rem] uppercase text-danger">
+                        Volc watch
+                      </span>
+                    )}
+                    {node.publishedFocus && (
+                      <span className="rounded border border-gold/40 px-1 text-[0.55rem] uppercase text-gold">
+                        Pub
+                      </span>
+                    )}
+                    {isVolc && node.aviationCode && (
+                      <span
+                        className="rounded border px-1 text-[0.55rem] font-semibold uppercase"
+                        style={{
+                          borderColor: AVIATION_COLOR[node.aviationCode],
+                          color: AVIATION_COLOR[node.aviationCode],
+                        }}
+                      >
+                        {AVIATION_LABEL[node.aviationCode]}
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-[0.62rem] text-dim">
+                    {isVolc
+                      ? `${STATUS_LABEL[st]} · volcano watch`
+                      : STATUS_LABEL[st]}
+                    {stats.count > 0
+                      ? ` · ${stats.count} · M${stats.maxMag.toFixed(1)}`
+                      : isVolc
+                        ? " · local seismicity filter"
+                        : " · none in view"}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** Compact map overlay when a node is focused. */
+export function NodeFocusBanner() {
+  const focusNodeId = useObservatory((s) => s.focusNodeId);
+  const setFocusNode = useObservatory((s) => s.setFocusNode);
+  const eq = useObservatory((s) => s.eq);
+  const minMag = useObservatory((s) => s.minMag);
+  const maxMag = useObservatory((s) => s.maxMag);
+  const focus = getFocusNode(focusNodeId);
+  if (!focus) return null;
+
+  const events = viewEvents(eq?.features, minMag, focusNodeId, maxMag);
+  const st = nodeStatus(events.length ? events : eq?.features ?? [], focus);
+  const stats = nodeEventStats(eq?.features ?? [], focus);
+  const isVolc = focus.kind === "volcano";
+
+  return (
+    <div
+      className={`pointer-events-auto absolute left-3 right-3 top-3 z-[500] flex flex-wrap items-center gap-2 rounded-lg border bg-bg/95 px-3 py-2 text-xs shadow-lg backdrop-blur sm:left-auto sm:right-3 sm:max-w-md ${
+        isVolc ? "border-warn/50" : "border-primary/40"
+      }`}
+    >
+      {isVolc ? (
+        <Mountain className="h-3.5 w-3.5 shrink-0 text-warn" />
+      ) : (
+        <Crosshair className="h-3.5 w-3.5 shrink-0 text-primary" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold text-fg">{focus.name}</div>
+        <div className="text-[0.68rem] text-dim">
+          {isVolc && focus.aviationCode ? (
+            <>
+              Aviation {AVIATION_LABEL[focus.aviationCode]} · {STATUS_LABEL[st]}
+              {stats.count > 0
+                ? ` · ${stats.count} eq · max M${stats.maxMag.toFixed(1)}`
+                : " · volcano watch"}
+            </>
+          ) : (
+            <>
+              {STATUS_LABEL[st]} · {stats.count} events · max M
+              {stats.maxMag > 0 ? stats.maxMag.toFixed(1) : "—"}
+              {focus.publishedFocus ? " · published monitor available" : ""}
+            </>
+          )}
+        </div>
+      </div>
+      {focus.gvpUrl && (
+        <a
+          href={focus.gvpUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-md border border-warn/40 bg-warn/10 px-2 py-1 text-[0.68rem] font-medium text-warn hover:bg-warn/20"
+        >
+          GVP
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+      {focus.monitorUrl && !isVolc && (
+        <a
+          href={focus.monitorUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1 text-[0.68rem] font-medium text-gold hover:bg-gold/20"
+        >
+          Swarm board
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+      <button
+        type="button"
+        onClick={() => setFocusNode(null)}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted hover:text-fg"
+        title="Exit node focus"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
