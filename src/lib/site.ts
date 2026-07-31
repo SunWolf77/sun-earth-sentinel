@@ -2,8 +2,7 @@
  * Public site identity for Open Graph / X (Twitter) cards.
  *
  * IMPORTANT: Twitterbot does NOT run JS. SSR head tags must use the public
- * production origin — never ephemeral VERCEL_URL. Bump ogImageVersion when
- * the image changes; post a new URL (?v=N or /share.html) for a full re-scrape.
+ * production origin. Bump ogImageVersion when branding or image changes.
  *
  * Public host: https://sun-earth-sentinel.vercel.app
  */
@@ -21,7 +20,6 @@ function normalizeOrigin(raw: string): string {
 /**
  * Origin used for og:url / twitter:image / canonical.
  * Prefer explicit VITE_SITE_URL (local override), else the public production host.
- * Do NOT use VERCEL_URL — it can break X cards across renames.
  */
 export function getSiteOrigin(): string {
   try {
@@ -44,15 +42,15 @@ export function resolveShareOrigin(): string {
 }
 
 export const SITE = {
-  name: "Sun-Earth Sentinel",
-  shortName: "Sun-Earth Sentinel",
+  name: "Sun Earth Sentinel",
+  shortName: "Sun Earth Sentinel",
   description:
-    "Free Sun-Earth observatory: live earthquakes, plate boundaries, volcano watches, space weather and SUPT continuum. By SunWolf (@Sunwolf77).",
+    "Free Sun Earth observatory: live earthquakes, plate boundaries, volcano watches, space weather and SUPT continuum. By SunWolf (@Sunwolf77).",
   twitter: "@Sunwolf77",
   twitterCreator: "@Sunwolf77",
   ogImagePath: "/og.png",
   /** Bump when og.png or branding changes — forces X image CDN re-fetch */
-  ogImageVersion: "6",
+  ogImageVersion: "7",
   sharePath: "/share.html",
   themeColor: "#070b12",
   slug: "sun-earth-sentinel",
@@ -64,7 +62,7 @@ export const X_PROFILES = {
     name: "SunWolf",
     handle: "Sunwolf77",
     url: "https://x.com/Sunwolf77",
-    role: "Primary technical lineage · Sun-Earth Sentinel",
+    role: "Primary technical lineage · Sun Earth Sentinel",
   },
   sheppard: {
     name: "Paul Sheppard",
@@ -116,7 +114,7 @@ export function xCardDebugReport(origin = getSiteOrigin()) {
     card: "summary_large_image",
     notes: [
       "X caches cards per exact URL — old tweets keep old scrapes forever.",
-      "Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=6 to force re-scrape.",
+      "Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=7 to force re-scrape.",
       "SSR head tags use PRODUCTION_ORIGIN so Twitterbot sees the right host (no JS).",
       "og.png must be image/png on this host — not HTML.",
       "Always share https:// links.",
