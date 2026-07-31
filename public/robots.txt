@@ -8,4 +8,4 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-Sitemap: https://sun-earth-sentinel.grok.me/
+Sitemap: https://sun-earth-sentinel.vercel.app/
