@@ -6,5 +6,7 @@ node_modules/
 
 # Vercel / Nitro build output (never commit — always rebuild on deploy)
 .vercel/
+.vercel/**
 .output/
 dist/
+.nitro/
