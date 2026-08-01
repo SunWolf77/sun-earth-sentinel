@@ -248,6 +248,7 @@ export function LiveMap() {
       zoom: 2,
       worldCopyJump: true,
       zoomControl: false,
+      attributionControl: false,
       preferCanvas: false,
       fadeAnimation: false,
       markerZoomAnimation: false,
@@ -262,7 +263,15 @@ export function LiveMap() {
       bounceAtZoomLimits: false,
     });
 
-    L.control.zoom({ position: "bottomright" }).addTo(map);
+    // Top-right zoom — clear of legend (top-left) and layer bar (bottom)
+    L.control.zoom({ position: "topright" }).addTo(map);
+    // Compact attribution bottom-left — clear of MapStyleControl / replay
+    L.control
+      .attribution({
+        position: "bottomleft",
+        prefix: false,
+      })
+      .addTo(map);
 
     touchHandle.current = attachMapTouchGestures(map, {
       doubleTapZoomDelta: 1,

@@ -649,19 +649,18 @@
   overscroll-behavior: none;
 }
 
-/* Zoom: bottom-right, above layer toggle bar — never over legend */
-/* Room for single mobile chrome bar */
+/* Leaflet chrome — corners that do not fight legend / layers / replay */
+/* Legend = top-left · Zoom = top-right · Layers bar = bottom · Attribution = bottom-left */
 @media (max-width: 1023px) {
-  .ww-map .leaflet-bottom {
-    bottom: 3.4rem;
-  }
   .ww-toggle-bar--mobile {
     margin-bottom: env(safe-area-inset-bottom, 0);
   }
 }
-.ww-map .leaflet-bottom.leaflet-right {
+
+/* Zoom: top-right, away from MapStyleControl + EventReplay */
+.ww-map .leaflet-top.leaflet-right {
+  top: 0.5rem;
   right: 0.5rem;
-  bottom: 4.75rem;
   margin: 0;
   z-index: 480;
 }
@@ -688,26 +687,49 @@
   border-color: #334155 !important;
 }
 
-/* Attribution clear of toggles */
-.leaflet-control-attribution {
-  background: rgba(248, 250, 252, 0.92) !important;
-  color: #475569 !important;
-  font-size: 10px !important;
-  border-radius: 4px 0 0 0;
-  margin: 0 0 4.5rem 0.25rem !important;
-  max-width: min(55vw, 16rem);
+/* Attribution: compact strip, bottom-left only */
+.ww-map .leaflet-bottom.leaflet-left {
+  left: 0.35rem;
+  bottom: 0.35rem;
+  margin: 0;
+  z-index: 420;
 }
-.ww-tone-dark .leaflet-control-attribution,
-.ww-tone-sat .leaflet-control-attribution {
-  background: rgba(15, 23, 42, 0.9) !important;
+@media (max-width: 1023px) {
+  /* Sit above mobile layer toggle bar */
+  .ww-map .leaflet-bottom.leaflet-left {
+    bottom: 3.65rem;
+  }
+}
+.ww-map .leaflet-control-attribution {
+  background: rgba(248, 250, 252, 0.88) !important;
+  color: #64748b !important;
+  font-size: 9px !important;
+  line-height: 1.25 !important;
+  border-radius: 6px !important;
+  margin: 0 !important;
+  padding: 2px 6px !important;
+  max-width: min(42vw, 11.5rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.ww-tone-dark .ww-map .leaflet-control-attribution,
+.ww-tone-sat .ww-map .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.88) !important;
   color: #94a3b8 !important;
 }
-.leaflet-control-attribution a {
+.ww-map .leaflet-control-attribution a {
   color: #0e7490 !important;
 }
-.ww-tone-dark .leaflet-control-attribution a,
-.ww-tone-sat .leaflet-control-attribution a {
+.ww-tone-dark .ww-map .leaflet-control-attribution a,
+.ww-tone-sat .ww-map .leaflet-control-attribution a {
   color: #67e8f9 !important;
+}
+
+/* Keep bottom-right free for MapStyleControl only */
+.ww-map .leaflet-bottom.leaflet-right {
+  display: none;
 }
 
 .leaflet-popup-content-wrapper {
