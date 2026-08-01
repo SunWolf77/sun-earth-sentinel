@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useObservatory, filteredEq, getFocusNode, type PickedEvent } from "@/store/observatory";
+import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes, type PickedEvent } from "@/store/observatory";
 import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
@@ -13,6 +13,14 @@ import {
 } from "@/lib/seismology/shakemap";
 import { formatUtc } from "@/lib/utils";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import {
+  nodeWhyLine,
+  nodeRoleLine,
+  nodeMarkChip,
+  nodeShortName,
+} from "@/lib/nodes/describeNode";
+import type { DragonNode } from "@/lib/feeds/usgs";
+
 import {
   clusterEqPointsByKm,
   globeClusterRadiusKm,
@@ -70,6 +78,9 @@ export function Globe3D() {
   const recenterRef = useRef<(() => void) | null>(null);
   const [qualityLabel, setQualityLabel] = useState<string>("");
   const [bootError, setBootError] = useState<string | null>(null);
+  const [pickedGlobeNode, setPickedGlobeNode] = useState<DragonNode | null>(null);
+  const setPickedGlobeNodeRef = useRef(setPickedGlobeNode);
+  setPickedGlobeNodeRef.current = setPickedGlobeNode;
   const qualityRef = useRef<GlobeQuality | null>(null);
 
   useEffect(() => {
@@ -285,6 +296,9 @@ export function Globe3D() {
         clusterKey?: string;
         count?: number;
         nodeId?: string;
+        role?: string;
+        why?: string;
+        chip?: string;
       };
       let pickList: { mesh: InstanceType<typeof THREE.Object3D>; meta: PickMeta }[] = [];
       /** Expanded spiderfy clusters on the globe (click badge to toggle). */
@@ -763,7 +777,7 @@ export function Globe3D() {
           pinGroup.remove(o);
           o.traverse((ch) => {
             const mesh = ch as InstanceType<typeof THREE.Mesh>;
-            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.geometry && mesh.geometry !== hexGeo) mesh.geometry.dispose();
             const mat = mesh.material;
             if (mat) {
               if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
@@ -771,11 +785,14 @@ export function Globe3D() {
             }
           });
         }
+        // Only draw when Nodes overlay is on — every pin is pickable with a "why" card
         if (!Q.nodePins || !overlaysRef.current.nodes) return;
-        const nodes =
-          Q.id === "mobile"
-            ? DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority)
-            : DRAGON_NODES;
+        let nodes = getAllFocusNodes();
+        if (Q.id === "mobile") {
+          nodes = nodes.filter(
+            (n) => n.publishedFocus || n.watchPriority || n.kind === "volcano",
+          );
+        }
         for (const node of nodes) {
           const clat = node.center?.[0] ?? (node.bounds[0][0] + node.bounds[1][0]) / 2;
           const clon =
@@ -783,24 +800,73 @@ export function Globe3D() {
             (node.bounds[0][1] <= node.bounds[1][1]
               ? (node.bounds[0][1] + node.bounds[1][1]) / 2
               : -175);
-          const v = latLonToVec(clat, clon, 1.028);
-          const pin = new THREE.Mesh(
+          const elev = 1.032;
+          const v = latLonToVec(clat, clon, elev);
+          const col =
+            node.kind === "volcano"
+              ? 0xfb923c
+              : node.publishedFocus
+                ? 0xfbbf24
+                : 0x22d3ee;
+          const g = new THREE.Group();
+          g.position.copy(v);
+          g.lookAt(0, 0, 0);
+          g.rotateY(Math.PI);
+
+          // Larger hit sphere (invisible) + visible pin so taps register
+          const hitR = node.publishedFocus || node.kind === "volcano" ? 0.04 : 0.032;
+          const hit = new THREE.Mesh(
+            new THREE.SphereGeometry(hitR, 10, 10),
+            new THREE.MeshBasicMaterial({
+              transparent: true,
+              opacity: 0.001,
+              depthWrite: false,
+            }),
+          );
+          g.add(hit);
+
+          const core = new THREE.Mesh(
             new THREE.SphereGeometry(
-              node.publishedFocus ? 0.022 : 0.015,
+              node.publishedFocus ? 0.018 : 0.013,
               Q.pinSeg,
               Q.pinSeg,
             ),
             new THREE.MeshBasicMaterial({
-              color: node.kind === "volcano" ? 0xfb923c : node.publishedFocus ? 0xfbbf24 : 0x22d3ee,
+              color: col,
               transparent: true,
               opacity: 0.95,
               depthWrite: false,
             }),
           );
-          pin.position.copy(v);
-          pinGroup.add(pin);
+          g.add(core);
+
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.022, 0.03, 20),
+            new THREE.MeshBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: 0.85,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          );
+          ring.scale.setScalar(node.publishedFocus ? 1.15 : 1);
+          g.add(ring);
+
+          // Always-visible name + chip so users know what/why
+          const spr = makeNodeLabelSprite(
+            THREE,
+            nodeShortName(node, 18),
+            nodeMarkChip(node),
+            col,
+          );
+          spr.scale.setScalar(0.14);
+          spr.position.set(0, 0, 0.04);
+          g.add(spr);
+
+          pinGroup.add(g);
           pickList.push({
-            mesh: pin,
+            mesh: g,
             meta: {
               kind: "node",
               id: `node:${node.id}`,
@@ -812,6 +878,9 @@ export function Globe3D() {
               depth: 0,
               time: null,
               neon: false,
+              role: nodeRoleLine(node),
+              why: nodeWhyLine(node),
+              chip: nodeMarkChip(node),
             },
           });
         }
@@ -861,6 +930,12 @@ export function Globe3D() {
 
       function applyPick(meta: PickMeta) {
         if (meta.kind === "node" && meta.nodeId) {
+          pickEvent(null); // clear EQ card so node card owns the panel
+          const node =
+            getAllFocusNodes().find((n) => n.id === meta.nodeId) ||
+            DRAGON_NODES.find((n) => n.id === meta.nodeId) ||
+            null;
+          setPickedGlobeNodeRef.current(node);
           setFocusNode(meta.nodeId);
           aimAt(meta.lat, meta.lon, true);
           return;
@@ -895,6 +970,7 @@ export function Globe3D() {
           time: meta.time,
           url: usgsUrl,
         };
+        setPickedGlobeNodeRef.current(null);
         pickEvent(ev);
         aimAt(meta.lat, meta.lon, true);
         // highlight ring
@@ -1158,7 +1234,7 @@ export function Globe3D() {
       legend.className =
         "pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-[0.68rem] text-muted";
       legend.innerHTML =
-        '<span style="color:#00ee66">⬡</span> M3 &nbsp; <span style="color:#ffee00">⬡</span> M4 &nbsp; <span style="color:#ff8c00">⬡</span> M5 &nbsp; <span style="color:#ff2200">⬡</span> M6+ &nbsp; <span style="opacity:.85">● n</span> cluster &nbsp; <span style="opacity:.7">| tap badge = pins</span>';
+        '<span style="color:#00ee66">⬡</span> EQ &nbsp; <span style="color:#fbbf24">●</span> SES node &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="color:#22d3ee">●</span> zone &nbsp; <span style="opacity:.75">tap label = why</span>';
       container.appendChild(legend);
 
       cleanupRef.current = () => {
@@ -1414,6 +1490,71 @@ export function Globe3D() {
         </div>
       )}
 
+
+      {pickedGlobeNode && !pickedEvent && (
+        <div className="pointer-events-none absolute left-3 top-12 z-20 max-w-[min(320px,82vw)]">
+          <div className="pointer-events-auto rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-semibold text-fg">{pickedGlobeNode.name}</div>
+                <span className="mt-1 inline-block rounded-full border border-border bg-elevated px-1.5 py-0.5 text-[0.58rem] font-bold uppercase tracking-wide text-gold">
+                  {nodeMarkChip(pickedGlobeNode)}
+                </span>
+                <p className="mt-1 text-[0.62rem] text-muted">{nodeRoleLine(pickedGlobeNode)}</p>
+              </div>
+              <button
+                type="button"
+                className="ww-btn ww-btn--ghost px-1.5 text-[0.6rem]"
+                onClick={() => setPickedGlobeNode(null)}
+                aria-label="Clear node"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-2 rounded-md border border-border/80 bg-bg/80 px-2 py-1.5 text-[0.62rem] leading-snug text-dim">
+              <div className="mb-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-muted">
+                Why marked
+              </div>
+              {nodeWhyLine(pickedGlobeNode)}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <ShareFocusButton
+                target="node"
+                nodeId={pickedGlobeNode.id}
+                lat={pickedGlobeNode.center?.[0]}
+                lon={pickedGlobeNode.center?.[1]}
+                compact
+                label="Share zone"
+              />
+              <button
+                type="button"
+                className="ww-btn text-[0.62rem] font-semibold"
+                onClick={() => {
+                  if (focusNodeId === pickedGlobeNode.id) {
+                    useObservatory.getState().exitToHomeView();
+                    setPickedGlobeNode(null);
+                  } else {
+                    setFocusNode(pickedGlobeNode.id);
+                  }
+                }}
+              >
+                {focusNodeId === pickedGlobeNode.id ? "Home view" : "Focus zone"}
+              </button>
+              {pickedGlobeNode.monitorUrl && (
+                <a
+                  href={pickedGlobeNode.monitorUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ww-btn text-[0.62rem]"
+                >
+                  {pickedGlobeNode.kind === "volcano" ? "Profile →" : "Swarm board →"}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="pointer-events-auto absolute bottom-12 right-2 z-20 flex flex-col gap-1.5 sm:right-3">
         <button
           type="button"
@@ -1465,7 +1606,57 @@ function makeHexRingGeometry(THREE: typeof import("three"), outer = 1, thick = 0
   return new THREE.ShapeGeometry(shape);
 }
 
+function makeNodeLabelSprite(
+  THREE: typeof import("three"),
+  name: string,
+  chip: string,
+  colorHex: number,
+) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 72;
+  const ctx = c.getContext("2d")!;
+  ctx.clearRect(0, 0, 256, 72);
+  // pill background
+  ctx.fillStyle = "rgba(15,23,42,0.88)";
+  ctx.strokeStyle = "rgba(148,163,184,0.45)";
+  ctx.lineWidth = 2;
+  const r = 10;
+  ctx.beginPath();
+  ctx.moveTo(r, 4);
+  ctx.arcTo(252, 4, 252, 68, r);
+  ctx.arcTo(252, 68, 4, 68, r);
+  ctx.arcTo(4, 68, 4, 4, r);
+  ctx.arcTo(4, 4, 252, 4, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // color dot
+  const hex = `#${colorHex.toString(16).padStart(6, "0")}`;
+  ctx.fillStyle = hex;
+  ctx.beginPath();
+  ctx.arc(22, 36, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#f8fafc";
+  ctx.font = "bold 18px system-ui,sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText(name, 38, 28);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "600 12px system-ui,sans-serif";
+  ctx.fillText(chip.toUpperCase(), 38, 50);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.95,
+  });
+  return new THREE.Sprite(mat);
+}
+
 function makeCountSprite(
+
   THREE: typeof import("three"),
   count: number,
   color: string,

@@ -42,6 +42,11 @@ import {
 import { isJmaFeature } from "@/lib/feeds/jma";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { filterFeaturesByTimeWindow } from "@/lib/feeds/usgs";
+import {
+  nodePopupHtml,
+  nodeShortName,
+  nodeMarkChip,
+} from "@/lib/nodes/describeNode";
 import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -655,65 +660,70 @@ export function LiveMap() {
                     : "#0891b2";
 
       if (overlays.nodes) {
-        const ring = L.circleMarker([clat, clon], {
-          renderer,
-          radius: isFocus
-            ? 17
-            : isVolc
-              ? 15
-              : isPublished
-                ? 13
-                : st === "watch"
-                  ? 14
-                  : st === "active"
-                    ? 11
-                    : 9,
-          color: sat ? "#fff" : color,
-          fillColor: color,
-          fillOpacity: isFocus ? 0.35 : isVolc ? 0.3 : isPublished ? 0.22 : 0.16,
-          weight: isFocus || isVolc ? 3 : isPublished ? 2.5 : 2,
-          opacity: dimmed ? 0.3 : 0.95,
-          dashArray:
-            st === "quiet" && !isPublished && !isFocus && !isVolc ? "4 4" : undefined,
-          bubblingMouseEvents: false,
+        const chip = nodeMarkChip(node);
+        const short = nodeShortName(node, 20);
+        // Named pin + caption so users always know what the mark is
+        const label = L.marker([clat, clon], {
+          icon: L.divIcon({
+            className: "ww-node-marker",
+            html: `<div class="ww-node-marker__inner${isFocus ? " ww-node-marker__inner--focus" : ""}${isPublished ? " ww-node-marker__inner--ses" : ""}${isVolc ? " ww-node-marker__inner--volc" : ""}" style="--node-c:${color}">
+              <span class="ww-node-marker__dot" style="background:${color};border-color:${sat ? "#fff" : color}"></span>
+              <span class="ww-node-marker__text">
+                <span class="ww-node-marker__name">${short}</span>
+                <span class="ww-node-marker__chip">${chip}</span>
+              </span>
+            </div>`,
+            iconSize: [128, 36],
+            iconAnchor: [14, 18],
+            popupAnchor: [40, -12],
+          }),
+          keyboard: true,
+          riseOnHover: true,
+          zIndexOffset: isFocus ? 900 : isPublished || isVolc ? 700 : 500,
+          title: `${node.name} — ${chip}`,
+          opacity: dimmed ? 0.45 : 1,
         });
 
-        const board =
-          !isVolc && node.monitorUrl
-            ? monitorHandoffUrl(node.id) || node.monitorUrl
-            : null;
-        const monitorLink = board
-          ? `<br/><a href="${board}" target="_blank" rel="noopener noreferrer" style="color:#ca8a04;font-weight:600">Full swarm board (SES) →</a>`
-          : node.monitorUrl && isVolc
-            ? `<br/><a href="${node.monitorUrl}" target="_blank" rel="noopener noreferrer" style="color:#fb923c;font-weight:600">Volcano profile →</a>`
-            : "";
-        const gvpLink = node.gvpUrl
-          ? `<br/><a href="${node.gvpUrl}" target="_blank" rel="noopener noreferrer" style="color:#fb923c;font-weight:600">Smithsonian GVP →</a>`
-          : "";
-        const kvertLink = node.agencyUrl
-          ? `<br/><a href="${node.agencyUrl}" target="_blank" rel="noopener noreferrer" style="color:#22d3ee;font-weight:600">KVERT →</a>`
-          : "";
-        const badge = isVolc
-          ? `<br/><span style="color:#fb923c;font-size:11px">${
-              node.id.startsWith("usgs-volc-")
-                ? "USGS elevated watch (live · drops at GREEN)"
-                : "Active volcano watch"
-            }${node.aviationCode ? ` · Aviation ${node.aviationCode.toUpperCase()}` : ""}</span>`
-          : isPublished
-            ? `<br/><span style="color:#ca8a04;font-size:11px">★ Published SES focus node</span>`
-            : "";
-        const note = node.focusNote
-          ? `<br/><span style="color:#64748b;font-size:11px">${node.focusNote}</span>`
-          : "";
-        ring.bindPopup(
-          `<strong>${node.name}</strong>${badge}<br/><span style="color:#64748b">${node.role}</span><br/>Status: <b style="color:${color}">${st}</b>${note}${gvpLink}${kvertLink}${monitorLink}<br/><button type="button" class="ww-focus-btn" data-node="${node.id}" style="margin-top:6px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:11px">${isFocus ? "Home view" : "Focus region"}</button>`,
-        );
-        ring.on("popupopen", () => {
+        const popupHtml = nodePopupHtml(node, {
+          status: st,
+          statusColor: color,
+          isFocus,
+        });
+        // Prefer SES board URL when published
+        let html = popupHtml;
+        if (!isVolc && node.monitorUrl) {
+          const board = monitorHandoffUrl(node.id) || node.monitorUrl;
+          if (board && !html.includes(board)) {
+            html = html.replace(
+              "Full swarm board →",
+              "Full swarm board →",
+            );
+            // rewrite monitor href if handoff differs
+            html = html.replace(
+              `href="${node.monitorUrl}"`,
+              `href="${board}"`,
+            );
+          }
+        }
+        label.bindPopup(html, {
+          className: "ww-eq-popup ww-node-popup",
+          maxWidth: 300,
+          autoPan: true,
+        });
+        // Direct click focuses zone (popup still explains why)
+        label.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          if (!isFocus) setFocusNode(node.id);
+          // keep popup for "why" + links
+        });
+        label.on("popupopen", () => {
           const btn = document.querySelector(`.ww-focus-btn[data-node="${node.id}"]`);
           if (btn) {
             btn.addEventListener(
               "click",
-              () => {
+              (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
                 if (isFocus) exitToHomeView();
                 else setFocusNode(node.id);
                 mapObj.current?.closePopup();
@@ -722,7 +732,7 @@ export function LiveMap() {
             );
           }
         });
-        nodeLayer.current.addLayer(ring);
+        nodeLayer.current.addLayer(label);
       }
 
       if (overlays.corridors && (isFocus || isPublished || isPriority)) {
@@ -741,9 +751,19 @@ export function LiveMap() {
               fillColor: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
               fillOpacity: isFocus ? 0.12 : isVolc ? 0.08 : 0.07,
               opacity: dimmed ? 0.25 : 0.95,
-              interactive: false,
+              interactive: true,
+              bubblingMouseEvents: false,
             },
           );
+          rect.bindTooltip(
+            `${node.name} · ${nodeMarkChip(node)} — click to focus`,
+            { sticky: true, direction: "top", opacity: 0.95, className: "ww-node-tip" },
+          );
+          rect.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (isFocus) exitToHomeView();
+            else setFocusNode(node.id);
+          });
           nodeLayer.current.addLayer(rect);
         }
       }

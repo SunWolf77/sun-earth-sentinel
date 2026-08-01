@@ -995,3 +995,75 @@
     transform 0.22s cubic-bezier(0.25, 0.8, 0.35, 1),
     opacity 0.18s ease-out !important;
 }
+
+/* Focus-node markers — always labeled so users know what/why */
+.ww-node-marker {
+  background: transparent !important;
+  border: none !important;
+}
+.ww-node-marker__inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 128px;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.ww-node-marker__dot {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid #f8fafc;
+  box-sizing: border-box;
+}
+.ww-node-marker__inner--focus .ww-node-marker__dot {
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.35);
+}
+.ww-node-marker__inner--ses .ww-node-marker__dot {
+  border-color: #fbbf24;
+}
+.ww-node-marker__inner--volc .ww-node-marker__dot {
+  border-color: #fb923c;
+}
+.ww-node-marker__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 2px 6px 2px 4px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(51, 65, 85, 0.9);
+  line-height: 1.15;
+}
+.ww-node-marker__name {
+  font-size: 10px;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+.ww-node-marker__chip {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.ww-node-tip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid #334155 !important;
+  color: #e2e8f0 !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+.ww-node-popup .leaflet-popup-content {
+  margin: 10px 12px;
+}
