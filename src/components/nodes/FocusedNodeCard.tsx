@@ -6,6 +6,10 @@ import {
   type EqFeature,
   type NodeStatus,
 } from "@/lib/feeds/usgs";
+import {
+  getPublishedMonitor,
+  monitorHandoffUrl,
+} from "@/lib/feeds/publishedMonitors";
 import { useObservatory } from "@/store/observatory";
 
 const STATUS_LABEL: Record<NodeStatus, string> = {
@@ -23,14 +27,21 @@ const STATUS_CLASS: Record<NodeStatus, string> = {
 };
 
 /**
- * Published focused monitors — deep swarm boards live outside Sentinel.
- * Card offers Focus-in-app + open full board.
+ * Published focused monitors — deep swarm boards on Vercel.
+ * Focus-in-app zooms the map; Full board opens the dedicated monitor (SES handoff).
  */
 export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
   const setFocusNode = useObservatory((s) => s.setFocusNode);
+  const exitToHomeView = useObservatory((s) => s.exitToHomeView);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
 
   if (FOCUSED_MONITORS.length === 0) return null;
+
+  const ordered = [...FOCUSED_MONITORS].sort((a, b) => {
+    const pa = getPublishedMonitor(a.id)?.networkOrder ?? 99;
+    const pb = getPublishedMonitor(b.id)?.networkOrder ?? 99;
+    return pa - pb;
+  });
 
   return (
     <section className="space-y-2">
@@ -38,24 +49,43 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
         <Radar className="h-3.5 w-3.5" />
         Published Swarm Boards
       </h3>
-      {FOCUSED_MONITORS.map((node) => {
+      <p className="text-[0.62rem] leading-snug text-dim">
+        SES focus nodes — Focus zooms the map here; Full board opens the dedicated Vercel monitor.
+      </p>
+      {ordered.map((node) => {
         const st = nodeStatus(features, node);
         const stats = nodeEventStats(features, node);
         const focused = focusNodeId === node.id;
+        const pub = getPublishedMonitor(node.id);
+        const boardUrl = monitorHandoffUrl(node.id) || node.monitorUrl;
         return (
           <div
             key={node.id}
-            className="rounded-xl border border-gold/35 bg-panel p-3"
+            className={`rounded-xl border p-3 ${
+              focused
+                ? "border-gold/60 bg-gold/10"
+                : "border-gold/35 bg-panel"
+            }`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-medium text-fg">{node.name}</span>
+                  {pub && (
+                    <span className="rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-gold">
+                      SES #{pub.networkOrder}
+                    </span>
+                  )}
                   <span className="rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-gold">
                     Published
                   </span>
                 </div>
                 <p className="mt-0.5 text-[0.7rem] leading-snug text-dim">{node.role}</p>
+                {pub && (
+                  <p className="mt-0.5 text-[0.62rem] text-dim">
+                    Authority · {pub.authority}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -73,21 +103,25 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
             <div className="mt-2.5 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setFocusNode(focused ? null : node.id)}
+                onClick={() => (focused ? exitToHomeView() : setFocusNode(node.id))}
                 className={`rounded-md border px-2.5 py-1.5 text-[0.7rem] font-medium ${
                   focused
                     ? "border-primary bg-primary/20 text-primary"
                     : "border-border text-muted hover:text-fg"
                 }`}
               >
-                {focused ? "Exit focus" : "Focus on map"}
+                {focused ? "Home view" : "Focus on map"}
               </button>
-              {node.monitorUrl && (
+              {boardUrl && (
                 <a
-                  href={node.monitorUrl}
+                  href={boardUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2.5 py-1.5 text-[0.7rem] font-semibold text-gold hover:bg-gold/20"
+                  onClick={() => {
+                    // Keep map focused so returning via ?node= feels continuous
+                    if (!focused) setFocusNode(node.id);
+                  }}
                 >
                   Full swarm board
                   <ExternalLink className="h-3 w-3" />

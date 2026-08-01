@@ -48,6 +48,10 @@ import {
   savePins,
   alertKey,
 } from "@/lib/feeds/watchlistOverride";
+import {
+  fetchGvpRecentVolcanoes,
+  type GvpVolcano,
+} from "@/lib/feeds/gvpGlobal";
 import type { LiveStatus } from "@/lib/realtime/transport";
 import {
   resonanceScore,
@@ -78,6 +82,7 @@ import {
   type MmiContourCollection,
 } from "@/lib/seismology/shakemap";
 import { pointInBounds } from "@/lib/geo/bounds";
+import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 
 type AlertItem = { message?: string; issue_datetime?: string };
 
@@ -95,6 +100,7 @@ export type FeedTimestamps = {
   global: number | null;
   pulse: number | null;
   donki: number | null;
+  gvp: number | null;
 };
 
 export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
@@ -105,6 +111,7 @@ export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
   global: null,
   pulse: null,
   donki: null,
+  gvp: null,
 };
 
 export type DijHistoryPoint = {
@@ -162,6 +169,35 @@ export function filteredEq(
   });
 }
 
+function gvpToFocusNode(v: GvpVolcano): DragonNode {
+  const half = 0.8;
+  return {
+    id: v.id,
+    name: v.name,
+    role: [
+      "Smithsonian GVP",
+      v.lastEruptionYear != null ? `last eruption ${v.lastEruptionYear}` : null,
+      v.country,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    kind: "volcano",
+    bounds: [
+      [v.lat - half, v.lon - half],
+      [v.lat + half, v.lon + half],
+    ],
+    center: [v.lat, v.lon],
+    gvpUrl: v.gvpUrl,
+    monitorUrl: v.gvpUrl,
+    watchPriority: false,
+    publishedFocus: false,
+    focusNote: `${v.region || "Global Holocene"}${v.country ? ` · ${v.country}` : ""}${
+      v.elevationM != null ? ` · ${Math.round(v.elevationM)} m` : ""
+    }. Opt-in GVP layer (eruption ≥ 2010). Not a forecast — Smithsonian GVP is authoritative.`,
+    aliases: v.vnum ? [v.vnum] : undefined,
+  };
+}
+
 type ObservatoryState = {
   mode: PerformanceMode;
   tab: TabId;
@@ -215,6 +251,11 @@ type ObservatoryState = {
   /** Manual pin (keep after green) / mute (hide while elevated) — vnum keys */
   volcWatchPins: string[];
   volcWatchMutes: string[];
+  /** Opt-in Smithsonian GVP Holocene (eruption ≥ 2010) */
+  gvpVolcanoes: GvpVolcano[];
+  gvpVolcanoesLoading: boolean;
+  /** Transient focus for a GVP global pick */
+  gvpFocusNode: DragonNode | null;
   globalSeismic: GlobalSeismicBundle | null;
   liveStatus: LiveStatus;
   liveStatusDetail: string | null;
@@ -247,6 +288,9 @@ type ObservatoryState = {
   setMaxMag: (m: number) => void;
   setAutoRefresh: (v: boolean) => void;
   setFocusNode: (id: string | null) => void;
+  /** Clear focus + return map to world home view */
+  exitToHomeView: () => void;
+  focusGvpVolcano: (v: GvpVolcano) => void;
   setBasemapStyle: (id: BasemapStyleId) => void;
   setOverlay: (id: MapOverlayId, on: boolean) => void;
   setOverlaysBulk: (next: Record<MapOverlayId, boolean>) => void;
@@ -256,6 +300,7 @@ type ObservatoryState = {
   unmuteVolcWatch: (key: string) => void;
   setLiveStatus: (s: LiveStatus, detail?: string | null) => void;
   rebuildVolcWatch: () => void;
+  ensureGvpVolcanoes: () => Promise<void>;
   setUseGeofon: (v: boolean) => void;
   setAudioAlerts: (v: boolean) => void;
   setGlobeAutoSpin: (v: boolean) => void;
@@ -368,6 +413,8 @@ function buildSolarAssessmentFromState(s: {
 
 let seenEqIds = new Set<string>();
 let mmiAbort: AbortController | null = null;
+let gvpAbort: AbortController | null = null;
+let gvpFetchInFlight: Promise<void> | null = null;
 
 
 /** Bound hung network so one slow feed cannot freeze lastUpdate forever. */
@@ -413,6 +460,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     heatmap: false,
     nodes: true,
     volcanoes: true,
+    globalVolcanoes: false,
     corridors: true,
     depthColor: true,
     timeDecay: true,
@@ -440,6 +488,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   volcWatchTransitions: [],
   volcWatchPins: [],
   volcWatchMutes: [],
+  gvpVolcanoes: [],
+  gvpVolcanoesLoading: false,
+  gvpFocusNode: null,
   globalSeismic: null,
   liveStatus: "polling",
   liveStatusDetail: null,
@@ -502,15 +553,72 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       mmiAbort.abort();
       mmiAbort = null;
     }
+    const resolved = id != null ? resolveNodeId(id) ?? id : null;
+    // Prefer canonical dragon id when alias was used
+    let focusId = resolved;
+    if (focusId) {
+      const nodes = [
+        ...get().volcWatchNodes,
+        ...DRAGON_NODES,
+        ...(get().gvpFocusNode ? [get().gvpFocusNode!] : []),
+      ];
+      const hit =
+        nodes.find((n) => n.id === focusId) ??
+        nodes.find((n) => n.aliases?.some((a) => a.toLowerCase() === focusId!.toLowerCase()));
+      if (hit) focusId = hit.id;
+    }
+    const gvpFocus = get().gvpFocusNode;
+    const keepGvp = focusId != null && gvpFocus?.id === focusId;
     set({
-      focusNodeId: id,
-      mapView: id ? "2d" : get().mapView,
+      focusNodeId: focusId,
+      gvpFocusNode: keepGvp ? gvpFocus : null,
+      mapView: focusId ? "2d" : get().mapView,
       tab: "live",
       mobileSheet: "closed",
       focusMmi: { ...EMPTY_FOCUS_MMI },
       pickedEvent: null,
     });
-    if (id) void get().loadFocusMmi();
+    if (focusId) void get().loadFocusMmi();
+  },
+  exitToHomeView: () => {
+    if (mmiAbort) {
+      mmiAbort.abort();
+      mmiAbort = null;
+    }
+    set({
+      focusNodeId: null,
+      gvpFocusNode: null,
+      mapView: "2d",
+      tab: "live",
+      mobileSheet: "closed",
+      focusMmi: { ...EMPTY_FOCUS_MMI },
+      pickedEvent: null,
+      mapFlyTo: null,
+    });
+  },
+  focusGvpVolcano: (v) => {
+    if (mmiAbort) {
+      mmiAbort.abort();
+      mmiAbort = null;
+    }
+    const node = gvpToFocusNode(v);
+    const overlays = { ...get().overlays, globalVolcanoes: true };
+    try {
+      localStorage.setItem("wolfwatch_overlays", JSON.stringify(overlays));
+    } catch {
+      /* ignore */
+    }
+    set({
+      gvpFocusNode: node,
+      focusNodeId: node.id,
+      mapView: "2d",
+      tab: "live",
+      mobileSheet: "closed",
+      focusMmi: { ...EMPTY_FOCUS_MMI },
+      pickedEvent: null,
+      overlays,
+    });
+    void get().loadFocusMmi();
   },
   flyMapTo: (lat, lon, zoom = 6, id) => {
     set({
@@ -553,6 +661,16 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       /* ignore */
     }
     set({ overlays });
+    if (id === "globalVolcanoes" && on) {
+      void get().ensureGvpVolcanoes();
+    }
+    if (id === "globalVolcanoes" && !on) {
+      const focus = get().focusNodeId;
+      const gvp = get().gvpFocusNode;
+      if (gvp && focus === gvp.id) {
+        set({ focusNodeId: null, gvpFocusNode: null });
+      }
+    }
   },
   setOverlaysBulk: (next) => {
     const overlays = { ...next };
@@ -562,6 +680,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       /* ignore */
     }
     set({ overlays });
+    if (overlays.globalVolcanoes) void get().ensureGvpVolcanoes();
   },
   setLiveStatus: (liveStatus, detail = null) =>
     set({ liveStatus, liveStatusDetail: detail ?? null }),
@@ -571,6 +690,37 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     set({
       volcWatchNodes: buildWatchNodes(get().usgsVolcAlerts, pins, mutes),
     });
+  },
+  ensureGvpVolcanoes: async () => {
+    if (get().gvpVolcanoes.length > 0) return;
+    if (gvpFetchInFlight) return gvpFetchInFlight;
+    gvpAbort?.abort();
+    gvpAbort = new AbortController();
+    const signal = gvpAbort.signal;
+    set({ gvpVolcanoesLoading: true });
+    gvpFetchInFlight = (async () => {
+      try {
+        const list = await withTimeout(
+          fetchGvpRecentVolcanoes(signal),
+          25000,
+          "GVP volcanoes",
+        );
+        if (signal.aborted) return;
+        set({
+          gvpVolcanoes: list,
+          gvpVolcanoesLoading: false,
+          feedTimestamps: {
+            ...get().feedTimestamps,
+            gvp: list.length ? Date.now() : get().feedTimestamps.gvp,
+          },
+        });
+      } catch {
+        if (!signal.aborted) set({ gvpVolcanoesLoading: false });
+      } finally {
+        gvpFetchInFlight = null;
+      }
+    })();
+    return gvpFetchInFlight;
   },
   pinVolcWatch: (key: string) => {
     const pins = new Set<string>(get().volcWatchPins);
@@ -1170,6 +1320,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
 
       set(patch);
+      if (patch.overlays?.globalVolcanoes) {
+        void get().ensureGvpVolcanoes();
+      }
     } catch {
       /* ignore */
     }
@@ -1223,7 +1376,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
 
 export function getFocusNode(id: string | null) {
   if (!id) return null;
-  const dynamic = useObservatory.getState().volcWatchNodes;
+  const state = useObservatory.getState();
+  if (state.gvpFocusNode?.id === id) return state.gvpFocusNode;
+  const dynamic = state.volcWatchNodes;
   return (
     dynamic.find((n) => n.id === id) ??
     DRAGON_NODES.find((n) => n.id === id) ??
@@ -1231,13 +1386,17 @@ export function getFocusNode(id: string | null) {
   );
 }
 
-/** Static corridors + live USGS elevated volcano watches. */
+/** Static corridors + live USGS elevated volcano watches + active GVP pick. */
 export function getAllFocusNodes(): DragonNode[] {
-  const dynamic = useObservatory.getState().volcWatchNodes;
+  const state = useObservatory.getState();
+  const dynamic = state.volcWatchNodes;
   const staticIds = new Set(DRAGON_NODES.map((n) => n.id));
   // Prefer dynamic USGS pins for same vnum if ever collides with manual watches
   const dyn = dynamic.filter((n) => !staticIds.has(n.id));
-  return [...dyn, ...DRAGON_NODES];
+  const list = [...dyn, ...DRAGON_NODES];
+  const gvp = state.gvpFocusNode;
+  if (gvp && !list.some((n) => n.id === gvp.id)) list.unshift(gvp);
+  return list;
 }
 
 export function viewEvents(

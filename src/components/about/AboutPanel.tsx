@@ -73,16 +73,27 @@ export function AboutPanel() {
           </li>
         </ul>
         <p className="mt-2 text-xs text-dim">
-          First published focused node:{" "}
+          Published SES focus boards:{" "}
           <a
-            href="https://tonga-kermadec-node-monitor.grok.me/"
+            href="https://tonga-kermadec-monitor.vercel.app/?from=ses&sesNode=tonga"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            Tonga–Kermadec Node Monitor
+            Tonga–Kermadec (#1)
           </a>
-          .
+          {" · "}
+          <a
+            href="https://campi-flegrei-monitor.vercel.app/?from=ses&sesNode=mediterranean"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Campi Flegrei (#2)
+          </a>
+          . Deep-link back with{" "}
+          <code className="text-primary">?tab=live&node=tonga</code> or{" "}
+          <code className="text-primary">node=mediterranean</code> (aliases: campi, cf).
         </p>
       </Section>
 

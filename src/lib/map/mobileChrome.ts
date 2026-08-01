@@ -50,6 +50,7 @@ export const DESKTOP_QUICK_LAYERS = [
   "mmiContours",
   "nodes",
   "volcanoes",
+  "globalVolcanoes",
   "corridors",
 ] as const;
 
@@ -66,7 +67,7 @@ export const LAYER_GROUPS: {
   {
     id: "geology",
     label: "Geology & depth",
-    ids: ["plates", "depthColor", "timeDecay", "volcanoes", "corridors"],
+    ids: ["plates", "depthColor", "timeDecay", "volcanoes", "globalVolcanoes", "corridors"],
   },
   {
     id: "focus",

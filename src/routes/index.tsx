@@ -139,8 +139,17 @@ function ObservatoryApp() {
       if (v.mapView) setMapView(v.mapView);
       if (v.basemap) setBasemapStyle(v.basemap);
       if (v.node) {
-        const ok = getAllFocusNodes().some((n) => n.id === v.node);
-        if (ok) setFocusNode(v.node);
+        const id = v.node;
+        const ok = getAllFocusNodes().some(
+          (n) => n.id === id || n.aliases?.includes(id),
+        );
+        if (ok) {
+          const canonical =
+            getAllFocusNodes().find((n) => n.id === id)?.id ??
+            getAllFocusNodes().find((n) => n.aliases?.includes(id))?.id ??
+            id;
+          setFocusNode(canonical);
+        }
       }
       if (v.layers && setOverlaysBulk) {
         const base = useObservatory.getState().overlays;

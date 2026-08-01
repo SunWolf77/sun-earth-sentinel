@@ -31,6 +31,9 @@ import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
+import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
+import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
+import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -55,6 +58,7 @@ export function LiveMap() {
   const eqLayer = useRef<L.LayerGroup | null>(null);
   const nodeLayer = useRef<L.LayerGroup | null>(null);
   const volcLayer = useRef<L.LayerGroup | null>(null);
+  const gvpLayer = useRef<L.LayerGroup | null>(null);
   const heatLayer = useRef<ReturnType<typeof createQuakeHeatLayer> | null>(null);
   const mmiLayer = useRef<MmiContourLayer | null>(null);
   const plateLayer = useRef<PlateLayerHandle | null>(null);
@@ -73,6 +77,9 @@ export function LiveMap() {
   const mapView = useObservatory((s) => s.mapView);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
+  const exitToHomeView = useObservatory((s) => s.exitToHomeView);
+  const gvpVolcanoes = useObservatory((s) => s.gvpVolcanoes);
+  const focusGvpVolcano = useObservatory((s) => s.focusGvpVolcano);
   const basemapStyle = useObservatory((s) => s.basemapStyle);
   const overlays = useObservatory((s) => s.overlays);
   const timeWindow = useObservatory((s) => s.timeWindow);
@@ -144,6 +151,7 @@ export function LiveMap() {
     eqLayer.current = L.layerGroup().addTo(map);
     nodeLayer.current = L.layerGroup().addTo(map);
     volcLayer.current = L.layerGroup().addTo(map);
+    gvpLayer.current = L.layerGroup().addTo(map);
     mapObj.current = map;
 
     if (useObservatory.getState().overlays.plates) {
@@ -271,6 +279,7 @@ export function LiveMap() {
     sync(eqLayer.current, overlays.quakes);
     sync(nodeLayer.current, overlays.nodes || overlays.corridors);
     sync(volcLayer.current, overlays.volcanoes);
+    if (gvpLayer.current) sync(gvpLayer.current, overlays.globalVolcanoes);
     heatLayer.current?.setActive(overlays.heatmap);
   }, [overlays]);
 
@@ -465,12 +474,15 @@ export function LiveMap() {
           bubblingMouseEvents: false,
         });
 
-        const monitorLink =
-          node.monitorUrl && !isVolc
-            ? `<br/><a href="${node.monitorUrl}" target="_blank" rel="noopener noreferrer" style="color:#0891b2;font-weight:600">Open full swarm board →</a>`
-            : node.monitorUrl && isVolc
-              ? `<br/><a href="${node.monitorUrl}" target="_blank" rel="noopener noreferrer" style="color:#fb923c;font-weight:600">Volcano profile →</a>`
-              : "";
+        const board =
+          !isVolc && node.monitorUrl
+            ? monitorHandoffUrl(node.id) || node.monitorUrl
+            : null;
+        const monitorLink = board
+          ? `<br/><a href="${board}" target="_blank" rel="noopener noreferrer" style="color:#ca8a04;font-weight:600">Full swarm board (SES) →</a>`
+          : node.monitorUrl && isVolc
+            ? `<br/><a href="${node.monitorUrl}" target="_blank" rel="noopener noreferrer" style="color:#fb923c;font-weight:600">Volcano profile →</a>`
+            : "";
         const gvpLink = node.gvpUrl
           ? `<br/><a href="${node.gvpUrl}" target="_blank" rel="noopener noreferrer" style="color:#fb923c;font-weight:600">Smithsonian GVP →</a>`
           : "";
@@ -484,13 +496,13 @@ export function LiveMap() {
                 : "Active volcano watch"
             }${node.aviationCode ? ` · Aviation ${node.aviationCode.toUpperCase()}` : ""}</span>`
           : isPublished
-            ? `<br/><span style="color:#ca8a04;font-size:11px">★ Published focused node</span>`
+            ? `<br/><span style="color:#ca8a04;font-size:11px">★ Published SES focus node</span>`
             : "";
         const note = node.focusNote
           ? `<br/><span style="color:#64748b;font-size:11px">${node.focusNote}</span>`
           : "";
         ring.bindPopup(
-          `<strong>${node.name}</strong>${badge}<br/><span style="color:#64748b">${node.role}</span><br/>Status: <b style="color:${color}">${st}</b>${note}${gvpLink}${kvertLink}${monitorLink}<br/><button type="button" class="ww-focus-btn" data-node="${node.id}" style="margin-top:6px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:11px">${isFocus ? "Exit focus" : "Focus this watch"}</button>`,
+          `<strong>${node.name}</strong>${badge}<br/><span style="color:#64748b">${node.role}</span><br/>Status: <b style="color:${color}">${st}</b>${note}${gvpLink}${kvertLink}${monitorLink}<br/><button type="button" class="ww-focus-btn" data-node="${node.id}" style="margin-top:6px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:11px">${isFocus ? "Home view" : "Focus region"}</button>`,
         );
         ring.on("popupopen", () => {
           const btn = document.querySelector(`.ww-focus-btn[data-node="${node.id}"]`);
@@ -498,7 +510,8 @@ export function LiveMap() {
             btn.addEventListener(
               "click",
               () => {
-                setFocusNode(isFocus ? null : node.id);
+                if (isFocus) exitToHomeView();
+                else setFocusNode(node.id);
                 mapObj.current?.closePopup();
               },
               { once: true },
@@ -537,6 +550,7 @@ export function LiveMap() {
     maxMag,
     focusNodeId,
     setFocusNode,
+    exitToHomeView,
     timeWindow,
     basemapStyle,
     focusMmi.eventId,
@@ -618,17 +632,92 @@ export function LiveMap() {
         : "";
       const elev =
         v.elevationM != null ? `<br/>Elev ${Math.round(v.elevationM)} m` : "";
+      const nodeId = nodeIdForAlert(v);
+      const isFocus = focusNodeId === nodeId;
+      const gvp = gvpProfileUrl(v.vnum);
+      const gvpL = gvp
+        ? `<br/><a href="${gvp}" target="_blank" rel="noopener" style="color:#fb923c;font-weight:600">Smithsonian GVP →</a>`
+        : "";
       marker.bindPopup(
         `<strong style="color:${fill}">${v.name}</strong><br/>` +
           `<span style="font-size:11px">${v.alertLevel} · Aviation ${v.colorCode}</span><br/>` +
           `<span style="color:#64748b;font-size:11px">${v.obsName}${v.region ? " · " + v.region : ""}</span>` +
           elev +
           notice +
-          `<br/><span style="color:#64748b;font-size:10px">USGS HANS · not a forecast</span>`,
+          gvpL +
+          `<br/><span style="color:#64748b;font-size:10px">USGS HANS · not a forecast</span>` +
+          `<br/><button type="button" class="ww-volc-focus-btn" data-node="${nodeId}" style="margin-top:6px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:11px">${isFocus ? "Home view" : "Focus region"}</button>`,
       );
+      marker.on("popupopen", () => {
+        const btn = document.querySelector(`.ww-volc-focus-btn[data-node="${nodeId}"]`);
+        if (btn) {
+          btn.addEventListener(
+            "click",
+            () => {
+              if (isFocus) exitToHomeView();
+              else setFocusNode(nodeId);
+              mapObj.current?.closePopup();
+            },
+            { once: true },
+          );
+        }
+      });
       volcLayer.current.addLayer(marker);
     }
-  }, [volc, usgsVolcAlerts, focusNodeId, overlays.volcanoes]);
+  }, [volc, usgsVolcAlerts, focusNodeId, overlays.volcanoes, setFocusNode, exitToHomeView]);
+
+  // Opt-in Smithsonian GVP Holocene (eruption ≥ 2010)
+  useEffect(() => {
+    if (!gvpLayer.current) return;
+    gvpLayer.current.clearLayers();
+    const map = mapObj.current;
+    if (!map) return;
+    if (overlays.globalVolcanoes) {
+      if (!map.hasLayer(gvpLayer.current)) gvpLayer.current.addTo(map);
+    } else {
+      if (map.hasLayer(gvpLayer.current)) map.removeLayer(gvpLayer.current);
+      return;
+    }
+    const renderer = canvasRenderer.current ?? undefined;
+    for (const v of gvpVolcanoes) {
+      const isFocus = focusNodeId === v.id || focusNodeId === `gvp-${v.vnum}`;
+      const marker = L.circleMarker([v.lat, v.lon], {
+        renderer,
+        radius: isFocus ? 10 : 5,
+        color: isFocus ? "#fff" : "#7c3aed",
+        fillColor: "#a78bfa",
+        fillOpacity: isFocus ? 0.85 : 0.55,
+        weight: isFocus ? 2.5 : 1,
+        bubblingMouseEvents: false,
+      });
+      const elev =
+        v.elevationM != null ? ` · ${Math.round(v.elevationM)} m` : "";
+      const year =
+        v.lastEruptionYear != null ? `Last eruption ${v.lastEruptionYear}` : "Holocene";
+      marker.bindPopup(
+        `<strong style="color:#a78bfa">${v.name}</strong><br/>` +
+          `<span style="color:#64748b;font-size:11px">${[v.country, v.region].filter(Boolean).join(" · ")}${elev}</span><br/>` +
+          `<span style="font-size:11px">${year}</span>` +
+          `<br/><a href="${v.gvpUrl}" target="_blank" rel="noopener" style="color:#fb923c;font-weight:600">Smithsonian GVP →</a>` +
+          `<br/><button type="button" class="ww-gvp-focus-btn" data-id="${v.id}" style="margin-top:6px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:11px">${isFocus ? "Home view" : "Focus region"}</button>`,
+      );
+      marker.on("popupopen", () => {
+        const btn = document.querySelector(`.ww-gvp-focus-btn[data-id="${v.id}"]`);
+        if (btn) {
+          btn.addEventListener(
+            "click",
+            () => {
+              if (isFocus) exitToHomeView();
+              else focusGvpVolcano(v);
+              mapObj.current?.closePopup();
+            },
+            { once: true },
+          );
+        }
+      });
+      gvpLayer.current.addLayer(marker);
+    }
+  }, [gvpVolcanoes, overlays.globalVolcanoes, focusNodeId, focusGvpVolcano, exitToHomeView]);
 
   const dismissTip = () => {
     setShowGestureTip(false);

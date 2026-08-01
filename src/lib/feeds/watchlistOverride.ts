@@ -136,6 +136,7 @@ export function buildWatchNodes(
             "Manually pinned — stays on watchlist after return to NORMAL/GREEN. Unpin to release.",
           monitorUrl: a.volcanoUrl || a.noticeUrl || undefined,
           agencyUrl: a.noticeUrl || undefined,
+          gvpUrl: a.vnum ? `https://volcano.si.edu/volcano.cfm?vn=${a.vnum}` : undefined,
         });
       }
       continue;

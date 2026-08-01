@@ -309,23 +309,23 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "tonga",
     name: "Tonga–Kermadec",
-    role: "Published focus · Swarm corridor",
+    role: "Published focus · SES #1 · Swarm corridor",
     kind: "seismic",
     /**
-     * Trench-aligned box on the *east* side of the dateline only.
-     * Previous 170°E→wrap drew the corridor too far west (Fiji basin).
-     * Current swarm ~lon −179…−175, lat −29…−18 (Kermadec + south of Tonga).
+     * Wider corridor matching tonga-kermadec-monitor MONITOR_BBOX
+     * (Core / North / South / Nearby zones). East of dateline only.
      */
     bounds: [
-      [-33, -180],
-      [-15.5, -171.5],
+      [-32, -180],
+      [-16, -170],
     ],
-    center: [-25.5, -176],
-    monitorUrl: "https://tonga-kermadec-node-monitor.grok.me/",
+    center: [-24.5, -175.2],
+    monitorUrl: "https://tonga-kermadec-monitor.vercel.app/",
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "Tonga–Kermadec trench corridor — bounds pinned to the trench (east of dateline), not the Fiji basin.",
+      "SES node #1 — Tonga–Kermadec trench corridor (USGS authority). Open full swarm board for Core / North / South / Nearby zones. Not a forecast.",
+    aliases: ["tonga-kermadec", "tk", "kermadec"],
   },
   {
     id: "southsandwich",
@@ -349,13 +349,24 @@ export const DRAGON_NODES: DragonNode[] = [
   },
   {
     id: "mediterranean",
-    name: "Campi Flegrei / Mediterranean",
-    role: "Fragile Proxy Lens",
+    name: "Campi Flegrei",
+    role: "Published focus · SES #2 · INGV authority",
     kind: "seismic",
+    /**
+     * Tight Campi Flegrei caldera box (matches campi-flegrei-monitor focus node).
+     * Dense catalog lives on the Vercel board (INGV-OV GOSSIP) — USGS is sparse here.
+     */
     bounds: [
-      [35, 5],
-      [48, 30],
+      [40.7, 13.95],
+      [40.95, 14.35],
     ],
+    center: [40.827, 14.139],
+    monitorUrl: "https://campi-flegrei-monitor.vercel.app/",
+    publishedFocus: true,
+    watchPriority: true,
+    focusNote:
+      "SES node #2 — Campi Flegrei caldera west of Naples. Open full board for INGV-OV GOSSIP microseismicity, depth profile, and SUPT continuum. USGS under-samples this box. Not a forecast.",
+    aliases: ["campi-flegrei", "campi", "cf", "flegrei"],
   },
   {
     id: "japan",

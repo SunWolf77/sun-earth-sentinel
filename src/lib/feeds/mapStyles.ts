@@ -7,6 +7,7 @@ export type MapOverlayId =
   | "heatmap"
   | "nodes"
   | "volcanoes"
+  | "globalVolcanoes"
   | "corridors"
   | "depthColor"
   | "timeDecay"
@@ -73,6 +74,8 @@ export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   heatmap: false,
   nodes: true,
   volcanoes: true,
+  /** Smithsonian GVP Holocene (recent eruptions) — opt-in, heavier */
+  globalVolcanoes: false,
   corridors: true,
   depthColor: true,
   timeDecay: true,
@@ -95,6 +98,7 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     depthColor: false,
     corridors: false,
     volcanoes: false,
+    globalVolcanoes: false,
     heatmap: false,
     timeDecay: false,
     mmiContours: true,
@@ -166,9 +170,15 @@ export const OVERLAY_META: {
   },
   {
     id: "volcanoes",
-    label: "Volcano proxy",
-    short: "Volc",
-    hint: "USGS HANS elevated volcanoes + volcanic earthquake proxies",
+    label: "USGS elevated volcanoes",
+    short: "USGS Volc",
+    hint: "USGS HANS elevated (ADVISORY+) + volcanic earthquake proxies — default ops layer",
+  },
+  {
+    id: "globalVolcanoes",
+    label: "Global volcanoes (GVP)",
+    short: "GVP World",
+    hint: "Opt-in Smithsonian GVP Holocene vents with eruption since 2010 · click for region + profile",
   },
   {
     id: "corridors",

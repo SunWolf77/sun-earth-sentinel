@@ -6,6 +6,7 @@
 import type { TabId, TimeWindow, MapView } from "@/store/observatory";
 import type { MapOverlayId, BasemapStyleId } from "@/lib/feeds/mapStyles";
 import type { PerformanceMode } from "@/lib/feeds/modes";
+import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 
 export const TAB_IDS: TabId[] = ["live", "solar", "resonance", "analytics", "about"];
 
@@ -114,7 +115,7 @@ export function viewFromLocation(loc?: Location): ViewDeepLink {
     const tab = parseTabParam(q.get("tab"));
     if (tab) out.tab = tab;
     const node = q.get("node");
-    if (node) out.node = node;
+    if (node) out.node = resolveNodeId(node) ?? node;
     else if (q.has("node")) out.node = null;
     const w = q.get("window") as TimeWindow | null;
     if (w && WINDOWS.includes(w)) out.window = w;

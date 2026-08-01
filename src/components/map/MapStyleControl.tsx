@@ -46,6 +46,7 @@ const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   mmiContours: Layers2,
   nodes: Radar,
   volcanoes: Mountain,
+  globalVolcanoes: Globe2,
   corridors: Square,
 };
 
