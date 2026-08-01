@@ -47,6 +47,10 @@ import {
   nodeShortName,
   nodeMarkChip,
 } from "@/lib/nodes/describeNode";
+import {
+  nodeHoverTooltipHtml,
+  eqHoverTooltipHtml,
+} from "@/lib/nodes/exportNodesCsv";
 import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -568,6 +572,21 @@ export function LiveMap() {
           maxWidth: 300,
           autoPan: true,
         });
+        pin.bindTooltip(
+          eqHoverTooltipHtml({
+            mag,
+            place,
+            depth,
+            timeLabel: time !== "—" ? time : undefined,
+          }),
+          {
+            direction: "top",
+            offset: [0, -36],
+            opacity: 0.98,
+            className: "ww-hover-tip-wrap",
+            sticky: false,
+          },
+        );
         pin.on("click", () => {
           pickEvent({
             id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
@@ -709,6 +728,13 @@ export function LiveMap() {
           className: "ww-eq-popup ww-node-popup",
           maxWidth: 300,
           autoPan: true,
+        });
+        label.bindTooltip(nodeHoverTooltipHtml(node, st), {
+          direction: "top",
+          offset: [40, -8],
+          opacity: 0.98,
+          className: "ww-hover-tip-wrap",
+          sticky: false,
         });
         // Direct click focuses zone (popup still explains why)
         label.on("click", (e) => {

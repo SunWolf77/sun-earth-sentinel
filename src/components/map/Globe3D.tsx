@@ -892,6 +892,47 @@ export function Globe3D() {
 
       const el = renderer.domElement;
       el.style.touchAction = "none";
+      // Hover tooltip — quick context without click
+      const hoverTip = document.createElement("div");
+      hoverTip.className = "ww-globe-hover-tip";
+      hoverTip.style.display = "none";
+      container.appendChild(hoverTip);
+
+      function showHoverTip(meta: PickMeta, clientX: number, clientY: number) {
+        const rect = container.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        if (meta.kind === "node") {
+          hoverTip.innerHTML = `<div class="ww-hover-tip__title">${meta.place}</div>
+            <div class="ww-hover-tip__chip">${meta.chip || "Focus zone"}</div>
+            <div class="ww-hover-tip__role">${meta.role || ""}</div>
+            <div class="ww-hover-tip__hint">Click for why · focus zone</div>`;
+        } else if (meta.kind === "cluster") {
+          hoverTip.innerHTML = `<div class="ww-hover-tip__title">${meta.count ?? "?"} events</div>
+            <div class="ww-hover-tip__chip">max M${meta.mag.toFixed(1)}</div>
+            <div class="ww-hover-tip__hint">Click to expand pins</div>`;
+        } else {
+          hoverTip.innerHTML = `<div class="ww-hover-tip__title">M${meta.mag.toFixed(1)} · ${meta.place}</div>
+            <div class="ww-hover-tip__role">${meta.depth.toFixed(0)} km depth</div>
+            <div class="ww-hover-tip__hint">Click for assessment</div>`;
+        }
+        hoverTip.style.display = "block";
+        const pad = 12;
+        const tw = hoverTip.offsetWidth || 160;
+        const th = hoverTip.offsetHeight || 60;
+        let left = x + 14;
+        let top = y + 14;
+        if (left + tw > rect.width - pad) left = x - tw - 10;
+        if (top + th > rect.height - pad) top = y - th - 10;
+        hoverTip.style.left = `${Math.max(pad, left)}px`;
+        hoverTip.style.top = `${Math.max(pad, top)}px`;
+        el.style.cursor = "pointer";
+      }
+      function hideHoverTip() {
+        hoverTip.style.display = "none";
+        if (!rotating) el.style.cursor = "grab";
+      }
+
       const ray = new THREE.Raycaster();
       // Prefer closest hit; slightly generous for thin hex rings / spider pins
       ray.params.Points = { threshold: 0.1 };
@@ -1034,8 +1075,24 @@ export function Globe3D() {
         if (rotating) {
           const d = Math.hypot(e.clientX - lastX, e.clientY - lastY);
           if (d > 3) dragMoved = true;
+          onMove(e.clientX, e.clientY);
+          hideHoverTip();
+          return;
         }
-        onMove(e.clientX, e.clientY);
+        // Hover tooltips when idle — quick context without click
+        const over = el.getBoundingClientRect();
+        const inside =
+          e.clientX >= over.left &&
+          e.clientX <= over.right &&
+          e.clientY >= over.top &&
+          e.clientY <= over.bottom;
+        if (!inside) {
+          hideHoverTip();
+          return;
+        }
+        const meta = pickAt(e.clientX, e.clientY);
+        if (meta) showHoverTip(meta, e.clientX, e.clientY);
+        else hideHoverTip();
       };
       const mu = (e: MouseEvent) => {
         const was = rotating;
@@ -1253,6 +1310,11 @@ export function Globe3D() {
         el.removeEventListener("touchcancel", te);
         el.removeEventListener("wheel", wheel);
         el.removeEventListener("webglcontextlost", onContextLost);
+        try {
+          hoverTip.remove();
+        } catch {
+          /* ignore */
+        }
         disposeGroup(quakeGroup);
         disposeGroup(pinGroup);
         scene.remove(pinGroup);

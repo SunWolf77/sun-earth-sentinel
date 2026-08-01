@@ -1,4 +1,4 @@
-import { Crosshair, ExternalLink, Home, Mountain, X } from "lucide-react";
+import { Crosshair, Download, ExternalLink, Home, Mountain, X } from "lucide-react";
 import { useObservatory, getFocusNode, getAllFocusNodes, viewEvents } from "@/store/observatory";
 import {
   nodeEventStats,
@@ -11,6 +11,7 @@ import {
   getPublishedMonitor,
   monitorHandoffUrl,
 } from "@/lib/feeds/publishedMonitors";
+import { downloadNodesCsv } from "@/lib/nodes/exportNodesCsv";
 
 const STATUS_DOT: Record<NodeStatus, string> = {
   quiet: "bg-primary border-primary",
@@ -81,17 +82,28 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
           <Crosshair className="h-3.5 w-3.5" />
           Node Focus
         </h3>
-        {focus && (
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => exitToHomeView()}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[0.65rem] text-muted hover:text-fg"
-            title="Return to world home view"
+            onClick={() => downloadNodesCsv(allNodes)}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[0.65rem] text-muted hover:border-primary/40 hover:text-primary"
+            title="Download all node metadata as CSV"
           >
-            <Home className="h-3 w-3" />
-            Home view
+            <Download className="h-3 w-3" />
+            CSV
           </button>
-        )}
+          {focus && (
+            <button
+              type="button"
+              onClick={() => exitToHomeView()}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[0.65rem] text-muted hover:text-fg"
+              title="Return to world home view"
+            >
+              <Home className="h-3 w-3" />
+              Home view
+            </button>
+          )}
+        </div>
       </div>
 
       <p className="text-[0.65rem] leading-snug text-dim">

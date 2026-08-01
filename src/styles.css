@@ -1067,3 +1067,93 @@
 .ww-node-popup .leaflet-popup-content {
   margin: 10px 12px;
 }
+
+
+/* Hover tooltips — quick context on map / globe */
+.ww-hover-tip-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.ww-hover-tip-wrap .leaflet-tooltip-content {
+  margin: 0 !important;
+}
+.ww-hover-tip {
+  min-width: 120px;
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color: #e2e8f0;
+  font-size: 11px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+.ww-hover-tip__title {
+  font-weight: 700;
+  color: #f8fafc;
+  font-size: 12px;
+}
+.ww-hover-tip__chip {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fbbf24;
+}
+.ww-hover-tip__role {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+.ww-hover-tip__hint {
+  margin-top: 4px;
+  font-size: 9px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ww-globe-hover-tip {
+  position: absolute;
+  z-index: 30;
+  min-width: 120px;
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color: #e2e8f0;
+  font-size: 11px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+.ww-globe-hover-tip .ww-hover-tip__title {
+  font-weight: 700;
+  color: #f8fafc;
+  font-size: 12px;
+}
+.ww-globe-hover-tip .ww-hover-tip__chip {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fbbf24;
+}
+.ww-globe-hover-tip .ww-hover-tip__role {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+.ww-globe-hover-tip .ww-hover-tip__hint {
+  margin-top: 4px;
+  font-size: 9px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
