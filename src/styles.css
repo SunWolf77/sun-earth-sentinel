@@ -952,3 +952,23 @@
   width: 22px;
   height: 22px;
 }
+
+/* leaflet.markercluster — dark theme overrides */
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background-color: rgba(34, 211, 238, 0.22) !important;
+}
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background-color: rgba(34, 211, 238, 0.85) !important;
+  color: #0f172a !important;
+  font-weight: 700;
+}
+/* Our custom cluster icons already styled via .ww-eq-cluster */
+
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: none !important;
+}

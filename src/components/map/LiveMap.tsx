@@ -40,13 +40,10 @@ import {
   agencyLinksHtml,
 } from "@/lib/seismology/agencyLinks";
 import { isJmaFeature } from "@/lib/feeds/jma";
-import {
-  clusterEqPoints,
-  spiderfyOffsets,
-  spiderPinLatLon,
-  type EqPoint,
-} from "@/lib/map/eqCluster";
 import type { EqFeature } from "@/lib/feeds/usgs";
+import "leaflet.markercluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -176,7 +173,8 @@ export function LiveMap() {
   const baseLayer = useRef<L.TileLayer | null>(null);
   /** SVG for interactive markers — full-map canvas steals clicks from EQ popups. */
   const vectorRenderer = useRef<L.SVG | null>(null);
-  const eqLayer = useRef<L.LayerGroup | null>(null);
+  const eqLayer = useRef<L.MarkerClusterGroup | null>(null);
+  const eqContextLayer = useRef<L.LayerGroup | null>(null);
   const nodeLayer = useRef<L.LayerGroup | null>(null);
   const volcLayer = useRef<L.LayerGroup | null>(null);
   const gvpLayer = useRef<L.LayerGroup | null>(null);
@@ -210,9 +208,6 @@ export function LiveMap() {
   const replayActive = useObservatory((s) => s.replayActive);
   const replayCursorMs = useObservatory((s) => s.replayCursorMs);
   const pickEvent = useObservatory((s) => s.pickEvent);
-  const [mapZoom, setMapZoom] = useState(2);
-  const expandedClusters = useRef(new Set<string>());
-  const [clusterTick, setClusterTick] = useState(0);
 
   useEffect(() => {
     try {
@@ -273,20 +268,34 @@ export function LiveMap() {
     heatLayer.current.setActive(false);
     mmiLayer.current = createMmiContourLayer() as MmiContourLayer;
     mmiLayer.current.addTo(map);
-    eqLayer.current = L.layerGroup().addTo(map);
+    eqLayer.current = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      spiderfyOnMaxZoom: true,
+      spiderfyDistanceMultiplier: 1.55,
+      maxClusterRadius: 44,
+      disableClusteringAtZoom: 13,
+      animate: false,
+      chunkedLoading: true,
+      removeOutsideVisibleBounds: true,
+      iconCreateFunction: (cluster) => {
+        const children = cluster.getAllChildMarkers() as Array<
+          L.Marker & { __eqMag?: number }
+        >;
+        let maxMag = 0;
+        for (const m of children) {
+          const mag = m.__eqMag ?? 0;
+          if (mag > maxMag) maxMag = mag;
+        }
+        const n = cluster.getChildCount();
+        return makeClusterIcon(n, maxMag, magColor(maxMag));
+      },
+    }).addTo(map);
+    eqContextLayer.current = L.layerGroup().addTo(map);
     nodeLayer.current = L.layerGroup().addTo(map);
     volcLayer.current = L.layerGroup().addTo(map);
     gvpLayer.current = L.layerGroup().addTo(map);
     mapObj.current = map;
-    setMapZoom(map.getZoom());
-    map.on("zoomend", () => {
-      setMapZoom(map.getZoom());
-      // Collapse spiderfy on zoom — pins recluster at new scale
-      if (expandedClusters.current.size) {
-        expandedClusters.current.clear();
-        setClusterTick((n) => n + 1);
-      }
-    });
 
     if (useObservatory.getState().overlays.plates) {
       plateLayer.current.setActive(true);
@@ -411,6 +420,7 @@ export function LiveMap() {
       if (!on && map.hasLayer(layer)) map.removeLayer(layer);
     };
     sync(eqLayer.current, overlays.quakes);
+    if (eqContextLayer.current) sync(eqContextLayer.current, overlays.quakes || overlays.globalActivity);
     sync(nodeLayer.current, overlays.nodes || overlays.corridors);
     sync(volcLayer.current, overlays.volcanoes);
     if (gvpLayer.current) sync(gvpLayer.current, overlays.globalVolcanoes);
@@ -420,6 +430,7 @@ export function LiveMap() {
   useEffect(() => {
     if (!eqLayer.current || !nodeLayer.current) return;
     eqLayer.current.clearLayers();
+    eqContextLayer.current?.clearLayers();
     nodeLayer.current.clearLayers();
 
     const renderer = vectorRenderer.current ?? undefined;
@@ -455,21 +466,9 @@ export function LiveMap() {
     heatLayer.current?.setActive(overlays.heatmap);
 
     if (overlays.quakes) {
-      const points: EqPoint[] = features.map((f) => {
+      const markers: L.Layer[] = [];
+      for (const f of features) {
         const [lon, lat] = f.geometry.coordinates;
-        return { f, lat, lon, mag: f.properties.mag ?? 0 };
-      });
-      const clusters = clusterEqPoints(points, mapZoom, 30);
-      
-      const addFeatureMarker = (
-        f: EqFeature,
-        lat: number,
-        lon: number,
-        asPin: boolean,
-        /** Pin display position (spider offset); data/lat lon stay true hypocenter */
-        pinLat = lat,
-        pinLon = lon,
-      ) => {
         const mag = f.properties.mag ?? 0;
         const depth = eqDepthKm(f);
         const place = f.properties.place ?? "Unknown";
@@ -477,15 +476,6 @@ export function LiveMap() {
         const isSig = mag >= 6;
         const isJma = isJmaFeature(f);
         const fill = overlays.depthColor ? depthColor(depth) : magColor(mag);
-        const stroke = isSig
-          ? "#fbbf24"
-          : isJma
-            ? "#22d3ee"
-            : sat
-              ? "#ffffff"
-              : overlays.depthColor
-                ? magColor(mag)
-                : "#0f172a";
         const mmi = f.properties.mmi;
         const sm =
           hasShakeMapProduct(f.properties.types) ||
@@ -502,7 +492,6 @@ export function LiveMap() {
           place,
           url: pageUrl,
         });
-        const agencyHtml = agencyLinksHtml(agencyLinks);
         const popupHtml = buildEqPopupHtml(f, {
           lat,
           lon,
@@ -519,9 +508,23 @@ export function LiveMap() {
           smUrl,
           pageUrl,
           eventId,
-          agencyHtml,
+          agencyHtml: agencyLinksHtml(agencyLinks),
         });
-        const onPick = () => {
+
+        // Pin markers — MarkerCluster spiderfy spreads stacked events for selection
+        const pin = L.marker([lat, lon], {
+          icon: makeEqPinIcon(mag, fill, isSig || !!isMmiSource),
+          riseOnHover: true,
+          keyboard: true,
+          title: `M${mag.toFixed(1)} ${place}`,
+        }) as L.Marker & { __eqMag?: number };
+        pin.__eqMag = mag;
+        pin.bindPopup(popupHtml, {
+          className: "ww-eq-popup",
+          maxWidth: 300,
+          autoPan: true,
+        });
+        pin.on("click", () => {
           pickEvent({
             id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
             lat,
@@ -532,127 +535,12 @@ export function LiveMap() {
             time: typeof f.properties.time === "number" ? f.properties.time : null,
             url: pageUrl || undefined,
           });
-        };
-
-        if (asPin) {
-          const pin = L.marker([pinLat, pinLon], {
-            icon: makeEqPinIcon(mag, fill, isSig),
-            riseOnHover: true,
-            keyboard: true,
-          });
-          pin.bindPopup(popupHtml, {
-            className: "ww-eq-popup",
-            maxWidth: 300,
-            autoPan: true,
-          });
-          pin.on("click", onPick);
-          eqLayer.current?.addLayer(pin);
-          return;
-        }
-
-        const radius = Math.max(
-          4,
-          Math.min(18, (mag - 3.2) * 3.0) + (isSig && overlays.significant ? 3 : 0),
-        );
-        const marker = L.circleMarker([lat, lon], {
-          renderer,
-          radius: isMmiSource ? radius + 3 : radius,
-          color: isMmiSource ? "#fbbf24" : stroke,
-          fillColor: fill,
-          fillOpacity: overlays.heatmap ? 0.55 : sat ? 0.82 : 0.88,
-          weight: isMmiSource || isSig ? 2.5 : sat ? 2 : overlays.depthColor ? 1.75 : 1.25,
-          opacity: 0.95,
-          bubblingMouseEvents: true,
         });
-        marker.bindPopup(popupHtml, {
-          className: "ww-eq-popup",
-          maxWidth: 300,
-          autoPan: true,
-        });
-        marker.on("click", onPick);
-        eqLayer.current?.addLayer(marker);
-      };
-
-      for (const cl of clusters) {
-        if (cl.points.length === 1) {
-          const p = cl.points[0]!;
-          addFeatureMarker(p.f, p.lat, p.lon, false);
-          continue;
-        }
-
-        const expanded = expandedClusters.current.has(cl.key);
-        if (expanded) {
-          // Spiderfy: legs + pins so each stacked event is selectable
-          const offs = spiderfyOffsets(cl.points.length);
-          for (let i = 0; i < cl.points.length; i++) {
-            const p = cl.points[i]!;
-            const o = offs[i] ?? { dLat: 0, dLon: 0 };
-            const [plat, plon] = spiderPinLatLon(cl.lat, cl.lon, o.dLat, o.dLon);
-            const leg = L.polyline(
-              [
-                [cl.lat, cl.lon],
-                [plat, plon],
-              ],
-              {
-                color: "#94a3b8",
-                weight: 1.25,
-                opacity: 0.55,
-                interactive: false,
-                renderer,
-              },
-            );
-            eqLayer.current?.addLayer(leg);
-            addFeatureMarker(p.f, p.lat, p.lon, true, plat, plon);
-          }
-          // Center collapse control
-          const fill = magColor(cl.maxMag);
-          const collapse = L.marker([cl.lat, cl.lon], {
-            icon: makeClusterIcon(cl.points.length, cl.maxMag, fill),
-            zIndexOffset: 800,
-            keyboard: true,
-          });
-          collapse.bindTooltip(
-            `${cl.points.length} events · click to collapse pins`,
-            { direction: "top", opacity: 0.95 },
-          );
-          collapse.on("click", (e) => {
-            L.DomEvent.stopPropagation(e);
-            expandedClusters.current.delete(cl.key);
-            setClusterTick((n) => n + 1);
-          });
-          eqLayer.current?.addLayer(collapse);
-        } else {
-          const fill = magColor(cl.maxMag);
-          const badge = L.marker([cl.lat, cl.lon], {
-            icon: makeClusterIcon(cl.points.length, cl.maxMag, fill),
-            zIndexOffset: 600,
-            keyboard: true,
-          });
-          const top = cl.points
-            .slice(0, 3)
-            .map((p) => `M${p.mag.toFixed(1)}`)
-            .join(" · ");
-          badge.bindTooltip(
-            `${cl.points.length} nearby events (${top}${cl.points.length > 3 ? "…" : ""}) · click for pins`,
-            { direction: "top", opacity: 0.95 },
-          );
-          badge.bindPopup(
-            `<div style="font-weight:700;color:${fill}">${cl.points.length} clustered events</div>
-             <div style="color:#94a3b8;font-size:11px;margin-top:4px">Max M${cl.maxMag.toFixed(1)} · click badge again to expand pins</div>
-             <div style="margin-top:6px;color:#cbd5e1;font-size:11px">Each pin opens full agency / waveform links.</div>`,
-            { className: "ww-eq-popup", maxWidth: 260 },
-          );
-          badge.on("click", (e) => {
-            L.DomEvent.stopPropagation(e);
-            expandedClusters.current.add(cl.key);
-            setClusterTick((n) => n + 1);
-          });
-          eqLayer.current?.addLayer(badge);
-        }
+        markers.push(pin);
       }
+      eqLayer.current.addLayers(markers);
       try {
-        // @ts-expect-error LayerGroup may expose bringToFront at runtime
-        eqLayer.current.bringToFront?.();
+        eqLayer.current.bringToFront();
       } catch {
         /* ignore */
       }
@@ -695,11 +583,11 @@ export function LiveMap() {
             gLinks,
           { className: "ww-eq-popup", maxWidth: 300 },
         );
-        eqLayer.current?.addLayer(marker);
+        eqContextLayer.current?.addLayer(marker);
       }
     }
 
-        const allNodes = getAllFocusNodes();
+    const allNodes = getAllFocusNodes();
     for (const node of allNodes) {
       const st = nodeStatus(all, node);
       const [[latMin, lonMin], [latMax, lonMax]] = node.bounds;
@@ -845,8 +733,6 @@ export function LiveMap() {
     replayActive,
     replayCursorMs,
     pickEvent,
-    mapZoom,
-    clusterTick,
   ]);
 
   useEffect(() => {

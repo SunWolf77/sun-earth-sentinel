@@ -4,6 +4,8 @@ import {
   Activity,
   BookOpen,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Globe2,
   Layers,
   Map as MapIcon,
@@ -117,6 +119,25 @@ function ObservatoryApp() {
   const pulseTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [ageTick, setAgeTick] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return localStorage.getItem("wolfwatch_sidebar_open") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const toggleSidebar = () => {
+    setSidebarOpen((open) => {
+      const next = !open;
+      try {
+        localStorage.setItem("wolfwatch_sidebar_open", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
   const [controlsOpen, setControlsOpen] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -676,50 +697,95 @@ function ObservatoryApp() {
           hidden={tab !== "live"}
           className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row"
         >
-          <aside className="ww-aside hidden min-h-0 w-[min(280px,28vw)] shrink-0 flex-col border-r border-border lg:flex">
-            <div className="shrink-0 border-b border-border/80">
-              <button
-                type="button"
-                onClick={toggleControls}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-elevated/40"
-                aria-expanded={controlsOpen}
-                aria-controls="live-controls-panel"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-                    Controls
-                  </div>
-                  <div className="mt-0.5 truncate text-[0.62rem] text-dim">
-                    {timeWindow === "hour"
-                      ? "1h"
-                      : timeWindow === "day"
-                        ? "1d"
-                        : timeWindow === "week"
-                          ? "1w"
-                          : "1m"}
-                    {" · "}M{minMag.toFixed(1)}+
-                    {" · "}
-                    {mapView.toUpperCase()}
-                    {useGeofon ? " · GEOFON" : ""}
-                    {controlsOpen ? "" : " · tap to expand"}
-                  </div>
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-muted transition-transform duration-200 ${
-                    controlsOpen ? "rotate-180" : ""
-                  }`}
-                  aria-hidden
-                />
-              </button>
-              {controlsOpen && (
-                <div id="live-controls-panel" className="border-t border-border/60">
-                  {filtersBlock}
-                </div>
+          <aside
+            className={`ww-aside relative hidden min-h-0 shrink-0 flex-col border-r border-border bg-bg transition-[width] duration-200 ease-out lg:flex ${
+              sidebarOpen ? "w-[min(300px,30vw)]" : "w-11"
+            }`}
+            aria-label="Map sidebar"
+          >
+            {/* Collapse / expand rail */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="flex h-10 w-full items-center justify-center border-b border-border/80 text-muted transition-colors hover:bg-elevated/50 hover:text-primary"
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              aria-expanded={sidebarOpen}
+              aria-controls="live-sidebar-body"
+            >
+              {sidebarOpen ? (
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              ) : (
+                <ChevronRight className="h-4 w-4" aria-hidden />
               )}
-            </div>
-            <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {eventsBlock}
-            </div>
+              <span className="sr-only">
+                {sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              </span>
+            </button>
+
+            {sidebarOpen ? (
+              <div id="live-sidebar-body" className="flex min-h-0 flex-1 flex-col">
+                <div className="shrink-0 border-b border-border/80">
+                  <button
+                    type="button"
+                    onClick={toggleControls}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-elevated/40"
+                    aria-expanded={controlsOpen}
+                    aria-controls="live-controls-panel"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
+                        Controls
+                      </div>
+                      <div className="mt-0.5 truncate text-[0.62rem] text-dim">
+                        {timeWindow === "hour"
+                          ? "1h"
+                          : timeWindow === "day"
+                            ? "1d"
+                            : timeWindow === "week"
+                              ? "1w"
+                              : "1m"}
+                        {" · "}M{minMag.toFixed(1)}+
+                        {" · "}
+                        {mapView.toUpperCase()}
+                        {useGeofon ? " · GEOFON" : ""}
+                        {controlsOpen ? "" : " · expand"}
+                      </div>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-muted transition-transform duration-200 ${
+                        controlsOpen ? "rotate-180" : ""
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
+                  {controlsOpen && (
+                    <div id="live-controls-panel" className="border-t border-border/60">
+                      {filtersBlock}
+                    </div>
+                  )}
+                </div>
+                <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                  {eventsBlock}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-1 flex-col items-center gap-3 px-1 py-3">
+                <span
+                  className="text-[0.6rem] font-semibold uppercase tracking-wider text-dim"
+                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                >
+                  Events · {features.length}
+                </span>
+                <button
+                  type="button"
+                  className="ww-btn ww-btn--compact text-[0.6rem]"
+                  onClick={toggleSidebar}
+                  title="Open sidebar"
+                >
+                  Open
+                </button>
+              </div>
+            )}
           </aside>
 
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
