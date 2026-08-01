@@ -35,6 +35,10 @@ import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
 import { formatUtc } from "@/lib/utils";
+import {
+  agencyLinksForEvent,
+  agencyLinksHtml,
+} from "@/lib/seismology/agencyLinks";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -55,7 +59,8 @@ export function LiveMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapObj = useRef<L.Map | null>(null);
   const baseLayer = useRef<L.TileLayer | null>(null);
-  const canvasRenderer = useRef<L.Canvas | null>(null);
+  /** SVG for interactive markers — full-map canvas steals clicks from EQ popups. */
+  const vectorRenderer = useRef<L.SVG | null>(null);
   const eqLayer = useRef<L.LayerGroup | null>(null);
   const nodeLayer = useRef<L.LayerGroup | null>(null);
   const volcLayer = useRef<L.LayerGroup | null>(null);
@@ -89,6 +94,7 @@ export function LiveMap() {
   const clearMapFlyTo = useObservatory((s) => s.clearMapFlyTo);
   const replayActive = useObservatory((s) => s.replayActive);
   const replayCursorMs = useObservatory((s) => s.replayCursorMs);
+  const pickEvent = useObservatory((s) => s.pickEvent);
 
   useEffect(() => {
     try {
@@ -113,7 +119,7 @@ export function LiveMap() {
       zoom: 2,
       worldCopyJump: true,
       zoomControl: false,
-      preferCanvas: true,
+      preferCanvas: false,
       fadeAnimation: false,
       markerZoomAnimation: false,
       zoomAnimation: true,
@@ -137,7 +143,7 @@ export function LiveMap() {
       },
     });
 
-    canvasRenderer.current = L.canvas({ padding: 0.5 });
+    vectorRenderer.current = L.svg({ padding: 0.5 });
     const initial = useObservatory.getState().basemapStyle;
     baseLayer.current = makeTileLayer(initial).addTo(map);
     const el0 = map.getContainer();
@@ -167,7 +173,7 @@ export function LiveMap() {
       map.remove();
       mapObj.current = null;
       baseLayer.current = null;
-      canvasRenderer.current = null;
+      vectorRenderer.current = null;
       heatLayer.current = null;
       mmiLayer.current = null;
     };
@@ -289,7 +295,7 @@ export function LiveMap() {
     eqLayer.current.clearLayers();
     nodeLayer.current.clearLayers();
 
-    const renderer = canvasRenderer.current ?? undefined;
+    const renderer = vectorRenderer.current ?? undefined;
     const sat = basemapStyle === "satellite";
     const all = filteredEq(eq?.features, minMag, maxMag);
     const focus = getFocusNode(focusNodeId);
@@ -350,6 +356,17 @@ export function LiveMap() {
         const isMmiSource =
           focusMmi.eventId && f.id === focusMmi.eventId && focusMmi.status === "ready";
 
+        const eventId = f.id != null ? String(f.id) : "";
+        const magType = (f.properties as { magType?: string }).magType;
+        const net = (f.properties as { net?: string }).net;
+        const status = (f.properties as { status?: string }).status;
+        const agencyLinks = agencyLinksForEvent({
+          lat,
+          lon,
+          eventId,
+          place,
+          url: pageUrl,
+        });
         const marker = L.circleMarker([lat, lon], {
           renderer,
           radius: isMmiSource ? radius + 3 : radius,
@@ -358,33 +375,64 @@ export function LiveMap() {
           fillOpacity: overlays.heatmap ? 0.62 : sat ? 0.95 : 0.9,
           weight: isMmiSource || isSig ? 2.5 : sat ? 2 : overlays.depthColor ? 1.75 : 1.25,
           opacity: 0.95,
-          bubblingMouseEvents: false,
+          bubblingMouseEvents: true,
         });
-        marker.bindPopup(() => {
-          const el = document.createElement("div");
-          const mmiLine =
-            mmi != null && Number.isFinite(mmi)
-              ? `<br/><span style="color:#0e7490;font-size:11px">USGS MMI ~${formatMmi(mmi)}${sm ? " · ShakeMap product" : ""}</span>`
-              : "";
-          const contourNote = isMmiSource
-            ? `<br/><span style="color:#ca8a04;font-size:11px">★ MMI contours drawn for this event</span>`
-            : "";
-          const sigNote = isSig
-            ? `<br/><span style="color:#fbbf24;font-size:11px">Significant · M≥6</span>`
-            : "";
-          const smLink =
-            sm && smUrl
-              ? `<br/><a href="${smUrl}" target="_blank" rel="noopener noreferrer" style="color:#0891b2;font-weight:600;font-size:11px">Open official USGS ShakeMap →</a>`
-              : pageUrl
-                ? `<br/><a href="${pageUrl}" target="_blank" rel="noopener noreferrer" style="color:#64748b;font-size:11px">USGS event page →</a>`
+        marker.bindPopup(
+          () => {
+            const el = document.createElement("div");
+            const mmiLine =
+              mmi != null && Number.isFinite(mmi)
+                ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">USGS MMI ~${formatMmi(mmi)}${sm ? " · ShakeMap product" : ""}</div>`
                 : "";
-          el.innerHTML = `<strong style="color:${fill}">M${mag.toFixed(1)}</strong>
-            <span style="color:#64748b;font-size:11px"> · ${depth.toFixed(0)} km</span>${sigNote}${mmiLine}${contourNote}<br/>
-            ${place}<br/>
-            <span style="color:#64748b;font-size:11px">${time}</span>${smLink}`;
-          return el;
+            const contourNote = isMmiSource
+              ? `<div style="color:#fbbf24;font-size:11px">★ MMI contours drawn for this event</div>`
+              : "";
+            const sigNote = isSig
+              ? `<span style="color:#fbbf24;font-size:11px"> · Significant M≥6</span>`
+              : "";
+            const metaBits = [
+              magType ? `mag ${magType}` : null,
+              net ? `net ${net}` : null,
+              status || null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            const smLink =
+              sm && smUrl
+                ? `<div style="margin-top:4px"><a href="${smUrl}" target="_blank" rel="noopener noreferrer" style="color:#22d3ee;font-weight:600;font-size:11px">USGS ShakeMap →</a></div>`
+                : "";
+            const coords = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+            el.innerHTML = `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}</div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
+              <div style="margin-top:4px;color:#e2e8f0">${place}</div>
+              <div style="color:#64748b;font-size:11px;margin-top:3px">${time}</div>
+              ${metaBits ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${metaBits}${eventId ? ` · ${eventId}` : ""}</div>` : eventId ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${eventId}</div>` : ""}
+              ${mmiLine}${contourNote}${smLink}
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #1e293b;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Agency assessment</div>
+              ${agencyLinksHtml(agencyLinks)}`;
+            return el;
+          },
+          { className: "ww-eq-popup", maxWidth: 300, autoPan: true },
+        );
+        marker.on("click", () => {
+          pickEvent({
+            id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
+            lat,
+            lon,
+            mag,
+            place,
+            depth,
+            time: typeof f.properties.time === "number" ? f.properties.time : null,
+            url: pageUrl || undefined,
+          });
         });
         eqLayer.current.addLayer(marker);
+      }
+      try {
+        // @ts-expect-error LayerGroup may expose bringToFront at runtime
+        eqLayer.current.bringToFront?.();
+      } catch {
+        /* ignore */
       }
     }
 
@@ -412,10 +460,18 @@ export function LiveMap() {
           opacity: 0.75,
           bubblingMouseEvents: false,
         });
+        const gPlace = f.properties.place || "Event";
+        const gUrl = f.properties.url || eventPageUrl(f.id);
+        const gLinks = agencyLinksHtml(
+          agencyLinksForEvent({ lat, lon, eventId: id, place: gPlace, url: gUrl }),
+          4,
+        );
         marker.bindPopup(
           `<strong style="color:#fbbf24">M${mag.toFixed(1)}</strong> · global 24h<br/>` +
-            `${f.properties.place || "Event"}<br/>` +
-            `<span style="color:#64748b;font-size:11px">USGS world layer</span>`,
+            `${gPlace}<br/>` +
+            `<span style="color:#64748b;font-size:11px">USGS world layer</span>` +
+            gLinks,
+          { className: "ww-eq-popup", maxWidth: 300 },
         );
         eqLayer.current?.addLayer(marker);
       }
@@ -567,6 +623,7 @@ export function LiveMap() {
   ,
     replayActive,
     replayCursorMs,
+    pickEvent,
   ]);
 
   useEffect(() => {
@@ -574,7 +631,7 @@ export function LiveMap() {
     volcLayer.current.clearLayers();
     if (!overlays.volcanoes) return;
 
-    const renderer = canvasRenderer.current ?? undefined;
+    const renderer = vectorRenderer.current ?? undefined;
     const focus = getFocusNode(focusNodeId);
     let features = volc?.features ?? [];
     if (focus) {
@@ -677,7 +734,7 @@ export function LiveMap() {
       if (map.hasLayer(gvpLayer.current)) map.removeLayer(gvpLayer.current);
       return;
     }
-    const renderer = canvasRenderer.current ?? undefined;
+    const renderer = vectorRenderer.current ?? undefined;
     for (const v of gvpVolcanoes) {
       const isFocus = focusNodeId === v.id || focusNodeId === `gvp-${v.vnum}`;
       const marker = L.circleMarker([v.lat, v.lon], {

@@ -19,11 +19,18 @@ export type PlateLayerHandle = {
 
 /**
  * PB2002 plate boundaries + MORVEL-style relative-motion arrows.
+ *
+ * Critical: arrows must NOT be interactive DOM markers on top of the map.
+ * Full-size interactive markers sit in the marker pane (z above canvas quakes)
+ * and steal every click — EQ popups never open. Arrows are visual-only;
+ * boundary lines use SVG so only the stroke captures hover (not a full canvas).
  */
 export function createPlateLayer(map: L.Map): PlateLayerHandle {
   const group = L.layerGroup();
   const lineGroup = L.layerGroup().addTo(group);
   const arrowGroup = L.layerGroup().addTo(group);
+  /** SVG renderer: hits only land on stroke pixels, not a full-map canvas. */
+  const svgRenderer = L.svg({ padding: 0.5 });
 
   let active = false;
   let loaded = false;
@@ -37,7 +44,6 @@ export function createPlateLayer(map: L.Map): PlateLayerHandle {
 
   function arrowIcon(arrow: MotionArrow): L.DivIcon {
     const color = BOUNDARY_COLORS[arrow.kind];
-    // Scale shaft length loosely with speed (mm/yr)
     const len = Math.max(14, Math.min(28, 10 + arrow.speed * 0.18));
     const html = `<div class="ww-plate-arrow" style="--a:${arrow.bearing.toFixed(
       1,
@@ -56,6 +62,8 @@ export function createPlateLayer(map: L.Map): PlateLayerHandle {
   function draw(collection: PlateBoundaryCollection) {
     clear();
     const geo = L.geoJSON(collection as GeoJSON.GeoJsonObject, {
+      renderer: svgRenderer,
+      interactive: true,
       style: (feat) => {
         const kind = boundaryKind(feat as never);
         return {
@@ -86,22 +94,16 @@ export function createPlateLayer(map: L.Map): PlateLayerHandle {
     lineGroup.addLayer(geo);
 
     const arrows = sampleMotionArrows(collection, { step: 5, minSpeed: 5 });
-    // Cap arrows for performance
     const maxArrows = 280;
     const step = Math.max(1, Math.ceil(arrows.length / maxArrows));
     for (let i = 0; i < arrows.length; i += step) {
       const a = arrows[i]!;
+      // Visual only — must not steal clicks from canvas EQ markers underneath.
       const m = L.marker([a.lat, a.lon], {
         icon: arrowIcon(a),
-        interactive: true,
+        interactive: false,
         keyboard: false,
       });
-      m.bindTooltip(
-        `<strong>${a.plateA}→${a.plateB}</strong> · ${a.speed.toFixed(0)} mm/yr<br/>
-         <span style="color:${BOUNDARY_COLORS[a.kind]}">${BOUNDARY_LABELS[a.kind]}</span>
-         · rel. bearing ${a.bearing.toFixed(0)}°`,
-        { direction: "top", className: "ww-plate-tip", opacity: 0.95 },
-      );
       arrowGroup.addLayer(m);
     }
   }
