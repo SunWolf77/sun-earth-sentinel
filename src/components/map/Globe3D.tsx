@@ -260,6 +260,18 @@ export function Globe3D() {
       let pickList: { mesh: InstanceType<typeof THREE.Object3D>; meta: PickMeta }[] = [];
       /** Expanded spiderfy clusters on the globe (click badge to toggle). */
       const expandedGlobe = new Set<string>();
+      /** Cluster key that should play open animation on next rebuild. */
+      let spiderExpandKey: string | null = null;
+      type SpiderAnim = {
+        mesh: InstanceType<typeof THREE.Object3D>;
+        from: InstanceType<typeof THREE.Vector3>;
+        to: InstanceType<typeof THREE.Vector3>;
+        t0: number;
+        dur: number;
+        legPos?: Float32Array;
+        legGeo?: InstanceType<typeof THREE.BufferGeometry>;
+      };
+      let spiderAnims: SpiderAnim[] = [];
       let lastFeatureList: EqFeature[] = [];
       let lastFocusId: string | null = null;
       let neonMats: { mat: InstanceType<typeof THREE.MeshBasicMaterial>; base: number }[] = [];
@@ -358,6 +370,7 @@ export function Globe3D() {
         disposeGroup(quakeGroup);
         pickList = [];
         neonMats = [];
+        spiderAnims = [];
         if (focusRing) {
           scene.remove(focusRing);
           focusRing.geometry.dispose();
@@ -508,23 +521,80 @@ export function Globe3D() {
           const expanded = expandedGlobe.has(cl.key);
           if (expanded) {
             const offs = spiderfyOffsets(cl.points.length, 1.6);
+            const animateOpen = spiderExpandKey === cl.key;
+            const t0 = performance.now();
             for (let i = 0; i < cl.points.length; i++) {
               const p = cl.points[i]!;
               const o = offs[i] ?? { dLat: 0, dLon: 0 };
               const [plat, plon] = spiderPinLatLon(cl.lat, cl.lon, o.dLat, o.dLon);
-              // leg stem from cluster center to pin
-              const a = latLonToVec(cl.lat, cl.lon, 1.02);
-              const b = latLonToVec(plat, plon, 1.02);
-              stemPos.push(a.x, a.y, a.z, b.x, b.y, b.z);
-              const col = new THREE.Color(globeMagStyle(p.mag).color);
-              stemCol.push(0.6, 0.65, 0.7, col.r, col.g, col.b);
-              // Visual pin at spider offset; meta/pick still uses true hypocenter
+
+              const mag = p.mag;
+              const depth = eqDepthKm(p.f);
+              let base = 0.018 + Math.pow(Math.max(mag, 0.5), 1.1) * 0.01;
+              if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
+              const size = base * hexScale;
+              const lift = (Math.min(depth, 700) / 700) * stemMul;
+              const elev = 1.012 + lift + size * 0.28 + 0.008;
+              const from = latLonToVec(cl.lat, cl.lon, elev);
+              const to = latLonToVec(plat, plon, elev);
+
+              // Start at cluster center when opening; full spread when already open (recluster)
+              const startLat = animateOpen ? cl.lat : plat;
+              const startLon = animateOpen ? cl.lon : plon;
               placeEventHex(p.f, p.lat, p.lon, {
                 showLabel: true,
                 elevBoost: 0.008,
-                displayLat: plat,
-                displayLon: plon,
+                displayLat: startLat,
+                displayLon: startLon,
               });
+              const last = pickList[pickList.length - 1];
+              if (!last) continue;
+
+              // Animated spider leg (center → pin tip)
+              const legArr = new Float32Array([
+                from.x,
+                from.y,
+                from.z,
+                animateOpen ? from.x : to.x,
+                animateOpen ? from.y : to.y,
+                animateOpen ? from.z : to.z,
+              ]);
+              const legGeo = new THREE.BufferGeometry();
+              legGeo.setAttribute("position", new THREE.BufferAttribute(legArr, 3));
+              const legCol = new THREE.Color(globeMagStyle(p.mag).color);
+              const leg = new THREE.Line(
+                legGeo,
+                new THREE.LineBasicMaterial({
+                  color: legCol,
+                  transparent: true,
+                  opacity: 0.55,
+                  depthWrite: false,
+                }),
+              );
+              quakeGroup.add(leg);
+
+              if (animateOpen) {
+                // Stagger slightly so the fan reads as a wave
+                const delay = i * 18;
+                spiderAnims.push({
+                  mesh: last.mesh,
+                  from: from.clone(),
+                  to: to.clone(),
+                  t0: t0 + delay,
+                  dur: 220,
+                  legPos: legArr,
+                  legGeo,
+                });
+                // Start slightly smaller for pop
+                last.mesh.scale.setScalar(0.35);
+              } else {
+                last.mesh.position.copy(to);
+                last.mesh.lookAt(0, 0, 0);
+                last.mesh.rotateY(Math.PI);
+              }
+            }
+            if (animateOpen && spiderExpandKey === cl.key) {
+              spiderExpandKey = null;
             }
           }
 
@@ -678,10 +748,12 @@ export function Globe3D() {
         if (meta.kind === "cluster" && meta.clusterKey) {
           if (expandedGlobe.has(meta.clusterKey)) {
             expandedGlobe.delete(meta.clusterKey);
+            spiderExpandKey = null;
           } else {
             // one expanded stack at a time keeps the globe readable
             expandedGlobe.clear();
             expandedGlobe.add(meta.clusterKey);
+            spiderExpandKey = meta.clusterKey;
           }
           updateMarkers(lastFeatureList, lastFocusId);
           aimAt(meta.lat, meta.lon, true);
@@ -910,6 +982,40 @@ export function Globe3D() {
         if (now - lastFrameT < minFrameMs) return;
         lastFrameT = now;
 
+        // Spiderfy lerp — pins fan from badge center (~220ms ease-out, staggered)
+        if (spiderAnims.length) {
+          const nowS = performance.now();
+          const next: SpiderAnim[] = [];
+          for (const a of spiderAnims) {
+            const raw = (nowS - a.t0) / a.dur;
+            if (raw < 0) {
+              // staggered delay — hold at origin
+              a.mesh.position.copy(a.from);
+              next.push(a);
+              continue;
+            }
+            const t = Math.min(1, raw);
+            const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+            a.mesh.position.lerpVectors(a.from, a.to, e);
+            a.mesh.lookAt(0, 0, 0);
+            a.mesh.rotateY(Math.PI);
+            a.mesh.scale.setScalar(0.35 + 0.65 * e);
+            if (a.legPos && a.legGeo) {
+              a.legPos[3] = a.from.x + (a.to.x - a.from.x) * e;
+              a.legPos[4] = a.from.y + (a.to.y - a.from.y) * e;
+              a.legPos[5] = a.from.z + (a.to.z - a.from.z) * e;
+              const attr = a.legGeo.getAttribute("position");
+              if (attr) attr.needsUpdate = true;
+            }
+            if (t < 1) next.push(a);
+            else {
+              a.mesh.position.copy(a.to);
+              a.mesh.scale.setScalar(1);
+            }
+          }
+          spiderAnims = next;
+        }
+
         if (aimAnim) {
           const t = Math.min(1, (performance.now() - aimAnim.t0) / aimAnim.dur);
           const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
@@ -918,7 +1024,7 @@ export function Globe3D() {
           spherical.radius = aimAnim.from.radius + (aimAnim.to.radius - aimAnim.from.radius) * e;
           applyCam();
           if (t >= 1) aimAnim = null;
-        } else if (autoRef.current && !rotating) {
+        } else if (autoRef.current && !rotating && spiderAnims.length === 0) {
           // Prograde Earth: west→east. Matches three.js OrbitControls autoRotate
           // (theta decreases) and Dutchsinse Public Seismic Globe. Prior += was retrograde.
           spherical.theta -= 0.0022 * spinSpdRef.current;
