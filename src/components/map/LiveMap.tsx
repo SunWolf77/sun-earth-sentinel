@@ -41,6 +41,7 @@ import {
 } from "@/lib/seismology/agencyLinks";
 import { isJmaFeature } from "@/lib/feeds/jma";
 import type { EqFeature } from "@/lib/feeds/usgs";
+import { filterFeaturesByTimeWindow } from "@/lib/feeds/usgs";
 import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -456,6 +457,9 @@ export function LiveMap() {
           return pointInBounds(lat, lon, focus.bounds);
         })
       : all;
+
+    // Match selected time window (drops GEOFON/JMA/stale pulse outside window)
+    features = filterFeaturesByTimeWindow(features, timeWindow);
 
     // Significant M6+ mode: keep only strong events when filter is on
     if (overlays.significant) {

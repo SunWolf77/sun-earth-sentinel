@@ -50,6 +50,11 @@ export function Globe3D() {
   const setGlobeMarkerOpacity = useObservatory((s) => s.setGlobeMarkerOpacity);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const pickedEvent = useObservatory((s) => s.pickedEvent);
+  const setFocusNode = useObservatory((s) => s.setFocusNode);
+  const timeWindow = useObservatory((s) => s.timeWindow);
+  const replayActive = useObservatory((s) => s.replayActive);
+  const replayCursorMs = useObservatory((s) => s.replayCursorMs);
+  const overlays = useObservatory((s) => s.overlays);
 
   const cleanupRef = useRef<(() => void) | null>(null);
   const updateRef = useRef<((features: EqFeature[], focusId: string | null) => void) | null>(
@@ -60,6 +65,7 @@ export function Globe3D() {
   const stemRef = useRef(globeStemScale);
   const hexRef = useRef(globeMarkerScale);
   const opacRef = useRef(globeMarkerOpacity);
+  const overlaysRef = useRef(overlays);
   const aimRef = useRef<((lat: number, lon: number, smooth?: boolean) => void) | null>(null);
   const recenterRef = useRef<(() => void) | null>(null);
   const [qualityLabel, setQualityLabel] = useState<string>("");
@@ -81,6 +87,9 @@ export function Globe3D() {
   useEffect(() => {
     opacRef.current = globeMarkerOpacity;
   }, [globeMarkerOpacity]);
+  useEffect(() => {
+    overlaysRef.current = overlays;
+  }, [overlays]);
 
   useEffect(() => {
     if (mapView !== "3d" || !containerRef.current) return;
@@ -263,7 +272,7 @@ export function Globe3D() {
       scene.add(quakeGroup);
 
       type PickMeta = {
-        kind: "event" | "cluster";
+        kind: "event" | "cluster" | "node";
         id: string;
         lat: number;
         lon: number;
@@ -275,6 +284,7 @@ export function Globe3D() {
         neon: boolean;
         clusterKey?: string;
         count?: number;
+        nodeId?: string;
       };
       let pickList: { mesh: InstanceType<typeof THREE.Object3D>; meta: PickMeta }[] = [];
       /** Expanded spiderfy clusters on the globe (click badge to toggle). */
@@ -408,10 +418,10 @@ export function Globe3D() {
         const hexScale = hexRef.current;
         const opac = opacRef.current;
 
-        const floor = Q.id === "mobile" ? Math.max(minMag, 4.0) : Math.min(minMag, 3.5);
+        // Same mag floor as 2D — never show events outside the control-panel filters
         let list = features.filter((f) => {
           const m = f.properties.mag ?? 0;
-          return m >= floor && m <= maxMag;
+          return m >= minMag && m <= maxMag;
         });
         if (focus) {
           list = list.filter((f) => {
@@ -419,9 +429,15 @@ export function Globe3D() {
             return pointInBounds(lat, lon, focus.bounds);
           });
         }
-        list = [...list]
-          .sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0))
-          .slice(0, Q.maxMarkers);
+        list = [...list].sort(
+          (a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0),
+        );
+        if (list.length > Q.maxMarkers) {
+          const strong = list.filter((f) => (f.properties.mag ?? 0) >= 5.5);
+          const rest = list.filter((f) => (f.properties.mag ?? 0) < 5.5);
+          const room = Math.max(0, Q.maxMarkers - strong.length);
+          list = [...strong, ...rest.slice(0, room)].slice(0, Q.maxMarkers);
+        }
 
         const points: EqPoint[] = list.map((f) => {
           const [lon, lat] = f.geometry.coordinates;
@@ -732,8 +748,75 @@ export function Globe3D() {
           aimAt(clat, clon, false);
         }
 
+        rebuildNodePins();
         void dummy;
       }
+
+      const pinGroup = new THREE.Group();
+      scene.add(pinGroup);
+
+      function rebuildNodePins() {
+        // Remove previous node meshes + their pick entries
+        pickList = pickList.filter((p) => p.meta.kind !== "node");
+        while (pinGroup.children.length) {
+          const o = pinGroup.children[0]!;
+          pinGroup.remove(o);
+          o.traverse((ch) => {
+            const mesh = ch as InstanceType<typeof THREE.Mesh>;
+            if (mesh.geometry) mesh.geometry.dispose();
+            const mat = mesh.material;
+            if (mat) {
+              if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+              else (mat as InstanceType<typeof THREE.Material>).dispose();
+            }
+          });
+        }
+        if (!Q.nodePins || !overlaysRef.current.nodes) return;
+        const nodes =
+          Q.id === "mobile"
+            ? DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority)
+            : DRAGON_NODES;
+        for (const node of nodes) {
+          const clat = node.center?.[0] ?? (node.bounds[0][0] + node.bounds[1][0]) / 2;
+          const clon =
+            node.center?.[1] ??
+            (node.bounds[0][1] <= node.bounds[1][1]
+              ? (node.bounds[0][1] + node.bounds[1][1]) / 2
+              : -175);
+          const v = latLonToVec(clat, clon, 1.028);
+          const pin = new THREE.Mesh(
+            new THREE.SphereGeometry(
+              node.publishedFocus ? 0.022 : 0.015,
+              Q.pinSeg,
+              Q.pinSeg,
+            ),
+            new THREE.MeshBasicMaterial({
+              color: node.kind === "volcano" ? 0xfb923c : node.publishedFocus ? 0xfbbf24 : 0x22d3ee,
+              transparent: true,
+              opacity: 0.95,
+              depthWrite: false,
+            }),
+          );
+          pin.position.copy(v);
+          pinGroup.add(pin);
+          pickList.push({
+            mesh: pin,
+            meta: {
+              kind: "node",
+              id: `node:${node.id}`,
+              nodeId: node.id,
+              lat: clat,
+              lon: clon,
+              mag: 0,
+              place: node.name,
+              depth: 0,
+              time: null,
+              neon: false,
+            },
+          });
+        }
+      }
+
 
       updateRef.current = updateMarkers;
       updateMarkers(filteredEq(eq?.features, minMag, maxMag), focusNodeId);
@@ -770,12 +853,18 @@ export function Globe3D() {
         }
         if (!resolved.length) return null;
         const events = resolved.filter((r) => r.meta.kind === "event");
-        const pool = events.length ? events : resolved;
+        const nodes = resolved.filter((r) => r.meta.kind === "node");
+        const pool = events.length ? events : nodes.length ? nodes : resolved;
         pool.sort((a, b) => a.dist - b.dist);
         return pool[0]!.meta;
       }
 
       function applyPick(meta: PickMeta) {
+        if (meta.kind === "node" && meta.nodeId) {
+          setFocusNode(meta.nodeId);
+          aimAt(meta.lat, meta.lon, true);
+          return;
+        }
         // Cluster badge: expand / collapse spider pins (globe equivalent of 2D spiderfy)
         if (meta.kind === "cluster" && meta.clusterKey) {
           if (expandedGlobe.has(meta.clusterKey)) {
@@ -961,35 +1050,6 @@ export function Globe3D() {
         }
       };
       window.addEventListener("keydown", onKey);
-
-      const pinGroup = new THREE.Group();
-      if (Q.nodePins) {
-        const nodes = Q.id === "mobile" ? DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority) : DRAGON_NODES;
-        for (const node of nodes) {
-          const clat = node.center?.[0] ?? (node.bounds[0][0] + node.bounds[1][0]) / 2;
-          const clon =
-            node.center?.[1] ??
-            (node.bounds[0][1] <= node.bounds[1][1]
-              ? (node.bounds[0][1] + node.bounds[1][1]) / 2
-              : -175);
-          const v = latLonToVec(clat, clon, 1.028);
-          const pin = new THREE.Mesh(
-            new THREE.SphereGeometry(
-              node.publishedFocus ? 0.02 : 0.013,
-              Q.pinSeg,
-              Q.pinSeg,
-            ),
-            new THREE.MeshBasicMaterial({
-              color: node.kind === "volcano" ? 0xfb923c : node.publishedFocus ? 0xfbbf24 : 0x22d3ee,
-              transparent: true,
-              opacity: 0.95,
-            }),
-          );
-          pin.position.copy(v);
-          pinGroup.add(pin);
-        }
-        scene.add(pinGroup);
-      }
 
       let animId = 0;
       let active = true;
@@ -1177,9 +1237,19 @@ export function Globe3D() {
   }, [mapView]);
 
   useEffect(() => {
-    if (mapView === "3d" && updateRef.current) {
-      updateRef.current(filteredEq(eq?.features, minMag, maxMag), focusNodeId);
+    if (mapView !== "3d" || !updateRef.current) return;
+    let list = filteredEq(eq?.features, minMag, maxMag);
+    // Mirror 2D: significant filter + educational replay cursor
+    if (overlays.significant) {
+      list = list.filter((f) => (f.properties.mag ?? 0) >= 6);
     }
+    if (replayActive && replayCursorMs != null) {
+      list = list.filter((f) => {
+        const t = f.properties.time;
+        return typeof t === "number" && t <= replayCursorMs;
+      });
+    }
+    updateRef.current(list, focusNodeId);
   }, [
     eq,
     minMag,
@@ -1189,6 +1259,11 @@ export function Globe3D() {
     globeStemScale,
     globeMarkerScale,
     globeMarkerOpacity,
+    overlays.significant,
+    overlays.nodes,
+    replayActive,
+    replayCursorMs,
+    timeWindow,
   ]);
 
   useEffect(() => {

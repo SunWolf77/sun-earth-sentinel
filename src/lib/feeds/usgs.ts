@@ -53,6 +53,64 @@ const FEEDS: Record<string, string> = {
   month: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_month.geojson",
 };
 
+export type TimeWindowKey = keyof typeof FEEDS;
+
+/** Nominal length of each USGS feed window (ms). */
+export function timeWindowMs(window: TimeWindowKey | string): number {
+  switch (window) {
+    case "hour":
+      return 3_600_000;
+    case "day":
+      return 86_400_000;
+    case "week":
+      return 7 * 86_400_000;
+    case "month":
+      return 30 * 86_400_000;
+    default:
+      return 86_400_000;
+  }
+}
+
+/**
+ * Keep only events inside the selected time window.
+ * Small skew pad for clock drift / late reports near the edge.
+ * Drops undated features (cannot verify they belong in the window).
+ */
+export function filterFeaturesByTimeWindow(
+  features: EqFeature[] | undefined,
+  window: TimeWindowKey | string,
+  now = Date.now(),
+  skewMs = 120_000,
+): EqFeature[] {
+  if (!features?.length) return [];
+  const cutoff = now - timeWindowMs(window) - skewMs;
+  return features.filter((f) => {
+    const t = f.properties.time;
+    return typeof t === "number" && Number.isFinite(t) && t >= cutoff && t <= now + skewMs;
+  });
+}
+
+/** Apply window filter to a collection (preserves metadata). */
+export function clipCollectionToWindow(
+  col: EqCollection | null | undefined,
+  window: TimeWindowKey | string,
+  now = Date.now(),
+): EqCollection | null {
+  if (!col) return null;
+  const features = filterFeaturesByTimeWindow(col.features, window, now);
+  return {
+    ...col,
+    features,
+    metadata: {
+      ...col.metadata,
+      count: features.length,
+      title: col.metadata?.title
+        ? `${col.metadata.title} · clipped ${window}`
+        : `clipped ${window}`,
+    },
+  };
+}
+
 export const REALTIME_FEED =
   "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson";
 

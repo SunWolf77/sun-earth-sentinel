@@ -5,6 +5,7 @@ import {
   fetchRealtimePulse,
   fetchSignificantPulse,
   mergeEqCollections,
+  clipCollectionToWindow,
   capFeaturesForMode,
   latestEventAgeMs,
   DRAGON_NODES,
@@ -953,7 +954,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      let eq = force ? null : getCache<EqCollection>("eq", cfg.refreshMs);
+      const eqCacheKey = `eq_${timeWindow}`;
+      let eq = force ? null : getCache<EqCollection>(eqCacheKey, cfg.refreshMs);
       let kp = force ? null : getCache<KpPoint[]>("kp", cfg.refreshMs);
       let xray = force ? null : getCache<XrayPoint[]>("xray", cfg.refreshMs * 2);
       let solarWind = force ? null : getCache<SolarWind>("sw", cfg.refreshMs);
@@ -985,7 +987,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           withTimeout(fetchEarthquakes(timeWindow), 20_000, "usgs-eq")
             .then((d) => {
               eq = d;
-              setCache("eq", d);
+              setCache(eqCacheKey, d);
               stamp("eq");
             })
             .catch(() => {}),
@@ -1164,16 +1166,19 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         eqFinal = mergeEqCollections(eqFinal, geofon);
       }
       if (jma) {
+        // Match selected window (not looser ages) so 3D/2D stay honest
         const age =
           timeWindow === "hour"
-            ? 6 * 3600_000
+            ? 3_600_000
             : timeWindow === "day"
-              ? 2 * 86_400_000
+              ? 86_400_000
               : timeWindow === "week"
-                ? 10 * 86_400_000
-                : 32 * 86_400_000;
+                ? 7 * 86_400_000
+                : 30 * 86_400_000;
         eqFinal = mergeJmaIntoCollection(eqFinal, jma, { maxAgeMs: age });
       }
+      // Hard clip: GEOFON week / pulse / stale cache cannot outrun the time control
+      eqFinal = clipCollectionToWindow(eqFinal, timeWindow) ?? eqFinal;
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
         eqFinal = {
           ...eqFinal,
@@ -1377,6 +1382,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         const g = getCache<EqCollection>("geofon", 600_000);
         if (g) eqFinal = mergeEqCollections(eqFinal, g);
       }
+      eqFinal = clipCollectionToWindow(eqFinal, get().timeWindow) ?? eqFinal;
       const cfg = MODES[get().mode];
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
         eqFinal = {
