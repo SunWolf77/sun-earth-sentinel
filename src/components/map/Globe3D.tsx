@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useObservatory, filteredEq, getFocusNode, type PickedEvent } from "@/store/observatory";
-import { magColor, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
+import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
@@ -33,6 +33,9 @@ export function Globe3D() {
   const setGlobeMarkerOpacity = useObservatory((s) => s.setGlobeMarkerOpacity);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const pickedEvent = useObservatory((s) => s.pickedEvent);
+  const useGeofon = useObservatory((s) => s.useGeofon);
+  const setUseGeofon = useObservatory((s) => s.setUseGeofon);
+  const refresh = useObservatory((s) => s.refresh);
 
   const cleanupRef = useRef<(() => void) | null>(null);
   const updateRef = useRef<((features: EqFeature[], focusId: string | null) => void) | null>(
@@ -368,19 +371,20 @@ export function Globe3D() {
           const depth = eqDepthKm(f);
           const place = f.properties.place ?? "—";
           const id = f.id ? String(f.id) : `${lat}_${lon}_${f.properties.time ?? 0}`;
-          const neon = mag >= 7;
+          // Dutchsinse Public Seismic Globe palette + neon tiers
+          const st = globeMagStyle(mag);
+          const neon = st.neon;
 
-          // Size like public globe: base grows with mag, then user scale
-          let base = 0.018 + Math.pow(Math.max(mag, 0.5), 1.05) * 0.01;
-          if (mag >= 5) base *= 1 + (mag - 5) * 0.12;
+          // Size curve aligned with public globe (scaled for unit-radius earth)
+          let base = 0.018 + Math.pow(Math.max(mag, 0.5), 1.1) * 0.01;
+          if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
           const size = base * hexScale;
 
           const lift = (Math.min(depth, 700) / 700) * stemMul;
-          const elev = 1.012 + lift + size * 0.35;
+          const elev = 1.012 + lift + size * 0.28;
           const pos = latLonToVec(lat, lon, elev);
-          const colHex = magColor(mag);
+          const colHex = st.color;
           const col = new THREE.Color(colHex);
-          col.offsetHSL(0, 0.04, 0.1);
 
           const g = new THREE.Group();
           g.position.copy(pos);
@@ -388,11 +392,12 @@ export function Globe3D() {
           // Face outward: lookAt centers the -Z toward origin; flip so ring faces camera-ish
           g.rotateY(Math.PI);
 
+          // Concentric hex rings — public globe: neon [1.1,1,0.7,0.42] else [1,0.7,0.42]
           const allRings = neon
-            ? [1.05, 0.78, 0.48]
+            ? [1.1, 1.0, 0.7, 0.42]
             : mag >= 5
-              ? [1.0, 0.68, 0.4]
-              : [1.0, 0.62];
+              ? [1.0, 0.7, 0.42]
+              : [1.0, 0.7];
           const rings = allRings.slice(0, Q.maxRings);
           rings.forEach((s, i) => {
             const ringMat = new THREE.MeshBasicMaterial({
@@ -783,11 +788,22 @@ export function Globe3D() {
       container.style.position = "relative";
       container.appendChild(hint);
 
+      const credit = document.createElement("a");
+      credit.href =
+        "https://www.dutchsinse.com/wp-content/uploads/2026/07/public-earthquake-progam-v3.html";
+      credit.target = "_blank";
+      credit.rel = "noopener noreferrer";
+      credit.className =
+        "absolute bottom-3 right-2 z-10 max-w-[46%] rounded-md border border-border bg-surface/90 px-2 py-1 text-[0.58rem] text-dim no-underline hover:text-primary sm:right-3";
+      credit.style.pointerEvents = "auto";
+      credit.textContent = "Pattern credit · Public Seismic Globe (Dutchsinse)";
+      container.appendChild(credit);
+
       const legend = document.createElement("div");
       legend.className =
         "pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-[0.68rem] text-muted";
       legend.innerHTML =
-        '<span style="color:#34d399">⬡</span> M3–4 &nbsp; <span style="color:#fbbf24">⬡</span> M4–5 &nbsp; <span style="color:#fb923c">⬡</span> M5–6 &nbsp; <span style="color:#f43f5e">⬡</span> M6+ &nbsp; <span style="opacity:.75">| stem = depth · pulse M7+</span>';
+        '<span style="color:#00ee66">⬡</span> M3 &nbsp; <span style="color:#ffee00">⬡</span> M4 &nbsp; <span style="color:#ff8c00">⬡</span> M5 &nbsp; <span style="color:#ff2200">⬡</span> M6 &nbsp; <span style="color:#f0f0f0">⬡</span> M7+ pulse &nbsp; <span style="opacity:.7">| stems=depth</span>';
       container.appendChild(legend);
 
       cleanupRef.current = () => {
@@ -909,7 +925,10 @@ export function Globe3D() {
         <div className="pointer-events-auto absolute left-3 top-14 z-20 max-w-[min(280px,70vw)] rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <span className="font-mono font-semibold tabular-nums" style={{ color: magColor(pickedEvent.mag) }}>
+              <span
+                className="font-mono font-semibold tabular-nums"
+                style={{ color: globeMagStyle(pickedEvent.mag).color }}
+              >
                 M{pickedEvent.mag.toFixed(1)}
               </span>
               <p className="mt-0.5 line-clamp-2 text-fg">{pickedEvent.place}</p>
@@ -1063,8 +1082,29 @@ export function Globe3D() {
               className="mt-0.5 w-full accent-primary"
             />
           </label>
+          <label className="flex items-center justify-between gap-2 text-dim">
+            <span>GEOFON merge</span>
+            <input
+              type="checkbox"
+              checked={useGeofon}
+              onChange={(e) => {
+                setUseGeofon(e.target.checked);
+                void refresh(true);
+              }}
+              className="accent-primary"
+            />
+          </label>
           <p className="text-[0.58rem] leading-snug text-dim">
-            Public-globe visual knobs — values persist locally.
+            Hex palette & stems follow{" "}
+            <a
+              href="https://www.dutchsinse.com/wp-content/uploads/2026/07/public-earthquake-progam-v3.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              Public Seismic Globe
+            </a>{" "}
+            (Dutchsinse). Mobile uses a safe WebGL profile.
           </p>
         </div>
       )}

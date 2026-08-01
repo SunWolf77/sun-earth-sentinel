@@ -200,6 +200,27 @@ export function magColor(mag: number): string {
   return "#34d399";
 }
 
+/**
+ * Public Seismic Globe–style magnitude palette (Dutchsinse public program).
+ * Hex/neon colors for 3D globe only — denser than 2D map chips.
+ */
+export function globeMagStyle(mag: number): {
+  color: string;
+  emissive: string;
+  neon: boolean;
+} {
+  if (mag >= 9.0) return { color: "#aa00ff", emissive: "#6600aa", neon: true };
+  if (mag >= 8.0) return { color: "#ff1493", emissive: "#aa0033", neon: true };
+  if (mag >= 7.0) return { color: "#f0f0f0", emissive: "#555555", neon: true };
+  if (mag >= 6.0) return { color: "#ff2200", emissive: "#550000", neon: false };
+  if (mag >= 5.0) return { color: "#ff8c00", emissive: "#442200", neon: false };
+  if (mag >= 4.0) return { color: "#ffee00", emissive: "#333300", neon: false };
+  if (mag >= 3.0) return { color: "#00ee66", emissive: "#003300", neon: false };
+  if (mag >= 2.0) return { color: "#3399ff", emissive: "#002244", neon: false };
+  if (mag >= 1.0) return { color: "#f0f0f0", emissive: "#222222", neon: false };
+  return { color: "#333333", emissive: "#111111", neon: false };
+}
+
 export function eqDepthKm(f: EqFeature): number {
   const d = f.geometry.coordinates[2];
   if (typeof d !== "number" || Number.isNaN(d)) return 10;
