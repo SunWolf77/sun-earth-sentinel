@@ -19,12 +19,69 @@ function normLon(lon: number): number {
   return x;
 }
 
-function inBox(lat: number, lon: number, latMin: number, latMax: number, lonMin: number, lonMax: number): boolean {
+function inBox(
+  lat: number,
+  lon: number,
+  latMin: number,
+  latMax: number,
+  lonMin: number,
+  lonMax: number,
+): boolean {
   const x = normLon(lon);
   if (lat < latMin || lat > latMax) return false;
   if (lonMin <= lonMax) return x >= lonMin && x <= lonMax;
-  // dateline wrap
   return x >= lonMin || x <= lonMax;
+}
+
+/** Honshu/Hokkaido/Kyushu/Shikoku + Ryukyu, Izu–Bonin, near-offshore Japan. */
+export function isJapanRegion(lat: number, lon: number, place?: string | null): boolean {
+  const placeL = (place || "").toLowerCase();
+  if (
+    /japan|honshu|hokkaido|kyushu|shikoku|ryukyu|okinawa|tokyo|osaka|fukushima|iwate|miyagi|aomori|akita|yamagata|niigata|nagano|gifu|shizuoka|kanagawa|chiba|ibaraki|tochigi|gunma|saitama|yamanashi|toyama|ishikawa|fukui|mie|nara|wakayama|hyogo|kyoto|shiga|hiroshima|okayama|yamaguchi|tottori|shimane|kagawa|tokushima|ehime|kochi|fukuoka|saga|nagasaki|kumamoto|oita|miyazaki|kagoshima|mutsu|sendai|sapporo|yokohama|kobe|nagoya|izu island|bonin|ogasawara|nankai|suruga|sagami|japan trench|sea of japan|east of.*japan|off.*japan|near the east coast of|near the south coast of|near the west coast of/i.test(
+      placeL,
+    )
+  ) {
+    return true;
+  }
+  // Main islands + near offshore
+  if (inBox(lat, lon, 30, 46.2, 128.5, 146.5)) return true;
+  // Okinawa / Ryukyu arc
+  if (inBox(lat, lon, 24, 30.5, 122.5, 132)) return true;
+  // Izu–Bonin / Volcano Islands
+  if (inBox(lat, lon, 24, 35.5, 138.5, 145)) return true;
+  // Kuril side near Japan (southern)
+  if (inBox(lat, lon, 43, 46.5, 145, 149) && /kuril|hokkaido|e\. of|east of/i.test(placeL)) {
+    return true;
+  }
+  return false;
+}
+
+/** JMA Bosai map + multilang list, centered on hypocenter when possible. */
+export function jmaLinksForEvent(lat: number, lon: number): AgencyLink[] {
+  const la = lat.toFixed(3);
+  const lo = normLon(lon).toFixed(3);
+  // Zoom ~7–8 around epicenter; intensity + hypocenter layers
+  const mapUrl =
+    `https://www.jma.go.jp/bosai/map.html#8/${la}/${lo}/` +
+    `&elem=int&contents=earthquake_map&lang=en`;
+  return [
+    {
+      id: "jma-map",
+      label: "JMA map",
+      url: mapUrl,
+      primary: true,
+    },
+    {
+      id: "jma-list",
+      label: "JMA list",
+      url: "https://www.data.jma.go.jp/multi/quake/index.html?lang=en",
+    },
+    {
+      id: "jma-hypo",
+      label: "JMA hypocenters",
+      url: "https://www.jma.go.jp/bosai/map.html#5/36/138/&elem=hypo&contents=hypo&lang=en",
+    },
+  ];
 }
 
 export function agencyLinksForEvent(opts: {
@@ -41,6 +98,7 @@ export function agencyLinksForEvent(opts: {
   const geofonId = isGeofon ? id.replace(/^geofon:/, "") : "";
   const usgsId = !isGeofon && id ? id : null;
   const placeL = (place || "").toLowerCase();
+  const japan = isJapanRegion(lat, lon, place);
 
   // Primary source link
   if (isGeofon && geofonId) {
@@ -53,23 +111,28 @@ export function agencyLinksForEvent(opts: {
   } else if (url && /^https?:\/\//i.test(url)) {
     links.push({
       id: "source",
-      label: "Event page",
+      label: japan ? "USGS event" : "Event page",
       url,
-      primary: true,
+      primary: !japan, // for Japan, JMA map is co-primary
     });
   } else if (usgsId) {
     links.push({
       id: "usgs",
       label: "USGS event",
       url: `https://earthquake.usgs.gov/earthquakes/eventpage/${encodeURIComponent(usgsId)}`,
-      primary: true,
+      primary: !japan,
     });
+  }
+
+  // Japan — JMA first among regional (map + list + hypocenters)
+  if (japan) {
+    links.push(...jmaLinksForEvent(lat, lon));
   }
 
   // Always offer USGS map/search near the hypocenter
   const latQ = lat.toFixed(3);
   const lonQ = normLon(lon).toFixed(3);
-  if (!links.some((l) => l.id === "usgs")) {
+  if (!links.some((l) => l.id === "usgs" || l.id === "source")) {
     links.push({
       id: "usgs-map",
       label: "USGS map",
@@ -77,11 +140,11 @@ export function agencyLinksForEvent(opts: {
         ? `https://earthquake.usgs.gov/earthquakes/eventpage/${encodeURIComponent(usgsId)}/map`
         : `https://earthquake.usgs.gov/earthquakes/map/?extent=${(lat - 4).toFixed(2)},${(normLon(lon) - 6).toFixed(2)}&extent=${(lat + 4).toFixed(2)},${(normLon(lon) + 6).toFixed(2)}`,
     });
-  } else {
+  } else if (usgsId) {
     links.push({
       id: "usgs-map",
       label: "USGS map",
-      url: `https://earthquake.usgs.gov/earthquakes/eventpage/${encodeURIComponent(usgsId!)}/map`,
+      url: `https://earthquake.usgs.gov/earthquakes/eventpage/${encodeURIComponent(usgsId)}/map`,
     });
   }
 
@@ -91,23 +154,13 @@ export function agencyLinksForEvent(opts: {
     label: "EMSC",
     url: `https://www.emsc-csem.org/Earthquake_information/?lat=${latQ}&lon=${lonQ}`,
   });
-  links.push({
-    id: "geofon-search",
-    label: "GEOFON",
-    url: isGeofon && geofonId
-      ? `https://geofon.gfz.de/eqinfo/event.php?id=${encodeURIComponent(geofonId)}`
-      : `https://geofon.gfz.de/eqinfo/event.php`,
-  });
-
-  // Japan — JMA
-  if (
-    inBox(lat, lon, 24, 46.5, 122, 154) ||
-    /japan|honshu|hokkaido|kyushu|shikoku|ryukyu|tokyo|osaka|fukushima|iwate|miyagi/i.test(placeL)
-  ) {
+  if (!links.some((l) => l.id === "geofon")) {
     links.push({
-      id: "jma",
-      label: "JMA",
-      url: "https://www.jma.go.jp/bosai/map.html#5/35.5/137.5/&elem=int&contents=earthquake_map",
+      id: "geofon-search",
+      label: "GEOFON",
+      url: isGeofon && geofonId
+        ? `https://geofon.gfz.de/eqinfo/event.php?id=${encodeURIComponent(geofonId)}`
+        : `https://geofon.gfz.de/eqinfo/event.php`,
     });
   }
 
@@ -148,7 +201,7 @@ export function agencyLinksForEvent(opts: {
     });
   }
 
-  // Alaska / Aleutians — USGS regional already covered; add AVVO/ local
+  // Alaska / Aleutians
   if (inBox(lat, lon, 50, 72, -180, -130) || /alaska|aleutian|atka|unalaska/i.test(placeL)) {
     links.push({
       id: "alaska",
@@ -196,8 +249,11 @@ export function agencyLinksForEvent(opts: {
     });
   }
 
-  // Turkey — AFAD / KOERI
-  if (inBox(lat, lon, 35.5, 42.5, 25.5, 45) || /turkey|türkiye|anatolia|istanbul|aegean sea/i.test(placeL)) {
+  // Turkey — KOERI
+  if (
+    inBox(lat, lon, 35.5, 42.5, 25.5, 45) ||
+    /turkey|türkiye|anatolia|istanbul|aegean sea/i.test(placeL)
+  ) {
     links.push({
       id: "koeri",
       label: "KOERI",
@@ -205,9 +261,7 @@ export function agencyLinksForEvent(opts: {
     });
   }
 
-  // Fiji / Tonga / SW Pacific — keep USGS + GEOFON; add GNS-style via USGS
-
-  // Deduplicate by id
+  // Deduplicate by id; keep first occurrence (JMA already early for Japan)
   const seen = new Set<string>();
   return links.filter((l) => {
     if (seen.has(l.id)) return false;
@@ -216,13 +270,18 @@ export function agencyLinksForEvent(opts: {
   });
 }
 
-/** Compact HTML for map popups */
-export function agencyLinksHtml(links: AgencyLink[], max = 6): string {
+/** Compact HTML for map popups. Regional agencies (JMA etc.) sorted after primary. */
+export function agencyLinksHtml(links: AgencyLink[], max = 8): string {
   if (!links.length) return "";
-  const shown = links.slice(0, max);
+  const ranked = [...links].sort((a, b) => {
+    const ap = a.primary ? 0 : a.id.startsWith("jma") ? 1 : 2;
+    const bp = b.primary ? 0 : b.id.startsWith("jma") ? 1 : 2;
+    return ap - bp;
+  });
+  const shown = ranked.slice(0, max);
   const parts = shown.map((l) => {
-    const weight = l.primary ? "600" : "500";
-    const color = l.primary ? "#0891b2" : "#64748b";
+    const weight = l.primary || l.id.startsWith("jma") ? "600" : "500";
+    const color = l.primary || l.id.startsWith("jma") ? "#0891b2" : "#64748b";
     return `<a href="${l.url}" target="_blank" rel="noopener noreferrer" style="color:${color};font-weight:${weight};font-size:11px;margin-right:8px;white-space:nowrap">${l.label} →</a>`;
   });
   return `<div style="margin-top:6px;line-height:1.55;display:flex;flex-wrap:wrap;gap:2px 0">${parts.join("")}</div>`;
