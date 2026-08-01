@@ -13,6 +13,13 @@ import {
 } from "@/lib/seismology/shakemap";
 import { formatUtc } from "@/lib/utils";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import {
+  clusterEqPointsByKm,
+  globeClusterRadiusKm,
+  spiderfyOffsets,
+  spiderPinLatLon,
+  type EqPoint,
+} from "@/lib/map/eqCluster";
 
 
 /**
@@ -237,6 +244,7 @@ export function Globe3D() {
       scene.add(quakeGroup);
 
       type PickMeta = {
+        kind: "event" | "cluster";
         id: string;
         lat: number;
         lon: number;
@@ -246,8 +254,14 @@ export function Globe3D() {
         time: number | null;
         url?: string;
         neon: boolean;
+        clusterKey?: string;
+        count?: number;
       };
       let pickList: { mesh: InstanceType<typeof THREE.Object3D>; meta: PickMeta }[] = [];
+      /** Expanded spiderfy clusters on the globe (click badge to toggle). */
+      const expandedGlobe = new Set<string>();
+      let lastFeatureList: EqFeature[] = [];
+      let lastFocusId: string | null = null;
       let neonMats: { mat: InstanceType<typeof THREE.MeshBasicMaterial>; base: number }[] = [];
       let focusRing: InstanceType<typeof THREE.Line> | null = null;
       let pickRing: InstanceType<typeof THREE.Mesh> | null = null;
@@ -256,6 +270,14 @@ export function Globe3D() {
       let rotating = false;
       let lastX = 0;
       let lastY = 0;
+      let reclusterTimer: number | null = null;
+      const scheduleRecluster = () => {
+        if (reclusterTimer != null) window.clearTimeout(reclusterTimer);
+        reclusterTimer = window.setTimeout(() => {
+          reclusterTimer = null;
+          updateMarkers(lastFeatureList, lastFocusId);
+        }, 180);
+      };
       let aimAnim: {
         t0: number;
         dur: number;
@@ -331,6 +353,8 @@ export function Globe3D() {
       }
 
       function updateMarkers(features: EqFeature[], focusId: string | null) {
+        lastFeatureList = features;
+        lastFocusId = focusId;
         disposeGroup(quakeGroup);
         pickList = [];
         neonMats = [];
@@ -363,42 +387,58 @@ export function Globe3D() {
             return pointInBounds(lat, lon, focus.bounds);
           });
         }
-        // Sort small first so large hexes draw on top visually
         list = [...list]
-          .sort((a, b) => (a.properties.mag ?? 0) - (b.properties.mag ?? 0))
+          .sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0))
           .slice(0, Q.maxMarkers);
+
+        const points: EqPoint[] = list.map((f) => {
+          const [lon, lat] = f.geometry.coordinates;
+          return { f, lat, lon, mag: f.properties.mag ?? 0 };
+        });
+        const radiusKm = globeClusterRadiusKm(spherical.radius);
+        const clusters = clusterEqPointsByKm(points, radiusKm);
+        // Drop expanded keys that no longer exist
+        const liveKeys = new Set(clusters.map((c) => c.key));
+        for (const k of [...expandedGlobe]) {
+          if (!liveKeys.has(k)) expandedGlobe.delete(k);
+        }
 
         const stemPos: number[] = [];
         const stemCol: number[] = [];
 
-        for (const f of list) {
-          const [lon, lat] = f.geometry.coordinates;
+        const placeEventHex = (
+          f: EqFeature,
+          lat: number,
+          lon: number,
+          opts?: {
+            showLabel?: boolean;
+            elevBoost?: number;
+            displayLat?: number;
+            displayLon?: number;
+          },
+        ) => {
           const mag = f.properties.mag ?? 3.5;
           const depth = eqDepthKm(f);
           const place = f.properties.place ?? "—";
           const id = f.id ? String(f.id) : `${lat}_${lon}_${f.properties.time ?? 0}`;
-          // Dutchsinse Public Seismic Globe palette + neon tiers
           const st = globeMagStyle(mag);
           const neon = st.neon;
-
-          // Size curve aligned with public globe (scaled for unit-radius earth)
           let base = 0.018 + Math.pow(Math.max(mag, 0.5), 1.1) * 0.01;
           if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
           const size = base * hexScale;
-
           const lift = (Math.min(depth, 700) / 700) * stemMul;
-          const elev = 1.012 + lift + size * 0.28;
-          const pos = latLonToVec(lat, lon, elev);
+          const elev = 1.012 + lift + size * 0.28 + (opts?.elevBoost ?? 0);
+          const dLat = opts?.displayLat ?? lat;
+          const dLon = opts?.displayLon ?? lon;
+          const pos = latLonToVec(dLat, dLon, elev);
           const colHex = st.color;
           const col = new THREE.Color(colHex);
 
           const g = new THREE.Group();
           g.position.copy(pos);
           g.lookAt(0, 0, 0);
-          // Face outward: lookAt centers the -Z toward origin; flip so ring faces camera-ish
           g.rotateY(Math.PI);
 
-          // Concentric hex rings — public globe: neon [1.1,1,0.7,0.42] else [1,0.7,0.42]
           const allRings = neon
             ? [1.1, 1.0, 0.7, 0.42]
             : mag >= 5
@@ -422,8 +462,10 @@ export function Globe3D() {
             g.add(mesh);
           });
 
-          // Mag label for M5+ — skipped on mobile (canvas sprites are GPU+RAM heavy)
-          if (Q.magSprites && mag >= 5) {
+          // Labels only when spiderfied or strong M6+ (avoids the stacked digit soup)
+          const showLabel =
+            opts?.showLabel ?? (Q.magSprites && mag >= 6);
+          if (showLabel) {
             const spr = makeMagSprite(THREE, mag, colHex, opac);
             spr.scale.setScalar(size * 2.8);
             spr.position.set(0, 0, size * 0.15);
@@ -431,24 +473,123 @@ export function Globe3D() {
           }
 
           quakeGroup.add(g);
-          const meta: PickMeta = {
-            id,
-            lat,
-            lon,
-            mag,
-            place,
-            depth,
-            time: f.properties.time ?? null,
-            url: f.properties.url ?? undefined,
-            neon,
-          };
-          pickList.push({ mesh: g, meta });
+          pickList.push({
+            mesh: g,
+            meta: {
+              kind: "event",
+              id,
+              lat,
+              lon,
+              mag,
+              place,
+              depth,
+              time: f.properties.time ?? null,
+              url: f.properties.url ?? undefined,
+              neon,
+            },
+          });
 
           if (depth > Q.stemMinDepthKm) {
-            const surf = latLonToVec(lat, lon, 1.004);
+            const surf = latLonToVec(dLat, dLon, 1.004);
             stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
             stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
           }
+        };
+
+        for (const cl of clusters) {
+          if (cl.points.length === 1) {
+            const p = cl.points[0]!;
+            placeEventHex(p.f, p.lat, p.lon, {
+              showLabel: Q.magSprites && p.mag >= 5.5,
+            });
+            continue;
+          }
+
+          const expanded = expandedGlobe.has(cl.key);
+          if (expanded) {
+            const offs = spiderfyOffsets(cl.points.length, 1.6);
+            for (let i = 0; i < cl.points.length; i++) {
+              const p = cl.points[i]!;
+              const o = offs[i] ?? { dLat: 0, dLon: 0 };
+              const [plat, plon] = spiderPinLatLon(cl.lat, cl.lon, o.dLat, o.dLon);
+              // leg stem from cluster center to pin
+              const a = latLonToVec(cl.lat, cl.lon, 1.02);
+              const b = latLonToVec(plat, plon, 1.02);
+              stemPos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+              const col = new THREE.Color(globeMagStyle(p.mag).color);
+              stemCol.push(0.6, 0.65, 0.7, col.r, col.g, col.b);
+              // Visual pin at spider offset; meta/pick still uses true hypocenter
+              placeEventHex(p.f, p.lat, p.lon, {
+                showLabel: true,
+                elevBoost: 0.008,
+                displayLat: plat,
+                displayLon: plon,
+              });
+            }
+          }
+
+          // Cluster badge (always when n>1 — collapse control when expanded)
+          const st = globeMagStyle(cl.maxMag);
+          const col = new THREE.Color(st.color);
+          const badgeSize = 0.032 + Math.min(0.04, cl.points.length * 0.003);
+          const badgePos = latLonToVec(cl.lat, cl.lon, 1.035 + badgeSize);
+          const bg = new THREE.Group();
+          bg.position.copy(badgePos);
+          bg.lookAt(0, 0, 0);
+          bg.rotateY(Math.PI);
+
+          const disc = new THREE.Mesh(
+            new THREE.CircleGeometry(1, 20),
+            new THREE.MeshBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: Math.min(0.95, opac + 0.1),
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          );
+          disc.scale.setScalar(badgeSize);
+          disc.renderOrder = 40;
+          bg.add(disc);
+
+          const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.92, 1.08, 20),
+            new THREE.MeshBasicMaterial({
+              color: cl.maxMag >= 6 ? 0xfbbf24 : 0xf8fafc,
+              transparent: true,
+              opacity: 0.9,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          );
+          ring.scale.setScalar(badgeSize);
+          ring.renderOrder = 41;
+          bg.add(ring);
+
+          if (Q.magSprites || Q.id !== "mobile") {
+            const spr = makeCountSprite(THREE, cl.points.length, st.color, opac);
+            spr.scale.setScalar(badgeSize * 2.4);
+            spr.position.set(0, 0, badgeSize * 0.2);
+            bg.add(spr);
+          }
+
+          quakeGroup.add(bg);
+          pickList.push({
+            mesh: bg,
+            meta: {
+              kind: "cluster",
+              id: `cluster:${cl.key.slice(0, 24)}`,
+              lat: cl.lat,
+              lon: cl.lon,
+              mag: cl.maxMag,
+              place: `${cl.points.length} nearby events · max M${cl.maxMag.toFixed(1)}`,
+              depth: 0,
+              time: null,
+              neon: st.neon,
+              clusterKey: cl.key,
+              count: cl.points.length,
+            },
+          });
         }
 
         if (stemPos.length) {
@@ -533,6 +674,20 @@ export function Globe3D() {
       }
 
       function applyPick(meta: PickMeta) {
+        // Cluster badge: expand / collapse spider pins (globe equivalent of 2D spiderfy)
+        if (meta.kind === "cluster" && meta.clusterKey) {
+          if (expandedGlobe.has(meta.clusterKey)) {
+            expandedGlobe.delete(meta.clusterKey);
+          } else {
+            // one expanded stack at a time keeps the globe readable
+            expandedGlobe.clear();
+            expandedGlobe.add(meta.clusterKey);
+          }
+          updateMarkers(lastFeatureList, lastFocusId);
+          aimAt(meta.lat, meta.lon, true);
+          return;
+        }
+
         const usgsUrl =
           meta.url ||
           eventPageUrl(meta.id) ||
@@ -653,6 +808,7 @@ export function Globe3D() {
             const scale = pinchStartDist / Math.max(d, 1);
             spherical.radius = Math.max(1.55, Math.min(5.5, pinchStartRadius * scale));
             applyCam();
+            scheduleRecluster();
           }
           return;
         }
@@ -687,6 +843,7 @@ export function Globe3D() {
         e.preventDefault();
         spherical.radius = Math.max(1.55, Math.min(5.5, spherical.radius + e.deltaY * 0.002));
         applyCam();
+        scheduleRecluster();
       };
       el.addEventListener("wheel", wheel, { passive: false });
 
@@ -795,7 +952,7 @@ export function Globe3D() {
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
       hint.textContent =
-        "Drag to look · pinch zoom · tap hex → USGS / waveforms / agencies · Spin = Earth west→east";
+        "Tap number badge → expand pins · tap hex → assessment · pinch zooms clusters · Spin W→E";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -803,7 +960,7 @@ export function Globe3D() {
       legend.className =
         "pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-[0.68rem] text-muted";
       legend.innerHTML =
-        '<span style="color:#00ee66">⬡</span> M3 &nbsp; <span style="color:#ffee00">⬡</span> M4 &nbsp; <span style="color:#ff8c00">⬡</span> M5 &nbsp; <span style="color:#ff2200">⬡</span> M6 &nbsp; <span style="color:#f0f0f0">⬡</span> M7+ pulse &nbsp; <span style="opacity:.7">| stems=depth</span>';
+        '<span style="color:#00ee66">⬡</span> M3 &nbsp; <span style="color:#ffee00">⬡</span> M4 &nbsp; <span style="color:#ff8c00">⬡</span> M5 &nbsp; <span style="color:#ff2200">⬡</span> M6+ &nbsp; <span style="opacity:.85">● n</span> cluster &nbsp; <span style="opacity:.7">| tap badge = pins</span>';
       container.appendChild(legend);
 
       cleanupRef.current = () => {
@@ -1091,6 +1248,37 @@ function makeHexRingGeometry(THREE: typeof import("three"), outer = 1, thick = 0
   }
   shape.holes.push(hole);
   return new THREE.ShapeGeometry(shape);
+}
+
+function makeCountSprite(
+  THREE: typeof import("three"),
+  count: number,
+  color: string,
+  opac: number,
+) {
+  const c = document.createElement("canvas");
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext("2d")!;
+  ctx.clearRect(0, 0, 64, 64);
+  ctx.font = "bold 28px system-ui,sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(15,23,42,0.9)";
+  ctx.fillStyle = "#0f172a";
+  const t = count > 99 ? "99+" : String(count);
+  ctx.strokeText(t, 32, 34);
+  ctx.fillText(t, 32, 34);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    opacity: Math.min(1, opac + 0.15),
+    depthWrite: false,
+  });
+  return new THREE.Sprite(mat);
 }
 
 function makeMagSprite(

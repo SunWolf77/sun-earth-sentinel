@@ -130,3 +130,73 @@ export function spiderPinLatLon(
   const cos = Math.max(0.2, Math.cos((clusterLat * Math.PI) / 180));
   return [clusterLat + dLat, clusterLon + dLon / cos];
 }
+
+
+/** Haversine distance in km. */
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR;
+  const dLon = (lon2 - lon1) * toR;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/**
+ * Greedy sphere clustering by km radius — for 3D globe (no map zoom).
+ * Larger radius when camera is far → fewer, bigger stacks.
+ */
+export function clusterEqPointsByKm(points: EqPoint[], radiusKm: number): EqCluster[] {
+  if (!points.length) return [];
+  const r = Math.max(40, radiusKm);
+  const used = new Set<number>();
+  const out: EqCluster[] = [];
+
+  // Process strongest first so max mag anchors the cluster center preference
+  const order = points
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => b.p.mag - a.p.mag);
+
+  for (const { p, i } of order) {
+    if (used.has(i)) continue;
+    const members: EqPoint[] = [p];
+    used.add(i);
+    for (const { p: q, i: j } of order) {
+      if (used.has(j)) continue;
+      if (haversineKm(p.lat, p.lon, q.lat, q.lon) <= r) {
+        members.push(q);
+        used.add(j);
+      }
+    }
+    let lat = 0;
+    let lon = 0;
+    let maxMag = -Infinity;
+    for (const m of members) {
+      lat += m.lat;
+      lon += m.lon;
+      maxMag = Math.max(maxMag, m.mag);
+    }
+    lat /= members.length;
+    lon /= members.length;
+    const stable = members
+      .map((m) => String(m.f.id ?? `${m.lat},${m.lon},${m.f.properties.time ?? 0}`))
+      .sort()
+      .join("|");
+    out.push({
+      key: stable,
+      lat,
+      lon,
+      points: members.sort((a, b) => b.mag - a.mag),
+      maxMag: Number.isFinite(maxMag) ? maxMag : 0,
+    });
+  }
+  return out;
+}
+
+/** Camera radius → cluster radius (km). Farther camera = larger merge. */
+export function globeClusterRadiusKm(cameraRadius: number): number {
+  // default cam ~2.85 → ~360km; zoomed ~1.5 → ~90km; far ~5 → ~750km
+  return Math.max(55, Math.min(850, (cameraRadius - 1.15) * 210));
+}
