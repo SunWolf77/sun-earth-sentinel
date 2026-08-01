@@ -40,7 +40,6 @@ import {
 } from "@/lib/pwa/shortcuts";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { openPublicSeismicGlobe } from "@/lib/site";
 import { Link2, Check } from "lucide-react";
 
 const LiveMap = lazy(() =>
@@ -377,32 +376,22 @@ function ObservatoryApp() {
           Audio M4.5+
         </label>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <div className="ww-seg ww-seg--compact">
-          {(["2d", "3d"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              title={
-                v === "3d"
-                  ? "In-app 3D: tap hex for USGS/waveforms/agency links. Dutchsinse is visual-only."
-                  : "2D Leaflet map"
-              }
-              onClick={() => setMapView(v)}
-              className={`ww-seg__btn uppercase ${mapView === v ? "ww-seg__btn--on" : ""}`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="ww-btn text-[0.65rem]"
-          title="Dutchsinse visual hex globe (new tab). Deep EQ data lives in Sentinel map clicks."
-          onClick={() => openPublicSeismicGlobe()}
-        >
-          Visual globe ↗
-        </button>
+      <div className="ww-seg ww-seg--compact">
+        {(["2d", "3d"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            title={
+              v === "3d"
+                ? "3D globe: tap hex for USGS / waveforms / agency assessment"
+                : "2D Leaflet map"
+            }
+            onClick={() => setMapView(v)}
+            className={`ww-seg__btn uppercase ${mapView === v ? "ww-seg__btn--on" : ""}`}
+          >
+            {v}
+          </button>
+        ))}
       </div>
     </div>
   );

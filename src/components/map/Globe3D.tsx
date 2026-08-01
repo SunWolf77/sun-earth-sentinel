@@ -4,7 +4,6 @@ import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/us
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
-import { openPublicSeismicGlobe } from "@/lib/site";
 import { agencyLinksForEvent } from "@/lib/seismology/agencyLinks";
 import {
   eventPageUrl,
@@ -762,7 +761,9 @@ export function Globe3D() {
           applyCam();
           if (t >= 1) aimAnim = null;
         } else if (autoRef.current && !rotating) {
-          spherical.theta += 0.0022 * spinSpdRef.current;
+          // Prograde Earth: west→east. Matches three.js OrbitControls autoRotate
+          // (theta decreases) and Dutchsinse Public Seismic Globe. Prior += was retrograde.
+          spherical.theta -= 0.0022 * spinSpdRef.current;
           applyCam();
         }
 
@@ -793,7 +794,7 @@ export function Globe3D() {
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
       hint.textContent =
-        "Tap hex → assessment links (USGS / waveforms / agencies) · Visual globe ↗ is Dutchsinse view-only";
+        "Drag to look · pinch zoom · tap hex → USGS / waveforms / agencies · Spin = Earth west→east";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -1042,15 +1043,8 @@ export function Globe3D() {
       <div className="pointer-events-auto absolute bottom-12 right-2 z-20 flex flex-col gap-1.5 sm:right-3">
         <button
           type="button"
-          className="ww-btn text-[0.65rem]"
-          title="Dutchsinse visual globe only (right-click opens event page). Deep assessment is this pick card + 2D map."
-          onClick={() => openPublicSeismicGlobe()}
-        >
-          Visual globe ↗
-        </button>
-        <button
-          type="button"
           className={`ww-btn text-[0.65rem] ${globeAutoSpin ? "ww-btn--active" : ""}`}
+          title="Auto-rotate Earth west→east (prograde), same sense as real Earth / standard globe viewers"
           onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
         >
           {globeAutoSpin ? "Spin ON" : "Spin OFF"}
