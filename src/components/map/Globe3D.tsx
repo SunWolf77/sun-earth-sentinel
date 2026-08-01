@@ -520,7 +520,7 @@ export function Globe3D() {
 
           const expanded = expandedGlobe.has(cl.key);
           if (expanded) {
-            const offs = spiderfyOffsets(cl.points.length, 1.6);
+            const offs = spiderfyOffsets(cl.points.length, 4.2);
             const animateOpen = spiderExpandKey === cl.key;
             const t0 = performance.now();
             for (let i = 0; i < cl.points.length; i++) {
@@ -534,7 +534,7 @@ export function Globe3D() {
               if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
               const size = base * hexScale;
               const lift = (Math.min(depth, 700) / 700) * stemMul;
-              const elev = 1.012 + lift + size * 0.28 + 0.008;
+              const elev = 1.012 + lift + size * 0.28 + 0.014;
               const from = latLonToVec(cl.lat, cl.lon, elev);
               const to = latLonToVec(plat, plon, elev);
 
@@ -543,7 +543,7 @@ export function Globe3D() {
               const startLon = animateOpen ? cl.lon : plon;
               placeEventHex(p.f, p.lat, p.lon, {
                 showLabel: true,
-                elevBoost: 0.008,
+                elevBoost: 0.014,
                 displayLat: startLat,
                 displayLon: startLon,
               });
@@ -722,8 +722,9 @@ export function Globe3D() {
       const el = renderer.domElement;
       el.style.touchAction = "none";
       const ray = new THREE.Raycaster();
-      // widen pick a bit for thin rings
-      ray.params.Points = { threshold: 0.08 };
+      // Prefer closest hit; slightly generous for thin hex rings / spider pins
+      ray.params.Points = { threshold: 0.1 };
+      ray.params.Line = { threshold: 0.04 };
       const mouse = new THREE.Vector2();
 
       function pickAt(clientX: number, clientY: number): PickMeta | null {
@@ -734,13 +735,25 @@ export function Globe3D() {
         const objs = pickList.map((p) => p.mesh);
         const hits = ray.intersectObjects(objs, true);
         if (!hits.length) return null;
-        let o: InstanceType<typeof THREE.Object3D> | null = hits[0]!.object;
-        while (o) {
-          const found = pickList.find((p) => p.mesh === o);
-          if (found) return found.meta;
-          o = o.parent;
+        // Prefer event pins over cluster badges when both under the cursor
+        // so a new EQ can replace the open card without closing first.
+        const resolved: { meta: PickMeta; dist: number }[] = [];
+        for (const h of hits) {
+          let o: InstanceType<typeof THREE.Object3D> | null = h.object;
+          while (o) {
+            const found = pickList.find((p) => p.mesh === o);
+            if (found) {
+              resolved.push({ meta: found.meta, dist: h.distance });
+              break;
+            }
+            o = o.parent;
+          }
         }
-        return null;
+        if (!resolved.length) return null;
+        const events = resolved.filter((r) => r.meta.kind === "event");
+        const pool = events.length ? events : resolved;
+        pool.sort((a, b) => a.dist - b.dist);
+        return pool[0]!.meta;
       }
 
       function applyPick(meta: PickMeta) {
@@ -1058,7 +1071,7 @@ export function Globe3D() {
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
       hint.textContent =
-        "Tap number badge → expand pins · tap hex → assessment · pinch zooms clusters · Spin W→E";
+        "Tap badge → longer pins · tap any EQ to switch (no need to close) · Spin W→E";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -1212,7 +1225,8 @@ export function Globe3D() {
       )}
 
       {pickedEvent && (
-        <div className="pointer-events-auto absolute left-3 top-12 z-20 max-w-[min(300px,78vw)] rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
+        <div className="pointer-events-none absolute left-3 top-12 z-20 max-w-[min(300px,78vw)]">
+          <div className="pointer-events-auto rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <span
@@ -1238,7 +1252,7 @@ export function Globe3D() {
             </button>
           </div>
           <p className="mt-1.5 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
-            Assessment · few clicks
+            Assessment
           </p>
           <div className="mt-1 flex flex-wrap gap-1">
             <ShareFocusButton target="event" event={pickedEvent} compact label="Share" />
@@ -1301,6 +1315,7 @@ export function Globe3D() {
             >
               Antipode ⊕
             </button>
+          </div>
           </div>
         </div>
       )}

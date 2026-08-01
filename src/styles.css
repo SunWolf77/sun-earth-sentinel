@@ -902,22 +902,36 @@
 }
 .ww-eq-pin {
   position: relative;
-  width: 22px;
-  height: 30px;
-  margin-left: -11px;
-  margin-top: -30px;
+  width: 26px;
+  height: 44px;
+  margin-left: -13px;
+  margin-top: -44px;
   cursor: pointer;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
   transition: transform 0.12s ease;
 }
 .ww-eq-pin:hover {
-  transform: scale(1.12);
+  transform: scale(1.1);
   z-index: 2;
 }
+/* Long stem so spiderfied neighbors stay readable */
+.ww-eq-pin__stem {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 3px;
+  height: 18px;
+  margin-left: -1.5px;
+  border-radius: 1px;
+  opacity: 0.9;
+}
 .ww-eq-pin__head {
-  width: 20px;
-  height: 20px;
-  margin: 0 auto;
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   border: 2px solid #f8fafc;
@@ -926,31 +940,37 @@
 .ww-eq-pin__dot {
   position: absolute;
   left: 50%;
-  top: 5px;
+  top: 8px;
   width: 6px;
   height: 6px;
   margin-left: -3px;
   border-radius: 50%;
   background: #0f172a;
   opacity: 0.55;
+  z-index: 1;
 }
 .ww-eq-pin__label {
   position: absolute;
   left: 50%;
-  top: -2px;
+  top: -1px;
   transform: translateX(-50%);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: #0f172a;
   text-shadow: 0 0 2px #fff;
   pointer-events: none;
   white-space: nowrap;
+  z-index: 2;
 }
 .ww-eq-pin--sig .ww-eq-pin__head {
   border-color: #fbbf24;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+}
+.ww-eq-pin--sig .ww-eq-pin__stem {
+  height: 20px;
 }
 
 /* leaflet.markercluster — dark theme overrides */

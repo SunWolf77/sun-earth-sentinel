@@ -104,15 +104,18 @@ export function clusterEqPoints(
 /** Even radial offsets (degrees) for spiderfied pins around cluster center. */
 export function spiderfyOffsets(
   n: number,
-  baseKm = 2.2,
+  baseKm = 3.6,
 ): { dLat: number; dLon: number }[] {
   if (n <= 0) return [];
   if (n === 1) return [{ dLat: 0, dLon: 0 }];
-  const ringR = baseKm * (1 + Math.floor((n - 1) / 8) * 0.55);
+  // Longer legs + extra rings so stacked events stay visually separable
+  const ringR = baseKm * (1 + Math.floor((n - 1) / 7) * 0.72);
   const out: { dLat: number; dLon: number }[] = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-    const km = ringR * (0.85 + (i % 3) * 0.08);
+    // Alternate ring radii so neighbors don't sit on the same arc
+    const ring = 1 + (i % 3) * 0.22 + Math.floor(i / Math.max(6, n / 2)) * 0.35;
+    const km = ringR * ring;
     out.push({
       dLat: (km * Math.sin(a)) / 111.32,
       dLon: (km * Math.cos(a)) / 111.32,

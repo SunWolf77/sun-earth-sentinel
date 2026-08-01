@@ -150,13 +150,14 @@ function makeEqPinIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
   return L.divIcon({
     className: "ww-eq-pin-wrap",
     html: `<div class="ww-eq-pin${isSig ? " ww-eq-pin--sig" : ""}" title="M${label}">
+      <div class="ww-eq-pin__stem" style="background:${fill}"></div>
       <div class="ww-eq-pin__head" style="background:${fill}"></div>
       <div class="ww-eq-pin__dot"></div>
       <div class="ww-eq-pin__label">${label}</div>
     </div>`,
-    iconSize: [22, 30],
-    iconAnchor: [11, 30],
-    popupAnchor: [0, -28],
+    iconSize: [26, 44],
+    iconAnchor: [13, 44],
+    popupAnchor: [0, -40],
   });
 }
 
@@ -277,7 +278,7 @@ export function LiveMap() {
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
       spiderfyOnMaxZoom: true,
-      spiderfyDistanceMultiplier: 1.65,
+      spiderfyDistanceMultiplier: 2.45,
       /** Snappy spider legs — CSS transition below controls perceived speed */
       spiderLegPolylineOptions: {
         weight: 1.5,
