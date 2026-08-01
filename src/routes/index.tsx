@@ -381,8 +381,11 @@ function ObservatoryApp() {
           <button
             key={v}
             type="button"
-            disabled={v === "3d" && mode !== "full"}
-            title={v === "3d" && mode !== "full" ? "Full mode for 3D globe" : undefined}
+            title={
+              v === "3d"
+                ? "3D globe — mobile uses a safe WebGL profile (no Full mode required)"
+                : "2D Leaflet map"
+            }
             onClick={() => setMapView(v)}
             className={`ww-seg__btn uppercase ${mapView === v ? "ww-seg__btn--on" : ""}`}
           >
@@ -678,7 +681,7 @@ function ObservatoryApp() {
                       </div>
                     }
                   >
-                    {mapView === "3d" && mode === "full" ? <Globe3D /> : <LiveMap />}
+                    {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
                 </ClientOnly>
               </div>

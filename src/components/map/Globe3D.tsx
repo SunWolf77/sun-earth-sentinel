@@ -3,12 +3,12 @@ import { useObservatory, filteredEq, getFocusNode, type PickedEvent } from "@/st
 import { magColor, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
+import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
 
 /**
- * Full-mode Three.js globe.
- * Coherent public-seismic-globe patterns (hex rings, depth stems, spin speed,
- * marker scale/opacity, click-pick, antipode) re-implemented for WolfWatch.
- * Not a port of the public HTML page (no CDN three r128 / bloom stack).
+ * Three.js seismic globe — available in any performance mode.
+ * Mobile / low-end: lean quality profile (no marble texture, fewer markers,
+ * 30fps, context-loss → 2D fallback) so phones do not crash out of WebGL.
  */
 export function Globe3D() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -16,7 +16,6 @@ export function Globe3D() {
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
   const mapView = useObservatory((s) => s.mapView);
-  const mode = useObservatory((s) => s.mode);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const globeAutoSpin = useObservatory((s) => s.globeAutoSpin);
   const setGlobeAutoSpin = useObservatory((s) => s.setGlobeAutoSpin);
@@ -47,6 +46,9 @@ export function Globe3D() {
   const aimRef = useRef<((lat: number, lon: number, smooth?: boolean) => void) | null>(null);
   const recenterRef = useRef<(() => void) | null>(null);
   const [showTune, setShowTune] = useState(false);
+  const [qualityLabel, setQualityLabel] = useState<string>("");
+  const [bootError, setBootError] = useState<string | null>(null);
+  const qualityRef = useRef<GlobeQuality | null>(null);
 
   useEffect(() => {
     autoRef.current = globeAutoSpin;
@@ -65,28 +67,47 @@ export function Globe3D() {
   }, [globeMarkerOpacity]);
 
   useEffect(() => {
-    if (mapView !== "3d" || mode !== "full" || !containerRef.current) return;
+    if (mapView !== "3d" || !containerRef.current) return;
     let cancelled = false;
     const container = containerRef.current;
 
     (async () => {
+      setBootError(null);
+      if (!hasWebGl()) {
+        setBootError("WebGL unavailable on this device");
+        setMapView("2d");
+        return;
+      }
       const THREE = await import("three");
       if (cancelled || !container) return;
 
+      const Q = resolveGlobeQuality();
+      qualityRef.current = Q;
+      setQualityLabel(Q.id === "mobile" ? "3D · mobile safe" : "3D · full quality");
+
       const w = Math.max(container.clientWidth, 280);
-      const h = Math.max(container.clientHeight, 320);
+      const h = Math.max(container.clientHeight, 280);
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0b1220);
       const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
 
-      const renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false,
-        powerPreference: "high-performance",
-      });
+      let renderer: InstanceType<typeof THREE.WebGLRenderer>;
+      try {
+        renderer = new THREE.WebGLRenderer({
+          antialias: Q.antialias,
+          alpha: false,
+          powerPreference: Q.powerPreference,
+          failIfMajorPerformanceCaveat: false,
+          preserveDrawingBuffer: false,
+        });
+      } catch (e) {
+        setBootError(e instanceof Error ? e.message : "WebGL init failed");
+        setMapView("2d");
+        return;
+      }
       renderer.setSize(w, h);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pixelRatioCap));
       if ("outputColorSpace" in renderer) {
         (renderer as { outputColorSpace: string }).outputColorSpace = "srgb";
       }
@@ -107,7 +128,7 @@ export function Globe3D() {
       scene.add(fill);
 
       const baseTex = makeProceduralEarth(THREE);
-      const geo = new THREE.SphereGeometry(1, 64, 64);
+      const geo = new THREE.SphereGeometry(1, Q.sphereSeg, Q.sphereSeg);
       const mat = new THREE.MeshPhongMaterial({
         map: baseTex,
         color: 0xffffff,
@@ -119,31 +140,36 @@ export function Globe3D() {
       const earth = new THREE.Mesh(geo, mat);
       scene.add(earth);
 
-      const loader = new THREE.TextureLoader();
-      loader.crossOrigin = "anonymous";
-      loader.load(
-        "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg",
-        (tex) => {
-          if (cancelled) {
-            tex.dispose();
-            return;
-          }
-          if ("colorSpace" in tex) {
-            (tex as { colorSpace: string }).colorSpace = "srgb";
-          }
-          tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-          mat.map = tex;
-          mat.emissiveIntensity = 0.15;
-          mat.needsUpdate = true;
-        },
-        undefined,
-        () => {
-          /* procedural already visible */
-        },
-      );
+      if (Q.loadMarble) {
+        const loader = new THREE.TextureLoader();
+        loader.crossOrigin = "anonymous";
+        loader.load(
+          "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg",
+          (tex) => {
+            if (cancelled) {
+              tex.dispose();
+              return;
+            }
+            if ("colorSpace" in tex) {
+              (tex as { colorSpace: string }).colorSpace = "srgb";
+            }
+            tex.anisotropy = Math.min(
+              renderer.capabilities.getMaxAnisotropy(),
+              Q.anisotropy,
+            );
+            mat.map = tex;
+            mat.emissiveIntensity = 0.15;
+            mat.needsUpdate = true;
+          },
+          undefined,
+          () => {
+            /* procedural already visible */
+          },
+        );
+      }
 
       const atmo = new THREE.Mesh(
-        new THREE.SphereGeometry(1.045, 48, 48),
+        new THREE.SphereGeometry(1.045, Q.atmoSeg, Q.atmoSeg),
         new THREE.MeshBasicMaterial({
           color: 0x38bdf8,
           transparent: true,
@@ -154,21 +180,24 @@ export function Globe3D() {
       );
       scene.add(atmo);
 
-      const glow = new THREE.Mesh(
-        new THREE.SphereGeometry(1.09, 32, 32),
-        new THREE.MeshBasicMaterial({
-          color: 0x0ea5e9,
-          transparent: true,
-          opacity: 0.06,
-          side: THREE.BackSide,
-          depthWrite: false,
-        }),
-      );
-      scene.add(glow);
+      let glow: InstanceType<typeof THREE.Mesh> | null = null;
+      if (Q.glow) {
+        glow = new THREE.Mesh(
+          new THREE.SphereGeometry(1.09, 24, 24),
+          new THREE.MeshBasicMaterial({
+            color: 0x0ea5e9,
+            transparent: true,
+            opacity: 0.06,
+            side: THREE.BackSide,
+            depthWrite: false,
+          }),
+        );
+        scene.add(glow);
+      }
 
       // stars
       {
-        const n = 400;
+        const n = Q.stars;
         const pos = new Float32Array(n * 3);
         for (let i = 0; i < n; i++) {
           const r = 12 + Math.random() * 20;
@@ -314,9 +343,10 @@ export function Globe3D() {
         const hexScale = hexRef.current;
         const opac = opacRef.current;
 
+        const floor = Q.id === "mobile" ? Math.max(minMag, 4.0) : Math.min(minMag, 3.5);
         let list = features.filter((f) => {
           const m = f.properties.mag ?? 0;
-          return m >= Math.min(minMag, 3.5) && m <= maxMag;
+          return m >= floor && m <= maxMag;
         });
         if (focus) {
           list = list.filter((f) => {
@@ -327,7 +357,7 @@ export function Globe3D() {
         // Sort small first so large hexes draw on top visually
         list = [...list]
           .sort((a, b) => (a.properties.mag ?? 0) - (b.properties.mag ?? 0))
-          .slice(0, 420);
+          .slice(0, Q.maxMarkers);
 
         const stemPos: number[] = [];
         const stemCol: number[] = [];
@@ -358,7 +388,12 @@ export function Globe3D() {
           // Face outward: lookAt centers the -Z toward origin; flip so ring faces camera-ish
           g.rotateY(Math.PI);
 
-          const rings = neon ? [1.05, 0.78, 0.48] : mag >= 5 ? [1.0, 0.68, 0.4] : [1.0, 0.62];
+          const allRings = neon
+            ? [1.05, 0.78, 0.48]
+            : mag >= 5
+              ? [1.0, 0.68, 0.4]
+              : [1.0, 0.62];
+          const rings = allRings.slice(0, Q.maxRings);
           rings.forEach((s, i) => {
             const ringMat = new THREE.MeshBasicMaterial({
               color: col,
@@ -376,8 +411,8 @@ export function Globe3D() {
             g.add(mesh);
           });
 
-          // Mag label for M5+ (DOM overlay via CSS2D would be heavy — use simple sprite canvas)
-          if (mag >= 5) {
+          // Mag label for M5+ — skipped on mobile (canvas sprites are GPU+RAM heavy)
+          if (Q.magSprites && mag >= 5) {
             const spr = makeMagSprite(THREE, mag, colHex, opac);
             spr.scale.setScalar(size * 2.8);
             spr.position.set(0, 0, size * 0.15);
@@ -398,7 +433,7 @@ export function Globe3D() {
           };
           pickList.push({ mesh: g, meta });
 
-          if (depth > 35) {
+          if (depth > Q.stemMinDepthKm) {
             const surf = latLonToVec(lat, lon, 1.004);
             stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
             stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
@@ -652,33 +687,56 @@ export function Globe3D() {
       window.addEventListener("keydown", onKey);
 
       const pinGroup = new THREE.Group();
-      for (const node of DRAGON_NODES) {
-        const clat = node.center?.[0] ?? (node.bounds[0][0] + node.bounds[1][0]) / 2;
-        const clon =
-          node.center?.[1] ??
-          (node.bounds[0][1] <= node.bounds[1][1]
-            ? (node.bounds[0][1] + node.bounds[1][1]) / 2
-            : -175);
-        const v = latLonToVec(clat, clon, 1.028);
-        const pin = new THREE.Mesh(
-          new THREE.SphereGeometry(node.publishedFocus ? 0.02 : 0.013, 10, 10),
-          new THREE.MeshBasicMaterial({
-            color: node.kind === "volcano" ? 0xfb923c : node.publishedFocus ? 0xfbbf24 : 0x22d3ee,
-            transparent: true,
-            opacity: 0.95,
-          }),
-        );
-        pin.position.copy(v);
-        pinGroup.add(pin);
+      if (Q.nodePins) {
+        const nodes = Q.id === "mobile" ? DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority) : DRAGON_NODES;
+        for (const node of nodes) {
+          const clat = node.center?.[0] ?? (node.bounds[0][0] + node.bounds[1][0]) / 2;
+          const clon =
+            node.center?.[1] ??
+            (node.bounds[0][1] <= node.bounds[1][1]
+              ? (node.bounds[0][1] + node.bounds[1][1]) / 2
+              : -175);
+          const v = latLonToVec(clat, clon, 1.028);
+          const pin = new THREE.Mesh(
+            new THREE.SphereGeometry(
+              node.publishedFocus ? 0.02 : 0.013,
+              Q.pinSeg,
+              Q.pinSeg,
+            ),
+            new THREE.MeshBasicMaterial({
+              color: node.kind === "volcano" ? 0xfb923c : node.publishedFocus ? 0xfbbf24 : 0x22d3ee,
+              transparent: true,
+              opacity: 0.95,
+            }),
+          );
+          pin.position.copy(v);
+          pinGroup.add(pin);
+        }
+        scene.add(pinGroup);
       }
-      scene.add(pinGroup);
 
       let animId = 0;
       let active = true;
       let blink = 0;
-      const animate = () => {
+      let lastFrameT = 0;
+      const onContextLost = (ev: Event) => {
+        ev.preventDefault();
+        active = false;
+        setBootError("GPU context lost — switched to 2D");
+        try {
+          setMapView("2d");
+        } catch {
+          /* ignore */
+        }
+      };
+      el.addEventListener("webglcontextlost", onContextLost, false);
+      const minFrameMs = 1000 / Math.max(15, Q.maxFps);
+      const animate = (now = performance.now()) => {
         if (!active) return;
         animId = requestAnimationFrame(animate);
+        if (typeof document !== "undefined" && document.hidden) return;
+        if (now - lastFrameT < minFrameMs) return;
+        lastFrameT = now;
 
         if (aimAnim) {
           const t = Math.min(1, (performance.now() - aimAnim.t0) / aimAnim.dur);
@@ -719,8 +777,9 @@ export function Globe3D() {
       const hint = document.createElement("div");
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
-      hint.textContent =
-        "Drag · pinch zoom · click hex = select · R recenter · stems = depth";
+      hint.textContent = Q.id === "mobile"
+        ? "Drag · pinch zoom · tap hex · R recenter · mobile-safe 3D"
+        : "Drag · pinch zoom · click hex = select · R recenter · stems = depth";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -746,7 +805,10 @@ export function Globe3D() {
         el.removeEventListener("touchend", te);
         el.removeEventListener("touchcancel", te);
         el.removeEventListener("wheel", wheel);
+        el.removeEventListener("webglcontextlost", onContextLost);
         disposeGroup(quakeGroup);
+        disposeGroup(pinGroup);
+        scene.remove(pinGroup);
         if (focusRing) {
           scene.remove(focusRing);
           focusRing.geometry.dispose();
@@ -754,13 +816,21 @@ export function Globe3D() {
         }
         hexGeo.dispose();
         earth.geometry.dispose();
-        if (mat.map) mat.map.dispose();
+        if (mat.map && mat.map !== baseTex) mat.map.dispose();
         baseTex.dispose();
         mat.dispose();
         atmo.geometry.dispose();
         (atmo.material as InstanceType<typeof THREE.Material>).dispose();
-        glow.geometry.dispose();
-        (glow.material as InstanceType<typeof THREE.Material>).dispose();
+        if (glow) {
+          scene.remove(glow);
+          glow.geometry.dispose();
+          (glow.material as InstanceType<typeof THREE.Material>).dispose();
+        }
+        try {
+          renderer.forceContextLoss?.();
+        } catch {
+          /* ignore */
+        }
         renderer.dispose();
         if (renderer.domElement.parentNode) {
           renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -769,12 +839,21 @@ export function Globe3D() {
         updateRef.current = null;
         aimRef.current = null;
         recenterRef.current = null;
+        qualityRef.current = null;
       };
     })().catch((err) => {
       console.error(err);
       if (container) {
-        container.innerHTML =
-          '<div class="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted"><p class="text-danger">3D Globe failed to load.</p><p class="text-xs text-dim">Use 2D Map — Full mode globe needs WebGL.</p></div>';
+        setBootError(err instanceof Error ? err.message : "3D failed");
+        try {
+          setMapView("2d");
+        } catch {
+          /* ignore */
+        }
+        if (container) {
+          container.innerHTML =
+            '<div class="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted"><p class="text-danger">3D Globe failed — back on 2D.</p><p class="text-xs text-dim">Mobile uses a safe WebGL profile; try again or stay on 2D Map.</p></div>';
+        }
       }
     });
 
@@ -784,7 +863,7 @@ export function Globe3D() {
       cleanupRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init once per 3d enter
-  }, [mapView, mode]);
+  }, [mapView]);
 
   useEffect(() => {
     if (mapView === "3d" && updateRef.current) {
@@ -807,13 +886,24 @@ export function Globe3D() {
     clearGlobeAntipode();
   }, [globeAntipode, mapView, clearGlobeAntipode]);
 
-  if (mapView !== "3d" || mode !== "full") return null;
+  if (mapView !== "3d") return null;
 
   const focus = getFocusNode(focusNodeId);
 
   return (
     <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-lg border border-border bg-[#0b1220]">
       <div ref={containerRef} className="h-full min-h-[320px] w-full" />
+
+      {qualityLabel && (
+        <div className="pointer-events-none absolute right-2 top-2 z-20 rounded-md border border-border bg-surface/90 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-primary sm:right-3">
+          {qualityLabel}
+        </div>
+      )}
+      {bootError && (
+        <div className="pointer-events-none absolute inset-x-2 top-10 z-20 rounded-md border border-danger/40 bg-surface/95 px-2 py-1.5 text-center text-[0.65rem] text-danger sm:inset-x-auto sm:left-3 sm:right-auto sm:text-left">
+          {bootError}
+        </div>
+      )}
 
       {pickedEvent && (
         <div className="pointer-events-auto absolute left-3 top-14 z-20 max-w-[min(280px,70vw)] rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">

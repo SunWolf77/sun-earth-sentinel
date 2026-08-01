@@ -528,11 +528,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     const patch: Partial<ObservatoryState> = { mode: m };
     // Align mag floor with mode when user was still on previous mode default
     if (get().minMag === prevMin) patch.minMag = MODES[m].minMag;
-    if (m !== "full" && get().mapView === "3d") patch.mapView = "2d";
-    if (m === "lite") {
-      // Data saver: no 3d, no geofon unless user re-enables
-      patch.mapView = "2d";
-    }
+    // 3D globe is mode-independent (mobile-safe quality profile handles phones).
+    // Lite still leaves mapView alone so users can keep globe without Full.
     set(patch);
     // Drop heavy caches when entering lite
     if (m === "lite") {
@@ -544,7 +541,14 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   },
   setTab: (t) => set({ tab: t, mobileSheet: "closed" as const }),
   setMobileSheet: (mobileSheet) => set({ mobileSheet }),
-  setMapView: (v) => set({ mapView: v }),
+  setMapView: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_mapview", v);
+    } catch {
+      /* ignore */
+    }
+    set({ mapView: v });
+  },
   setTimeWindow: (w) => {
     set({ timeWindow: w });
     void get().refresh(true);
@@ -1333,10 +1337,14 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
 
       const m = loadMode();
       const saved = localStorage.getItem("wolfwatch_mode");
+      const savedView = localStorage.getItem("wolfwatch_mapview");
+      if (savedView === "2d" || savedView === "3d") {
+        patch.mapView = savedView;
+      }
       if (saved === "lite" || saved === "standard" || saved === "full") {
         patch.mode = m;
         patch.minMag = MODES[m].minMag;
-        if (m !== "full") patch.mapView = "2d";
+        // keep saved mapView (2d/3d) across modes
       } else if (isMobileViewport()) {
         try {
           localStorage.setItem("wolfwatch_mode", "lite");
@@ -1344,6 +1352,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         } catch { /* */ }
         patch.mode = "lite";
         patch.minMag = MODES.lite.minMag;
+        // Default 2D on first mobile open; 3D is one tap away with safe profile
         patch.mapView = "2d";
       }
 
