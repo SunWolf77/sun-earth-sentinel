@@ -11,6 +11,7 @@ import {
   monitorHandoffUrl,
 } from "@/lib/feeds/publishedMonitors";
 import { useObservatory } from "@/store/observatory";
+import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 
 const STATUS_LABEL: Record<NodeStatus, string> = {
   quiet: "Quiet",
@@ -58,6 +59,12 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
         const focused = focusNodeId === node.id;
         const pub = getPublishedMonitor(node.id);
         const boardUrl = monitorHandoffUrl(node.id) || node.monitorUrl;
+        const clat = node.center?.[0] ?? (node.bounds[0][0] + node.bounds[1][0]) / 2;
+        const clon =
+          node.center?.[1] ??
+          (node.bounds[0][1] <= node.bounds[1][1]
+            ? (node.bounds[0][1] + node.bounds[1][1]) / 2
+            : -175);
         return (
           <div
             key={node.id}
@@ -112,6 +119,14 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
               >
                 {focused ? "Home view" : "Focus on map"}
               </button>
+              <ShareFocusButton
+                target="node"
+                nodeId={node.id}
+                lat={clat}
+                lon={clon}
+                compact
+                label="Share zone"
+              />
               {boardUrl && (
                 <a
                   href={boardUrl}

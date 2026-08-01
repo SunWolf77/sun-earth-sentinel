@@ -41,6 +41,7 @@ import {
 } from "@/lib/seismology/agencyLinks";
 import { isJmaFeature } from "@/lib/feeds/jma";
 import type { EqFeature } from "@/lib/feeds/usgs";
+import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -80,6 +81,7 @@ function buildEqPopupHtml(
     pageUrl: string | null | undefined;
     eventId: string;
     agencyHtml: string;
+    shareHref?: string | null;
   },
 ): string {
   const {
@@ -130,6 +132,9 @@ function buildEqPopupHtml(
     : f.properties.jmaEnriched
       ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
       : "";
+  const shareLine = opts.shareHref
+    ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none">Share this EQ →</a></div>`
+    : "";
   return `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
               <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
               <div style="margin-top:4px;color:#e2e8f0">${place}</div>
@@ -137,7 +142,7 @@ function buildEqPopupHtml(
               ${metaBits ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${metaBits}${eventId ? ` · ${eventId}` : ""}</div>` : eventId ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${eventId}</div>` : ""}
               ${jmaNote}${mmiLine}${contourNote}${smLink}
               <div style="margin-top:6px;padding-top:6px;border-top:1px solid #1e293b;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Agency assessment</div>
-              ${opts.agencyHtml}`;
+              ${opts.agencyHtml}${shareLine}`;
 }
 
 function makeEqPinIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
@@ -272,10 +277,17 @@ export function LiveMap() {
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
       spiderfyOnMaxZoom: true,
-      spiderfyDistanceMultiplier: 1.55,
+      spiderfyDistanceMultiplier: 1.65,
+      /** Snappy spider legs — CSS transition below controls perceived speed */
+      spiderLegPolylineOptions: {
+        weight: 1.5,
+        color: "#94a3b8",
+        opacity: 0.7,
+      },
       maxClusterRadius: 44,
       disableClusteringAtZoom: 13,
-      animate: false,
+      animate: true,
+      animateAddingMarkers: false,
       chunkedLoading: true,
       removeOutsideVisibleBounds: true,
       iconCreateFunction: (cluster) => {
@@ -492,6 +504,27 @@ export function LiveMap() {
           place,
           url: pageUrl,
         });
+        const shareHref = shareUrlForPickedEvent(
+          {
+            id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
+            lat,
+            lon,
+            mag,
+            place,
+            depth,
+            time: typeof f.properties.time === "number" ? f.properties.time : null,
+            url: pageUrl || undefined,
+          },
+          {
+            nodeId: useObservatory.getState().focusNodeId,
+            window: useObservatory.getState().timeWindow,
+            minMag: useObservatory.getState().minMag,
+            mapView: useObservatory.getState().mapView,
+            basemap: useObservatory.getState().basemapStyle,
+            mode: useObservatory.getState().mode,
+            layers: useObservatory.getState().overlays,
+          },
+        );
         const popupHtml = buildEqPopupHtml(f, {
           lat,
           lon,
@@ -509,6 +542,7 @@ export function LiveMap() {
           pageUrl,
           eventId,
           agencyHtml: agencyLinksHtml(agencyLinks),
+          shareHref,
         });
 
         // Pin markers — MarkerCluster spiderfy spreads stacked events for selection

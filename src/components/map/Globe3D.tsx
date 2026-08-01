@@ -12,6 +12,7 @@ import {
   waveformsEventUrl,
 } from "@/lib/seismology/shakemap";
 import { formatUtc } from "@/lib/utils";
+import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 
 
 /**
@@ -977,6 +978,7 @@ export function Globe3D() {
             Assessment · few clicks
           </p>
           <div className="mt-1 flex flex-wrap gap-1">
+            <ShareFocusButton target="event" event={pickedEvent} compact label="Share" />
             {pickLinks.event && (
               <a
                 href={pickLinks.event}

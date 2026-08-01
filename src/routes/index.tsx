@@ -41,6 +41,8 @@ import {
   syncViewToUrl,
   shareableViewUrl,
 } from "@/lib/pwa/shortcuts";
+import { focusFromLocation } from "@/lib/pwa/shareFocus";
+import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { Link2, Check } from "lucide-react";
@@ -113,6 +115,13 @@ function ObservatoryApp() {
   const setAudioAlerts = useObservatory((s) => s.setAudioAlerts);
   const antipodeOf = useObservatory((s) => s.antipodeOf);
   const pickEvent = useObservatory((s) => s.pickEvent);
+  const setReplayActive = useObservatory((s) => s.setReplayActive);
+  const setReplayCursorMs = useObservatory((s) => s.setReplayCursorMs);
+  const replayActive = useObservatory((s) => s.replayActive);
+  const replayCursorMs = useObservatory((s) => s.replayCursorMs);
+  const ensureGvpVolcanoes = useObservatory((s) => s.ensureGvpVolcanoes);
+  const focusGvpVolcano = useObservatory((s) => s.focusGvpVolcano);
+  const gvpVolcanoes = useObservatory((s) => s.gvpVolcanoes);
   const pickedEvent = useObservatory((s) => s.pickedEvent);
 
   const fullTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -279,8 +288,105 @@ function ObservatoryApp() {
       mode,
       mapView,
       basemap: basemapStyle,
+      eventId: pickedEvent?.id ?? null,
+      lat: pickedEvent?.lat ?? null,
+      lon: pickedEvent?.lon ?? null,
+      zoom: pickedEvent ? 7 : null,
+      replay: replayActive,
+      replayMs: replayActive ? replayCursorMs : null,
+      volcanoId:
+        focusNodeId && (focusNodeId.startsWith("gvp-") || focusNodeId.startsWith("usgs-volc-"))
+          ? focusNodeId
+          : null,
     });
-  }, [tab, focusNodeId, timeWindow, minMag, overlays, mode, mapView, basemapStyle]);
+  }, [
+    tab,
+    focusNodeId,
+    timeWindow,
+    minMag,
+    overlays,
+    mode,
+    mapView,
+    basemapStyle,
+    pickedEvent,
+    replayActive,
+    replayCursorMs,
+  ]);
+
+
+  // Deep-link hydrate: event / volcano / lat-lon / replay from URL (after feeds ready)
+  const focusHydrated = useRef(false);
+  useEffect(() => {
+    if (focusHydrated.current) return;
+    if (!eq && !lastUpdate) return;
+    const f = focusFromLocation();
+    let did = false;
+
+    if (f.eventId && eq?.features?.length) {
+      const feat = eq.features.find((x) => String(x.id) === f.eventId);
+      if (feat) {
+        const [lon, lat] = feat.geometry.coordinates;
+        const mag = feat.properties.mag ?? 0;
+        pickEvent({
+          id: String(feat.id),
+          lat,
+          lon,
+          mag,
+          place: feat.properties.place || "Event",
+          depth: feat.geometry.coordinates[2] ?? 0,
+          time: feat.properties.time ?? null,
+          url: feat.properties.url,
+        });
+        setSelectedEventId(String(feat.id));
+        flyMapTo(lat, lon, f.zoom ?? 7, String(feat.id));
+        did = true;
+      }
+    }
+
+    if (f.lat != null && f.lon != null && !f.eventId) {
+      flyMapTo(f.lat, f.lon, f.zoom ?? 6);
+      did = true;
+    }
+
+    if (f.replay || f.replayMs != null) {
+      setReplayActive(true);
+      if (f.replayMs != null) setReplayCursorMs(f.replayMs);
+      did = true;
+    }
+
+    if (f.volcanoId) {
+      void ensureGvpVolcanoes().then(() => {
+        const list = useObservatory.getState().gvpVolcanoes;
+        const v =
+          list.find((g) => g.vnum === f.volcanoId || `gvp-${g.vnum}` === f.volcanoId) ||
+          list.find((g) => String(g.id) === f.volcanoId);
+        if (v) focusGvpVolcano(v);
+      });
+      did = true;
+    }
+
+    // Mark hydrated once we had data opportunity (even if event not found yet — retry when eq updates)
+    if (did || (eq?.features?.length && f.eventId)) {
+      if (did || !f.eventId) focusHydrated.current = true;
+      else if (eq?.features?.length) {
+        // event requested but not in catalog — stop retrying after first full load
+        const feat = eq.features.find((x) => String(x.id) === f.eventId);
+        if (feat) focusHydrated.current = true;
+        else if (lastUpdate) focusHydrated.current = true;
+      }
+    } else if (!f.eventId && !f.volcanoId && f.lat == null && !f.replay) {
+      focusHydrated.current = true;
+    }
+  }, [
+    eq,
+    lastUpdate,
+    pickEvent,
+    flyMapTo,
+    setReplayActive,
+    setReplayCursorMs,
+    ensureGvpVolcanoes,
+    focusGvpVolcano,
+  ]);
 
   useEffect(() => {
     if (fullTimer.current) clearInterval(fullTimer.current);
@@ -448,9 +554,19 @@ function ObservatoryApp() {
       <VolcanoAlertsBar compact />
       <FocusedNodeCard features={filteredEq(eq?.features, minMag, maxMag)} />
       <NodeFocusPanel allFeatures={filteredEq(eq?.features, minMag, maxMag)} />
-      <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-        Events ({features.length})
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
+          Events ({features.length})
+        </h3>
+        {pickedEvent && (
+          <ShareFocusButton target="event" event={pickedEvent} compact label="Share EQ" />
+        )}
+      </div>
+      {focusNodeId && (
+        <div className="flex justify-end">
+          <ShareFocusButton target="node" nodeId={focusNodeId} compact label="Share zone" />
+        </div>
+      )}
       <ul className="scroll-thin max-h-[50vh] space-y-1 overflow-y-auto lg:max-h-none">
         {features.slice(0, 80).map((f) => {
           const [lon, lat] = f.geometry.coordinates;

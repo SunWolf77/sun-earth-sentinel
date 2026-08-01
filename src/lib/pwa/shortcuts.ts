@@ -102,6 +102,7 @@ const LAYER_IDS: MapOverlayId[] = [
   "mmiContours",
   "nodes",
   "volcanoes",
+  "globalVolcanoes",
   "corridors",
 ];
 
@@ -161,6 +162,16 @@ export function syncViewToUrl(opts: {
   mode?: PerformanceMode;
   mapView?: MapView;
   basemap?: BasemapStyleId;
+  /** Focused earthquake id */
+  eventId?: string | null;
+  /** Map center for share */
+  lat?: number | null;
+  lon?: number | null;
+  zoom?: number | null;
+  /** Educational replay cursor */
+  replay?: boolean;
+  replayMs?: number | null;
+  volcanoId?: string | null;
 }): void {
   if (typeof window === "undefined") return;
   try {
@@ -180,6 +191,44 @@ export function syncViewToUrl(opts: {
     const on = LAYER_IDS.filter((id) => opts.overlays[id]);
     if (on.length) url.searchParams.set("layers", on.join(","));
     else url.searchParams.delete("layers");
+
+    if (opts.eventId) url.searchParams.set("event", opts.eventId);
+    else {
+      url.searchParams.delete("event");
+      url.searchParams.delete("eq");
+      url.searchParams.delete("quake");
+    }
+    if (opts.volcanoId) url.searchParams.set("volcano", opts.volcanoId);
+    else {
+      url.searchParams.delete("volcano");
+      url.searchParams.delete("gvp");
+    }
+    if (opts.lat != null && opts.lon != null && Number.isFinite(opts.lat) && Number.isFinite(opts.lon)) {
+      url.searchParams.set("lat", opts.lat.toFixed(4));
+      url.searchParams.set("lon", opts.lon.toFixed(4));
+    } else {
+      url.searchParams.delete("lat");
+      url.searchParams.delete("lon");
+    }
+    if (opts.zoom != null && Number.isFinite(opts.zoom)) url.searchParams.set("z", String(Math.round(opts.zoom)));
+    else {
+      url.searchParams.delete("z");
+      url.searchParams.delete("zoom");
+    }
+    if (opts.replay) {
+      url.searchParams.set("replay", "1");
+      if (opts.replayMs != null && Number.isFinite(opts.replayMs)) {
+        url.searchParams.set("t", String(Math.round(opts.replayMs)));
+      } else {
+        url.searchParams.delete("t");
+        url.searchParams.delete("cursor");
+      }
+    } else {
+      url.searchParams.delete("replay");
+      url.searchParams.delete("t");
+      url.searchParams.delete("cursor");
+    }
+
     const next = url.pathname + url.search + url.hash;
     if (next !== window.location.pathname + window.location.search + window.location.hash) {
       window.history.replaceState(window.history.state, "", next);

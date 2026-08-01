@@ -5,6 +5,7 @@ import {
   type UsgsVolcanoAlert,
 } from "@/lib/feeds/usgsVolcanoAlerts";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
+import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { alertKey, nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 
 function AlertChip({ v }: { v: UsgsVolcanoAlert }) {
@@ -85,6 +86,14 @@ function AlertChip({ v }: { v: UsgsVolcanoAlert }) {
           >
             {muted ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </button>
+          <ShareFocusButton
+            target="volcano"
+            volcanoId={nodeId}
+            place={v.name}
+            compact
+            label="Share"
+            className="ww-btn ww-btn--compact text-[0.6rem]"
+          />
           {active && (
             <button
               type="button"

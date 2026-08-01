@@ -968,7 +968,10 @@
 }
 /* Our custom cluster icons already styled via .ww-eq-cluster */
 
+/* Spiderfy / cluster anim — snappy (~220ms) */
 .leaflet-cluster-anim .leaflet-marker-icon,
 .leaflet-cluster-anim .leaflet-marker-shadow {
-  transition: none !important;
+  transition:
+    transform 0.22s cubic-bezier(0.25, 0.8, 0.35, 1),
+    opacity 0.18s ease-out !important;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Pause, Play, SkipBack, SkipForward, X, History } from "lucide-react";
 import { useObservatory, filteredEq } from "@/store/observatory";
+import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 
 function fmtUtc(ms: number): string {
   try {
@@ -103,6 +104,17 @@ export function EventReplayBar() {
               {shown}/{times.length}
             </span>
           </span>
+          <ShareFocusButton
+            target="custom"
+            compact
+            label="Share replay"
+            input={{
+              kind: "replay",
+              replay: true,
+              replayMs: replayCursorMs,
+              tab: "live",
+            }}
+          />
           <button
             type="button"
             className="ww-btn ww-btn--icon ww-btn--compact"
