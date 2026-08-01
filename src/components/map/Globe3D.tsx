@@ -4,6 +4,7 @@ import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/us
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
+import { openPublicSeismicGlobe } from "@/lib/site";
 
 /**
  * Three.js seismic globe — available in any performance mode.
@@ -33,9 +34,6 @@ export function Globe3D() {
   const setGlobeMarkerOpacity = useObservatory((s) => s.setGlobeMarkerOpacity);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const pickedEvent = useObservatory((s) => s.pickedEvent);
-  const useGeofon = useObservatory((s) => s.useGeofon);
-  const setUseGeofon = useObservatory((s) => s.setUseGeofon);
-  const refresh = useObservatory((s) => s.refresh);
 
   const cleanupRef = useRef<(() => void) | null>(null);
   const updateRef = useRef<((features: EqFeature[], focusId: string | null) => void) | null>(
@@ -48,7 +46,6 @@ export function Globe3D() {
   const opacRef = useRef(globeMarkerOpacity);
   const aimRef = useRef<((lat: number, lon: number, smooth?: boolean) => void) | null>(null);
   const recenterRef = useRef<(() => void) | null>(null);
-  const [showTune, setShowTune] = useState(false);
   const [qualityLabel, setQualityLabel] = useState<string>("");
   const [bootError, setBootError] = useState<string | null>(null);
   const qualityRef = useRef<GlobeQuality | null>(null);
@@ -86,7 +83,7 @@ export function Globe3D() {
 
       const Q = resolveGlobeQuality();
       qualityRef.current = Q;
-      setQualityLabel(Q.id === "mobile" ? "3D · mobile safe" : "3D · full quality");
+      setQualityLabel(Q.id === "mobile" ? "Preview · safe" : "Preview");
 
       const w = Math.max(container.clientWidth, 280);
       const h = Math.max(container.clientHeight, 280);
@@ -782,22 +779,10 @@ export function Globe3D() {
       const hint = document.createElement("div");
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
-      hint.textContent = Q.id === "mobile"
-        ? "Drag · pinch zoom · tap hex · R recenter · mobile-safe 3D"
-        : "Drag · pinch zoom · click hex = select · R recenter · stems = depth";
+      hint.textContent =
+        "Preview globe · Full globe ↗ opens Dutchsinse Public Seismic Globe";
       container.style.position = "relative";
       container.appendChild(hint);
-
-      const credit = document.createElement("a");
-      credit.href =
-        "https://www.dutchsinse.com/wp-content/uploads/2026/07/public-earthquake-progam-v3.html";
-      credit.target = "_blank";
-      credit.rel = "noopener noreferrer";
-      credit.className =
-        "absolute bottom-3 right-2 z-10 max-w-[46%] rounded-md border border-border bg-surface/90 px-2 py-1 text-[0.58rem] text-dim no-underline hover:text-primary sm:right-3";
-      credit.style.pointerEvents = "auto";
-      credit.textContent = "Pattern credit · Public Seismic Globe (Dutchsinse)";
-      container.appendChild(credit);
 
       const legend = document.createElement("div");
       legend.className =
@@ -978,6 +963,14 @@ export function Globe3D() {
       <div className="pointer-events-auto absolute bottom-12 right-2 z-20 flex flex-col gap-1.5 sm:right-3">
         <button
           type="button"
+          className="ww-btn text-[0.65rem] font-semibold"
+          title="Open Dutchsinse Public Seismic Globe — full hex globe (new tab)"
+          onClick={() => openPublicSeismicGlobe()}
+        >
+          Full globe ↗
+        </button>
+        <button
+          type="button"
           className={`ww-btn text-[0.65rem] ${globeAutoSpin ? "ww-btn--active" : ""}`}
           onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
         >
@@ -993,121 +986,12 @@ export function Globe3D() {
         <button
           type="button"
           className="ww-btn text-[0.65rem]"
-          title="Antipode of picked event, focus, or equator"
-          onClick={() => {
-            if (pickedEvent) {
-              antipodeOf(pickedEvent.lat, pickedEvent.lon);
-            } else if (focus?.center) {
-              antipodeOf(focus.center[0], focus.center[1]);
-            } else if (focus) {
-              const [[a, b], [c, d]] = focus.bounds;
-              antipodeOf((a + c) / 2, b <= d ? (b + d) / 2 : -175);
-            } else {
-              antipodeOf(0, 0);
-            }
-          }}
-        >
-          Antipode
-        </button>
-        <button
-          type="button"
-          className={`ww-btn text-[0.65rem] ${showTune ? "ww-btn--active" : ""}`}
-          onClick={() => setShowTune((v) => !v)}
-        >
-          Tune
-        </button>
-        <button
-          type="button"
-          className="ww-btn text-[0.65rem]"
           onClick={() => setMapView("2d")}
         >
           2D Map
         </button>
       </div>
 
-      {showTune && (
-        <div className="pointer-events-auto absolute bottom-12 left-2 z-20 w-[min(220px,70vw)] space-y-2 rounded-md border border-border bg-surface/95 p-2.5 text-[0.68rem] shadow-lg sm:left-3">
-          <p className="font-medium uppercase tracking-wider text-primary">Globe tune</p>
-          <label className="block text-dim">
-            Hex size{" "}
-            <span className="float-right font-mono text-primary">{globeMarkerScale.toFixed(1)}×</span>
-            <input
-              type="range"
-              min={0.4}
-              max={3.2}
-              step={0.05}
-              value={globeMarkerScale}
-              onChange={(e) => setGlobeMarkerScale(parseFloat(e.target.value))}
-              className="mt-0.5 w-full accent-primary"
-            />
-          </label>
-          <label className="block text-dim">
-            Opacity{" "}
-            <span className="float-right font-mono text-primary">
-              {Math.round(globeMarkerOpacity * 100)}%
-            </span>
-            <input
-              type="range"
-              min={0.25}
-              max={1}
-              step={0.01}
-              value={globeMarkerOpacity}
-              onChange={(e) => setGlobeMarkerOpacity(parseFloat(e.target.value))}
-              className="mt-0.5 w-full accent-primary"
-            />
-          </label>
-          <label className="block text-dim">
-            Stem height{" "}
-            <span className="float-right font-mono text-primary">{globeStemScale.toFixed(2)}</span>
-            <input
-              type="range"
-              min={0.04}
-              max={0.4}
-              step={0.01}
-              value={globeStemScale}
-              onChange={(e) => setGlobeStemScale(parseFloat(e.target.value))}
-              className="mt-0.5 w-full accent-primary"
-            />
-          </label>
-          <label className="block text-dim">
-            Spin speed{" "}
-            <span className="float-right font-mono text-primary">{globeSpinSpeed.toFixed(2)}</span>
-            <input
-              type="range"
-              min={0.15}
-              max={2.5}
-              step={0.05}
-              value={globeSpinSpeed}
-              onChange={(e) => setGlobeSpinSpeed(parseFloat(e.target.value))}
-              className="mt-0.5 w-full accent-primary"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-2 text-dim">
-            <span>GEOFON merge</span>
-            <input
-              type="checkbox"
-              checked={useGeofon}
-              onChange={(e) => {
-                setUseGeofon(e.target.checked);
-                void refresh(true);
-              }}
-              className="accent-primary"
-            />
-          </label>
-          <p className="text-[0.58rem] leading-snug text-dim">
-            Hex palette & stems follow{" "}
-            <a
-              href="https://www.dutchsinse.com/wp-content/uploads/2026/07/public-earthquake-progam-v3.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline-offset-2 hover:underline"
-            >
-              Public Seismic Globe
-            </a>{" "}
-            (Dutchsinse). Mobile uses a safe WebGL profile.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

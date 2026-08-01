@@ -40,6 +40,7 @@ import {
 } from "@/lib/pwa/shortcuts";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { openPublicSeismicGlobe } from "@/lib/site";
 import { Link2, Check } from "lucide-react";
 
 const LiveMap = lazy(() =>
@@ -376,22 +377,32 @@ function ObservatoryApp() {
           Audio M4.5+
         </label>
       </div>
-      <div className="ww-seg ww-seg--compact">
-        {(["2d", "3d"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            title={
-              v === "3d"
-                ? "3D globe — mobile uses a safe WebGL profile (no Full mode required)"
-                : "2D Leaflet map"
-            }
-            onClick={() => setMapView(v)}
-            className={`ww-seg__btn uppercase ${mapView === v ? "ww-seg__btn--on" : ""}`}
-          >
-            {v}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="ww-seg ww-seg--compact">
+          {(["2d", "3d"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              title={
+                v === "3d"
+                  ? "In-app preview globe (light). Use Full globe for Dutchsinse."
+                  : "2D Leaflet map"
+              }
+              onClick={() => setMapView(v)}
+              className={`ww-seg__btn uppercase ${mapView === v ? "ww-seg__btn--on" : ""}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="ww-btn text-[0.65rem] font-semibold"
+          title="Dutchsinse Public Seismic Globe — full hex controls (new tab)"
+          onClick={() => openPublicSeismicGlobe()}
+        >
+          Full globe ↗
+        </button>
       </div>
     </div>
   );

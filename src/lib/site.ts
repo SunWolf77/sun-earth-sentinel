@@ -121,3 +121,16 @@ export function xCardDebugReport(origin = getSiteOrigin()) {
     ],
   };
 }
+
+/**
+ * Dutchsinse Public Seismic Globe (standalone, full controls).
+ * Sentinel launches this for the full globe experience — we do not reimplement it.
+ */
+export const PUBLIC_SEISMIC_GLOBE_URL =
+  "https://www.dutchsinse.com/wp-content/uploads/2026/07/public-earthquake-progam-v3.html";
+
+export function openPublicSeismicGlobe(): void {
+  if (typeof window === "undefined") return;
+  window.open(PUBLIC_SEISMIC_GLOBE_URL, "_blank", "noopener,noreferrer");
+}
+
