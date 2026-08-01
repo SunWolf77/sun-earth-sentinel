@@ -123,8 +123,9 @@ export function xCardDebugReport(origin = getSiteOrigin()) {
 }
 
 /**
- * Dutchsinse Public Seismic Globe (standalone, full controls).
- * Sentinel launches this for the full globe experience — we do not reimplement it.
+ * Dutchsinse Public Seismic Globe — standalone **visual** explorer (hex + stems).
+ * Right-click opens USGS/GEOFON page only; no in-app agency/waveform graph.
+ * Deep assessment stays in Sentinel (2D map + preview 3D pick card).
  */
 export const PUBLIC_SEISMIC_GLOBE_URL =
   "https://www.dutchsinse.com/wp-content/uploads/2026/07/public-earthquake-progam-v3.html";

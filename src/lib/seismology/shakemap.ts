@@ -71,7 +71,23 @@ export function shakeMapEventUrl(eventId: string | undefined | null): string | n
 
 export function eventPageUrl(eventId: string | undefined | null): string | null {
   if (!eventId) return null;
+  const id = String(eventId).replace(/^(jma|geofon):/, "");
+  if (String(eventId).startsWith("jma:") || String(eventId).startsWith("geofon:")) {
+    return null; // not a USGS ComCat id
+  }
   return `https://earthquake.usgs.gov/earthquakes/eventpage/${encodeURIComponent(String(eventId))}`;
+}
+
+/** USGS ComCat waveforms product tab (when available for the event). */
+export function waveformsEventUrl(eventId: string | undefined | null): string | null {
+  const base = eventPageUrl(eventId);
+  return base ? `${base}/waveforms` : null;
+}
+
+/** USGS origin/magnitude product tab. */
+export function originEventUrl(eventId: string | undefined | null): string | null {
+  const base = eventPageUrl(eventId);
+  return base ? `${base}/origin` : null;
 }
 
 export function hasShakeMapProduct(types: string | null | undefined): boolean {

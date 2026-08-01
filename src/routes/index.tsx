@@ -385,7 +385,7 @@ function ObservatoryApp() {
               type="button"
               title={
                 v === "3d"
-                  ? "In-app preview globe (light). Use Full globe for Dutchsinse."
+                  ? "In-app 3D: tap hex for USGS/waveforms/agency links. Dutchsinse is visual-only."
                   : "2D Leaflet map"
               }
               onClick={() => setMapView(v)}
@@ -397,11 +397,11 @@ function ObservatoryApp() {
         </div>
         <button
           type="button"
-          className="ww-btn text-[0.65rem] font-semibold"
-          title="Dutchsinse Public Seismic Globe — full hex controls (new tab)"
+          className="ww-btn text-[0.65rem]"
+          title="Dutchsinse visual hex globe (new tab). Deep EQ data lives in Sentinel map clicks."
           onClick={() => openPublicSeismicGlobe()}
         >
-          Full globe ↗
+          Visual globe ↗
         </button>
       </div>
     </div>

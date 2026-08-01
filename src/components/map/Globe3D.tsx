@@ -1,10 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useObservatory, filteredEq, getFocusNode, type PickedEvent } from "@/store/observatory";
 import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
 import { openPublicSeismicGlobe } from "@/lib/site";
+import { agencyLinksForEvent } from "@/lib/seismology/agencyLinks";
+import {
+  eventPageUrl,
+  originEventUrl,
+  shakeMapEventUrl,
+  waveformsEventUrl,
+} from "@/lib/seismology/shakemap";
+import { formatUtc } from "@/lib/utils";
+
 
 /**
  * Three.js seismic globe — available in any performance mode.
@@ -524,6 +533,10 @@ export function Globe3D() {
       }
 
       function applyPick(meta: PickMeta) {
+        const usgsUrl =
+          meta.url ||
+          eventPageUrl(meta.id) ||
+          undefined;
         const ev: PickedEvent = {
           id: meta.id,
           lat: meta.lat,
@@ -532,7 +545,7 @@ export function Globe3D() {
           place: meta.place,
           depth: meta.depth,
           time: meta.time,
-          url: meta.url,
+          url: usgsUrl,
         };
         pickEvent(ev);
         aimAt(meta.lat, meta.lon, true);
@@ -780,7 +793,7 @@ export function Globe3D() {
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
       hint.textContent =
-        "Preview globe · Full globe ↗ opens Dutchsinse Public Seismic Globe";
+        "Tap hex → assessment links (USGS / waveforms / agencies) · Visual globe ↗ is Dutchsinse view-only";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -887,6 +900,33 @@ export function Globe3D() {
     clearGlobeAntipode();
   }, [globeAntipode, mapView, clearGlobeAntipode]);
 
+  const pickLinks = useMemo(() => {
+    if (!pickedEvent) {
+      return { event: null as string | null, waveforms: null as string | null, origin: null as string | null, shakemap: null as string | null, agencies: [] as ReturnType<typeof agencyLinksForEvent> };
+    }
+    const id = pickedEvent.id;
+    // USGS product tabs separate; keep regional agencies (JMA/INGV/…) for zone depth
+    const skip = new Set(["usgs", "source", "usgs-map", "emsc", "geofon-search"]);
+    const agencies = agencyLinksForEvent({
+      lat: pickedEvent.lat,
+      lon: pickedEvent.lon,
+      eventId: id,
+      place: pickedEvent.place,
+      url: pickedEvent.url,
+    }).filter((l) => !skip.has(l.id));
+    const event =
+      pickedEvent.url && /^https?:\/\//i.test(pickedEvent.url)
+        ? pickedEvent.url
+        : eventPageUrl(id);
+    return {
+      event,
+      waveforms: waveformsEventUrl(id),
+      origin: originEventUrl(id),
+      shakemap: shakeMapEventUrl(id),
+      agencies,
+    };
+  }, [pickedEvent]);
+
   if (mapView !== "3d") return null;
 
   const focus = getFocusNode(focusNodeId);
@@ -907,9 +947,9 @@ export function Globe3D() {
       )}
 
       {pickedEvent && (
-        <div className="pointer-events-auto absolute left-3 top-14 z-20 max-w-[min(280px,70vw)] rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
+        <div className="pointer-events-auto absolute left-3 top-12 z-20 max-w-[min(300px,78vw)] rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
           <div className="flex items-start justify-between gap-2">
-            <div>
+            <div className="min-w-0">
               <span
                 className="font-mono font-semibold tabular-nums"
                 style={{ color: globeMagStyle(pickedEvent.mag).color }}
@@ -918,16 +958,10 @@ export function Globe3D() {
               </span>
               <p className="mt-0.5 line-clamp-2 text-fg">{pickedEvent.place}</p>
               <p className="text-[0.62rem] text-dim">
-                {pickedEvent.depth.toFixed(0)} km
-                {pickedEvent.time
-                  ? ` · ${new Date(pickedEvent.time).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}`
-                  : ""}
+                {pickedEvent.depth.toFixed(0)} km · {pickedEvent.lat.toFixed(2)}°,{" "}
+                {pickedEvent.lon.toFixed(2)}°
               </p>
+              <p className="text-[0.62rem] text-dim">{formatUtc(pickedEvent.time)}</p>
             </div>
             <button
               type="button"
@@ -938,7 +972,62 @@ export function Globe3D() {
               ✕
             </button>
           </div>
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <p className="mt-1.5 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
+            Assessment · few clicks
+          </p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {pickLinks.event && (
+              <a
+                href={pickLinks.event}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-btn text-[0.62rem] font-semibold"
+              >
+                USGS event →
+              </a>
+            )}
+            {pickLinks.waveforms && (
+              <a
+                href={pickLinks.waveforms}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-btn text-[0.62rem]"
+              >
+                Waveforms →
+              </a>
+            )}
+            {pickLinks.origin && (
+              <a
+                href={pickLinks.origin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-btn text-[0.62rem]"
+              >
+                Origin →
+              </a>
+            )}
+            {pickLinks.shakemap && (
+              <a
+                href={pickLinks.shakemap}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-btn text-[0.62rem]"
+              >
+                ShakeMap →
+              </a>
+            )}
+            {pickLinks.agencies.slice(0, 4).map((l) => (
+              <a
+                key={l.id}
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ww-btn text-[0.62rem]"
+                style={l.primary || l.id.startsWith("jma") ? { color: "var(--color-primary)" } : undefined}
+              >
+                {l.label} →
+              </a>
+            ))}
             <button
               type="button"
               className="ww-btn text-[0.62rem]"
@@ -946,16 +1035,6 @@ export function Globe3D() {
             >
               Antipode ⊕
             </button>
-            {pickedEvent.url && (
-              <a
-                href={pickedEvent.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ww-btn text-[0.62rem]"
-              >
-                Detail
-              </a>
-            )}
           </div>
         </div>
       )}
@@ -963,11 +1042,11 @@ export function Globe3D() {
       <div className="pointer-events-auto absolute bottom-12 right-2 z-20 flex flex-col gap-1.5 sm:right-3">
         <button
           type="button"
-          className="ww-btn text-[0.65rem] font-semibold"
-          title="Open Dutchsinse Public Seismic Globe — full hex globe (new tab)"
+          className="ww-btn text-[0.65rem]"
+          title="Dutchsinse visual globe only (right-click opens event page). Deep assessment is this pick card + 2D map."
           onClick={() => openPublicSeismicGlobe()}
         >
-          Full globe ↗
+          Visual globe ↗
         </button>
         <button
           type="button"
