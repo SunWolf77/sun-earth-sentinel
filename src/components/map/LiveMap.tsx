@@ -34,6 +34,7 @@ import { EventReplayBar } from "@/components/map/EventReplayBar";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
+import { formatUtc } from "@/lib/utils";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -326,9 +327,7 @@ export function LiveMap() {
         const mag = f.properties.mag ?? 0;
         const depth = eqDepthKm(f);
         const place = f.properties.place ?? "Unknown";
-        const time = f.properties.time
-          ? new Date(f.properties.time).toUTCString()
-          : "—";
+        const time = formatUtc(f.properties.time);
         const isSig = mag >= 6;
         const radius = Math.max(
           5,
