@@ -99,7 +99,7 @@ export function Globe3D() {
 
       const Q = resolveGlobeQuality();
       qualityRef.current = Q;
-      setQualityLabel(Q.id === "mobile" ? "Preview · safe" : "Preview");
+      setQualityLabel(Q.id === "mobile" ? "3D · mobile" : "3D");
 
       const w = Math.max(container.clientWidth, 280);
       const h = Math.max(container.clientHeight, 280);
@@ -143,45 +143,64 @@ export function Globe3D() {
       fill.position.set(-3, -1, -2);
       scene.add(fill);
 
+      // Sketch continents until blue-marble loads (not the final look)
       const baseTex = makeProceduralEarth(THREE);
       const geo = new THREE.SphereGeometry(1, Q.sphereSeg, Q.sphereSeg);
       const mat = new THREE.MeshPhongMaterial({
         map: baseTex,
         color: 0xffffff,
-        shininess: 18,
+        shininess: Q.id === "mobile" ? 12 : 18,
         specular: 0x334155,
         emissive: 0x0c1a30,
-        emissiveIntensity: 0.4,
+        emissiveIntensity: 0.35,
       });
       const earth = new THREE.Mesh(geo, mat);
       scene.add(earth);
 
-      if (Q.loadMarble) {
+      // Always load real Earth imagery when allowed — mobile uses lower anisotropy
+      {
         const loader = new THREE.TextureLoader();
         loader.crossOrigin = "anonymous";
-        loader.load(
+        const urls = [
           "https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg",
-          (tex) => {
-            if (cancelled) {
-              tex.dispose();
-              return;
-            }
-            if ("colorSpace" in tex) {
-              (tex as { colorSpace: string }).colorSpace = "srgb";
-            }
-            tex.anisotropy = Math.min(
-              renderer.capabilities.getMaxAnisotropy(),
-              Q.anisotropy,
-            );
-            mat.map = tex;
-            mat.emissiveIntensity = 0.15;
-            mat.needsUpdate = true;
-          },
-          undefined,
-          () => {
-            /* procedural already visible */
-          },
-        );
+          "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth_atmos_2048.jpg",
+        ];
+        const tryLoad = (i: number) => {
+          if (cancelled || i >= urls.length) return;
+          loader.load(
+            urls[i]!,
+            (tex) => {
+              if (cancelled) {
+                tex.dispose();
+                return;
+              }
+              if ("colorSpace" in tex) {
+                (tex as { colorSpace: string }).colorSpace = "srgb";
+              }
+              tex.anisotropy = Math.min(
+                renderer.capabilities.getMaxAnisotropy(),
+                Q.anisotropy,
+              );
+              tex.generateMipmaps = true;
+              tex.minFilter = THREE.LinearMipmapLinearFilter;
+              tex.magFilter = THREE.LinearFilter;
+              const old = mat.map;
+              mat.map = tex;
+              mat.emissiveIntensity = 0.12;
+              mat.needsUpdate = true;
+              if (old && old !== tex) {
+                try {
+                  old.dispose();
+                } catch {
+                  /* ignore */
+                }
+              }
+            },
+            undefined,
+            () => tryLoad(i + 1),
+          );
+        };
+        if (Q.loadMarble) tryLoad(0);
       }
 
       const atmo = new THREE.Mesh(
@@ -1434,64 +1453,106 @@ function makeMagSprite(
 }
 
 function makeProceduralEarth(THREE: typeof import("three")) {
+  // Higher-res sketch continents — only shown until blue-marble texture loads
   const c = document.createElement("canvas");
-  c.width = 1024;
-  c.height = 512;
+  c.width = 2048;
+  c.height = 1024;
   const ctx = c.getContext("2d")!;
+  const W = 2048;
+  const H = 1024;
 
-  const g = ctx.createLinearGradient(0, 0, 0, 512);
-  g.addColorStop(0, "#1e4d7b");
-  g.addColorStop(0.35, "#0f3a62");
-  g.addColorStop(0.5, "#0c3358");
-  g.addColorStop(0.65, "#0f3a62");
-  g.addColorStop(1, "#1e4d7b");
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#1a4a78");
+  g.addColorStop(0.45, "#0c3560");
+  g.addColorStop(0.55, "#0a2f58");
+  g.addColorStop(1, "#1a4a78");
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 1024, 512);
+  ctx.fillRect(0, 0, W, H);
 
-  const iceN = ctx.createLinearGradient(0, 0, 0, 70);
-  iceN.addColorStop(0, "rgba(226,232,240,0.55)");
+  const iceN = ctx.createLinearGradient(0, 0, 0, 120);
+  iceN.addColorStop(0, "rgba(226,232,240,0.7)");
   iceN.addColorStop(1, "rgba(226,232,240,0)");
   ctx.fillStyle = iceN;
-  ctx.fillRect(0, 0, 1024, 70);
-  const iceS = ctx.createLinearGradient(0, 512, 0, 442);
-  iceS.addColorStop(0, "rgba(226,232,240,0.5)");
+  ctx.fillRect(0, 0, W, 120);
+  const iceS = ctx.createLinearGradient(0, H, 0, H - 120);
+  iceS.addColorStop(0, "rgba(226,232,240,0.65)");
   iceS.addColorStop(1, "rgba(226,232,240,0)");
   ctx.fillStyle = iceS;
-  ctx.fillRect(0, 442, 1024, 70);
+  ctx.fillRect(0, H - 120, W, 120);
 
-  ctx.fillStyle = "#2f6b4f";
-  const land: [number, number, number, number][] = [
-    [180, 120, 220, 160],
-    [280, 200, 90, 140],
-    [480, 100, 160, 100],
-    [520, 180, 140, 180],
-    [620, 120, 220, 120],
-    [780, 220, 100, 80],
-    [820, 280, 120, 70],
-    [100, 280, 80, 100],
+  const proj = (lon: number, lat: number): [number, number] => [
+    ((lon + 180) / 360) * W,
+    ((90 - lat) / 180) * H,
   ];
-  for (const [x, y, w, h] of land) {
-    ctx.beginPath();
-    ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
 
-  ctx.strokeStyle = "rgba(148,163,184,0.18)";
+  const fillPoly = (pts: [number, number][], fill: string) => {
+    if (pts.length < 3) return;
+    ctx.beginPath();
+    const [x0, y0] = proj(pts[0]![0], pts[0]![1]);
+    ctx.moveTo(x0, y0);
+    for (let i = 1; i < pts.length; i++) {
+      const [x, y] = proj(pts[i]![0], pts[i]![1]);
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+  };
+
+  const land: [number, number][][] = [
+    [
+      [-18, 35], [10, 37], [32, 31], [43, 12], [51, 12], [43, -5], [40, -25],
+      [32, -35], [18, -35], [12, -18], [8, 5], [-5, 5], [-17, 15], [-18, 28],
+    ],
+    [
+      [-10, 36], [-9, 44], [-5, 48], [0, 51], [8, 55], [20, 55], [30, 50],
+      [40, 45], [28, 41], [20, 40], [12, 38], [5, 43], [-5, 43], [-10, 38],
+    ],
+    [
+      [40, 45], [60, 45], [80, 50], [100, 55], [120, 50], [140, 50], [145, 42],
+      [130, 35], [120, 25], [100, 20], [90, 22], [70, 25], [60, 30], [50, 35], [40, 40],
+    ],
+    [[68, 25], [78, 28], [88, 22], [80, 8], [72, 12], [68, 22]],
+    [[95, 20], [110, 20], [120, 10], [130, 5], [120, -5], [110, 0], [100, 5], [95, 12]],
+    [[113, -12], [135, -12], [153, -25], [150, -38], [115, -35], [113, -22]],
+    [
+      [-168, 65], [-140, 70], [-100, 72], [-60, 60], [-55, 50], [-70, 45],
+      [-80, 30], [-100, 20], [-110, 25], [-125, 40], [-130, 55], [-165, 60],
+    ],
+    [
+      [-80, 12], [-60, 10], [-35, -5], [-35, -25], [-55, -55], [-70, -55],
+      [-75, -40], [-80, -20], [-82, 0],
+    ],
+    [[-55, 60], [-40, 65], [-20, 75], [-45, 83], [-60, 75], [-60, 65]],
+  ];
+
+  for (const poly of land) {
+    fillPoly(poly, "#2d6a4f");
+  }
+  fillPoly(
+    [[-10, 30], [10, 32], [30, 28], [25, 15], [0, 15], [-10, 22]],
+    "rgba(180, 150, 90, 0.22)",
+  );
+
+  ctx.strokeStyle = "rgba(148,163,184,0.12)";
   ctx.lineWidth = 1;
-  for (let y = 0; y <= 512; y += 32) {
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const y = proj(0, lat)[1];
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(1024, y);
+    ctx.lineTo(W, y);
     ctx.stroke();
   }
-  for (let x = 0; x <= 1024; x += 32) {
+  for (let lon = -180; lon < 180; lon += 30) {
+    const x = proj(lon, 0)[0];
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, 512);
+    ctx.lineTo(x, H);
     ctx.stroke();
   }
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 2;
   return tex;
 }
