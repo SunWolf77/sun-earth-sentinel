@@ -40,6 +40,13 @@ import {
   agencyLinksHtml,
 } from "@/lib/seismology/agencyLinks";
 import { isJmaFeature } from "@/lib/feeds/jma";
+import {
+  clusterEqPoints,
+  spiderfyOffsets,
+  spiderPinLatLon,
+  type EqPoint,
+} from "@/lib/map/eqCluster";
+import type { EqFeature } from "@/lib/feeds/usgs";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -54,6 +61,113 @@ function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   };
   if (style.subdomains) opts.subdomains = style.subdomains;
   return L.tileLayer(style.url, opts);
+}
+
+
+function buildEqPopupHtml(
+  f: EqFeature,
+  opts: {
+    lat: number;
+    lon: number;
+    mag: number;
+    depth: number;
+    place: string;
+    time: string;
+    fill: string;
+    isSig: boolean;
+    isJma: boolean;
+    isMmiSource: boolean;
+    mmi: number | null | undefined;
+    sm: boolean;
+    smUrl: string | null;
+    pageUrl: string | null | undefined;
+    eventId: string;
+    agencyHtml: string;
+  },
+): string {
+  const {
+    lat,
+    lon,
+    mag,
+    depth,
+    place,
+    time,
+    fill,
+    isSig,
+    isJma,
+    isMmiSource,
+    mmi,
+    sm,
+    smUrl,
+    eventId,
+  } = opts;
+  const mmiLine =
+    mmi != null && Number.isFinite(mmi)
+      ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">USGS MMI ~${formatMmi(mmi)}${sm ? " · ShakeMap product" : ""}</div>`
+      : "";
+  const contourNote = isMmiSource
+    ? `<div style="color:#fbbf24;font-size:11px">★ MMI contours drawn for this event</div>`
+    : "";
+  const sigNote = isSig
+    ? `<span style="color:#fbbf24;font-size:11px"> · Significant M≥6</span>`
+    : "";
+  const magType = (f.properties as { magType?: string }).magType;
+  const net = (f.properties as { net?: string }).net;
+  const status = (f.properties as { status?: string }).status;
+  const metaBits = [magType ? `mag ${magType}` : null, net ? `net ${net}` : null, status || null]
+    .filter(Boolean)
+    .join(" · ");
+  const smLink =
+    sm && smUrl
+      ? `<div style="margin-top:4px"><a href="${smUrl}" target="_blank" rel="noopener noreferrer" style="color:#22d3ee;font-weight:600;font-size:11px">USGS ShakeMap →</a></div>`
+      : "";
+  const coords = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
+  const jmaMaxi = f.properties.jmaMaxi;
+  const jmaNote = jmaMaxi
+    ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA shindo ${jmaMaxi}${isJma ? " · JMA catalog" : " · matched"}</div>`
+    : isJma
+      ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA catalog</div>`
+      : "";
+  const srcBadge = isJma
+    ? `<span style="color:#22d3ee;font-size:10px;font-weight:600"> · JMA</span>`
+    : f.properties.jmaEnriched
+      ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
+      : "";
+  return `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
+              <div style="margin-top:4px;color:#e2e8f0">${place}</div>
+              <div style="color:#64748b;font-size:11px;margin-top:3px">${time}</div>
+              ${metaBits ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${metaBits}${eventId ? ` · ${eventId}` : ""}</div>` : eventId ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${eventId}</div>` : ""}
+              ${jmaNote}${mmiLine}${contourNote}${smLink}
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #1e293b;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Agency assessment</div>
+              ${opts.agencyHtml}`;
+}
+
+function makeEqPinIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
+  const label = mag >= 10 ? "10" : mag.toFixed(1);
+  return L.divIcon({
+    className: "ww-eq-pin-wrap",
+    html: `<div class="ww-eq-pin${isSig ? " ww-eq-pin--sig" : ""}" title="M${label}">
+      <div class="ww-eq-pin__head" style="background:${fill}"></div>
+      <div class="ww-eq-pin__dot"></div>
+      <div class="ww-eq-pin__label">${label}</div>
+    </div>`,
+    iconSize: [22, 30],
+    iconAnchor: [11, 30],
+    popupAnchor: [0, -28],
+  });
+}
+
+function makeClusterIcon(count: number, maxMag: number, fill: string): L.DivIcon {
+  const hot = maxMag >= 6 || count >= 8;
+  const size = hot ? 32 : 28;
+  return L.divIcon({
+    className: "ww-eq-cluster",
+    html: `<div class="ww-eq-cluster__badge${hot ? " ww-eq-cluster__badge--hot" : ""}" style="background:${fill}" title="${count} events · max M${maxMag.toFixed(1)} — click to expand pins">${count}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
 }
 
 export function LiveMap() {
@@ -96,6 +210,9 @@ export function LiveMap() {
   const replayActive = useObservatory((s) => s.replayActive);
   const replayCursorMs = useObservatory((s) => s.replayCursorMs);
   const pickEvent = useObservatory((s) => s.pickEvent);
+  const [mapZoom, setMapZoom] = useState(2);
+  const expandedClusters = useRef(new Set<string>());
+  const [clusterTick, setClusterTick] = useState(0);
 
   useEffect(() => {
     try {
@@ -161,6 +278,15 @@ export function LiveMap() {
     volcLayer.current = L.layerGroup().addTo(map);
     gvpLayer.current = L.layerGroup().addTo(map);
     mapObj.current = map;
+    setMapZoom(map.getZoom());
+    map.on("zoomend", () => {
+      setMapZoom(map.getZoom());
+      // Collapse spiderfy on zoom — pins recluster at new scale
+      if (expandedClusters.current.size) {
+        expandedClusters.current.clear();
+        setClusterTick((n) => n + 1);
+      }
+    });
 
     if (useObservatory.getState().overlays.plates) {
       plateLayer.current.setActive(true);
@@ -329,18 +455,27 @@ export function LiveMap() {
     heatLayer.current?.setActive(overlays.heatmap);
 
     if (overlays.quakes) {
-      for (const f of features) {
+      const points: EqPoint[] = features.map((f) => {
         const [lon, lat] = f.geometry.coordinates;
+        return { f, lat, lon, mag: f.properties.mag ?? 0 };
+      });
+      const clusters = clusterEqPoints(points, mapZoom, 30);
+      
+      const addFeatureMarker = (
+        f: EqFeature,
+        lat: number,
+        lon: number,
+        asPin: boolean,
+        /** Pin display position (spider offset); data/lat lon stay true hypocenter */
+        pinLat = lat,
+        pinLon = lon,
+      ) => {
         const mag = f.properties.mag ?? 0;
         const depth = eqDepthKm(f);
         const place = f.properties.place ?? "Unknown";
         const time = formatUtc(f.properties.time);
         const isSig = mag >= 6;
         const isJma = isJmaFeature(f);
-        const radius = Math.max(
-          4,
-          Math.min(18, (mag - 3.2) * 3.0) + (isSig && overlays.significant ? 3 : 0),
-        );
         const fill = overlays.depthColor ? depthColor(depth) : magColor(mag);
         const stroke = isSig
           ? "#fbbf24"
@@ -359,11 +494,7 @@ export function LiveMap() {
         const pageUrl = f.properties.url || eventPageUrl(f.id);
         const isMmiSource =
           focusMmi.eventId && f.id === focusMmi.eventId && focusMmi.status === "ready";
-
         const eventId = f.id != null ? String(f.id) : "";
-        const magType = (f.properties as { magType?: string }).magType;
-        const net = (f.properties as { net?: string }).net;
-        const status = (f.properties as { status?: string }).status;
         const agencyLinks = agencyLinksForEvent({
           lat,
           lon,
@@ -371,65 +502,26 @@ export function LiveMap() {
           place,
           url: pageUrl,
         });
-        const marker = L.circleMarker([lat, lon], {
-          renderer,
-          radius: isMmiSource ? radius + 3 : radius,
-          color: isMmiSource ? "#fbbf24" : stroke,
-          fillColor: fill,
-          fillOpacity: overlays.heatmap ? 0.55 : sat ? 0.82 : 0.88,
-          weight: isMmiSource || isSig ? 2.5 : sat ? 2 : overlays.depthColor ? 1.75 : 1.25,
-          opacity: 0.95,
-          bubblingMouseEvents: true,
+        const agencyHtml = agencyLinksHtml(agencyLinks);
+        const popupHtml = buildEqPopupHtml(f, {
+          lat,
+          lon,
+          mag,
+          depth,
+          place,
+          time,
+          fill,
+          isSig,
+          isJma,
+          isMmiSource: !!isMmiSource,
+          mmi,
+          sm,
+          smUrl,
+          pageUrl,
+          eventId,
+          agencyHtml,
         });
-        marker.bindPopup(
-          () => {
-            const el = document.createElement("div");
-            const mmiLine =
-              mmi != null && Number.isFinite(mmi)
-                ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">USGS MMI ~${formatMmi(mmi)}${sm ? " · ShakeMap product" : ""}</div>`
-                : "";
-            const contourNote = isMmiSource
-              ? `<div style="color:#fbbf24;font-size:11px">★ MMI contours drawn for this event</div>`
-              : "";
-            const sigNote = isSig
-              ? `<span style="color:#fbbf24;font-size:11px"> · Significant M≥6</span>`
-              : "";
-            const metaBits = [
-              magType ? `mag ${magType}` : null,
-              net ? `net ${net}` : null,
-              status || null,
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            const smLink =
-              sm && smUrl
-                ? `<div style="margin-top:4px"><a href="${smUrl}" target="_blank" rel="noopener noreferrer" style="color:#22d3ee;font-weight:600;font-size:11px">USGS ShakeMap →</a></div>`
-                : "";
-            const coords = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
-            const jmaMaxi = f.properties.jmaMaxi;
-            const jmaNote = jmaMaxi
-              ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA shindo ${jmaMaxi}${isJma ? " · JMA catalog" : " · matched"}</div>`
-              : isJma
-                ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA catalog</div>`
-                : "";
-            const srcBadge = isJma
-              ? `<span style="color:#22d3ee;font-size:10px;font-weight:600"> · JMA</span>`
-              : f.properties.jmaEnriched
-                ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
-                : "";
-            el.innerHTML = `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
-              <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
-              <div style="margin-top:4px;color:#e2e8f0">${place}</div>
-              <div style="color:#64748b;font-size:11px;margin-top:3px">${time}</div>
-              ${metaBits ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${metaBits}${eventId ? ` · ${eventId}` : ""}</div>` : eventId ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${eventId}</div>` : ""}
-              ${jmaNote}${mmiLine}${contourNote}${smLink}
-              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #1e293b;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Agency assessment</div>
-              ${agencyLinksHtml(agencyLinks)}`;
-            return el;
-          },
-          { className: "ww-eq-popup", maxWidth: 300, autoPan: true },
-        );
-        marker.on("click", () => {
+        const onPick = () => {
           pickEvent({
             id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
             lat,
@@ -440,8 +532,123 @@ export function LiveMap() {
             time: typeof f.properties.time === "number" ? f.properties.time : null,
             url: pageUrl || undefined,
           });
+        };
+
+        if (asPin) {
+          const pin = L.marker([pinLat, pinLon], {
+            icon: makeEqPinIcon(mag, fill, isSig),
+            riseOnHover: true,
+            keyboard: true,
+          });
+          pin.bindPopup(popupHtml, {
+            className: "ww-eq-popup",
+            maxWidth: 300,
+            autoPan: true,
+          });
+          pin.on("click", onPick);
+          eqLayer.current?.addLayer(pin);
+          return;
+        }
+
+        const radius = Math.max(
+          4,
+          Math.min(18, (mag - 3.2) * 3.0) + (isSig && overlays.significant ? 3 : 0),
+        );
+        const marker = L.circleMarker([lat, lon], {
+          renderer,
+          radius: isMmiSource ? radius + 3 : radius,
+          color: isMmiSource ? "#fbbf24" : stroke,
+          fillColor: fill,
+          fillOpacity: overlays.heatmap ? 0.55 : sat ? 0.82 : 0.88,
+          weight: isMmiSource || isSig ? 2.5 : sat ? 2 : overlays.depthColor ? 1.75 : 1.25,
+          opacity: 0.95,
+          bubblingMouseEvents: true,
         });
-        eqLayer.current.addLayer(marker);
+        marker.bindPopup(popupHtml, {
+          className: "ww-eq-popup",
+          maxWidth: 300,
+          autoPan: true,
+        });
+        marker.on("click", onPick);
+        eqLayer.current?.addLayer(marker);
+      };
+
+      for (const cl of clusters) {
+        if (cl.points.length === 1) {
+          const p = cl.points[0]!;
+          addFeatureMarker(p.f, p.lat, p.lon, false);
+          continue;
+        }
+
+        const expanded = expandedClusters.current.has(cl.key);
+        if (expanded) {
+          // Spiderfy: legs + pins so each stacked event is selectable
+          const offs = spiderfyOffsets(cl.points.length);
+          for (let i = 0; i < cl.points.length; i++) {
+            const p = cl.points[i]!;
+            const o = offs[i] ?? { dLat: 0, dLon: 0 };
+            const [plat, plon] = spiderPinLatLon(cl.lat, cl.lon, o.dLat, o.dLon);
+            const leg = L.polyline(
+              [
+                [cl.lat, cl.lon],
+                [plat, plon],
+              ],
+              {
+                color: "#94a3b8",
+                weight: 1.25,
+                opacity: 0.55,
+                interactive: false,
+                renderer,
+              },
+            );
+            eqLayer.current?.addLayer(leg);
+            addFeatureMarker(p.f, p.lat, p.lon, true, plat, plon);
+          }
+          // Center collapse control
+          const fill = magColor(cl.maxMag);
+          const collapse = L.marker([cl.lat, cl.lon], {
+            icon: makeClusterIcon(cl.points.length, cl.maxMag, fill),
+            zIndexOffset: 800,
+            keyboard: true,
+          });
+          collapse.bindTooltip(
+            `${cl.points.length} events · click to collapse pins`,
+            { direction: "top", opacity: 0.95 },
+          );
+          collapse.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            expandedClusters.current.delete(cl.key);
+            setClusterTick((n) => n + 1);
+          });
+          eqLayer.current?.addLayer(collapse);
+        } else {
+          const fill = magColor(cl.maxMag);
+          const badge = L.marker([cl.lat, cl.lon], {
+            icon: makeClusterIcon(cl.points.length, cl.maxMag, fill),
+            zIndexOffset: 600,
+            keyboard: true,
+          });
+          const top = cl.points
+            .slice(0, 3)
+            .map((p) => `M${p.mag.toFixed(1)}`)
+            .join(" · ");
+          badge.bindTooltip(
+            `${cl.points.length} nearby events (${top}${cl.points.length > 3 ? "…" : ""}) · click for pins`,
+            { direction: "top", opacity: 0.95 },
+          );
+          badge.bindPopup(
+            `<div style="font-weight:700;color:${fill}">${cl.points.length} clustered events</div>
+             <div style="color:#94a3b8;font-size:11px;margin-top:4px">Max M${cl.maxMag.toFixed(1)} · click badge again to expand pins</div>
+             <div style="margin-top:6px;color:#cbd5e1;font-size:11px">Each pin opens full agency / waveform links.</div>`,
+            { className: "ww-eq-popup", maxWidth: 260 },
+          );
+          badge.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            expandedClusters.current.add(cl.key);
+            setClusterTick((n) => n + 1);
+          });
+          eqLayer.current?.addLayer(badge);
+        }
       }
       try {
         // @ts-expect-error LayerGroup may expose bringToFront at runtime
@@ -635,10 +842,11 @@ export function LiveMap() {
     globalSeismic,
     overlays.globalActivity,
     overlays.significant,
-  ,
     replayActive,
     replayCursorMs,
     pickEvent,
+    mapZoom,
+    clusterTick,
   ]);
 
   useEffect(() => {

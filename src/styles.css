@@ -866,3 +866,89 @@
 .ww-eq-popup a:hover {
   text-decoration: underline;
 }
+
+/* Cluster badge + spiderfy pins for stacked events */
+.ww-eq-cluster {
+  background: transparent !important;
+  border: none !important;
+}
+.ww-eq-cluster__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  border: 2px solid #f8fafc;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  user-select: none;
+}
+.ww-eq-cluster__badge--hot {
+  min-width: 32px;
+  height: 32px;
+  font-size: 12px;
+  border-color: #fbbf24;
+}
+
+.ww-eq-pin-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+.ww-eq-pin {
+  position: relative;
+  width: 22px;
+  height: 30px;
+  margin-left: -11px;
+  margin-top: -30px;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 0.12s ease;
+}
+.ww-eq-pin:hover {
+  transform: scale(1.12);
+  z-index: 2;
+}
+.ww-eq-pin__head {
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 2px solid #f8fafc;
+  box-sizing: border-box;
+}
+.ww-eq-pin__dot {
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #0f172a;
+  opacity: 0.55;
+}
+.ww-eq-pin__label {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  text-shadow: 0 0 2px #fff;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ww-eq-pin--sig .ww-eq-pin__head {
+  border-color: #fbbf24;
+  width: 22px;
+  height: 22px;
+}
