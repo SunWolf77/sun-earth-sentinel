@@ -14,6 +14,7 @@ import {
   type EqFeature,
 } from "@/lib/feeds/usgs";
 import { fetchGeofonWeek } from "@/lib/feeds/geofon";
+import { fetchJmaQuakes, mergeJmaIntoCollection } from "@/lib/feeds/jma";
 import { alertNewEvents } from "@/lib/audio/alerts";
 import {
   fetchKp,
@@ -73,6 +74,7 @@ import { fluxToClass, longChannelXrays } from "@/lib/feeds/swpc";
 import {
   loadBasemapStyle,
   loadOverlays,
+  saveOverlays,
   type BasemapStyleId,
   type MapOverlayId,
 } from "@/lib/feeds/mapStyles";
@@ -97,6 +99,7 @@ export type FeedTimestamps = {
   solar: number | null;
   volc: number | null;
   geofon: number | null;
+  jma: number | null;
   global: number | null;
   pulse: number | null;
   donki: number | null;
@@ -108,6 +111,7 @@ export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
   solar: null,
   volc: null,
   geofon: null,
+  jma: null,
   global: null,
   pulse: null,
   donki: null,
@@ -441,7 +445,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   mobileSheet: "closed",
   mapView: "2d",
   timeWindow: "day",
-  minMag: 3.5,
+  minMag: 4.5,
   maxMag: 10,
   autoRefresh: true,
   loading: false,
@@ -459,13 +463,13 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     quakes: true,
     heatmap: false,
     nodes: true,
-    volcanoes: true,
+    volcanoes: false,
     globalVolcanoes: false,
-    corridors: true,
-    depthColor: true,
-    timeDecay: true,
+    corridors: false,
+    depthColor: false,
+    timeDecay: false,
     mmiContours: true,
-    plates: true,
+    plates: false,
     significant: false,
     globalActivity: false,
   },
@@ -604,7 +608,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     const node = gvpToFocusNode(v);
     const overlays = { ...get().overlays, globalVolcanoes: true };
     try {
-      localStorage.setItem("wolfwatch_overlays", JSON.stringify(overlays));
+      saveOverlays(overlays);
     } catch {
       /* ignore */
     }
@@ -656,7 +660,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   setOverlay: (id, on) => {
     const overlays = { ...get().overlays, [id]: on };
     try {
-      localStorage.setItem("wolfwatch_overlays", JSON.stringify(overlays));
+      saveOverlays(overlays);
     } catch {
       /* ignore */
     }
@@ -675,7 +679,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   setOverlaysBulk: (next) => {
     const overlays = { ...next };
     try {
-      localStorage.setItem("wolfwatch_overlays", JSON.stringify(overlays));
+      saveOverlays(overlays);
     } catch {
       /* ignore */
     }
@@ -966,6 +970,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       const tasks: Promise<void>[] = [];
       let pulse: EqCollection | null = null;
       let geofon: EqCollection | null = null;
+      let jma: EqCollection | null = null;
       const stamps: Partial<FeedTimestamps> = {};
       const stamp = (k: keyof FeedTimestamps) => {
         stamps[k] = Date.now();
@@ -1009,6 +1014,18 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             }),
         );
       }
+      // JMA Bosai — densifies Japan + shindo (CORS open)
+      tasks.push(
+        withTimeout(fetchJmaQuakes(), 18_000, "jma")
+          .then((d) => {
+            jma = d;
+            setCache("jma", d);
+            stamp("jma");
+          })
+          .catch(() => {
+            jma = getCache<EqCollection>("jma", 300_000);
+          }),
+      );
       // Solar stack via server proxy (CORS-safe) + DONKI
       if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !forecast || !flux10cm || force)) {
         tasks.push(
@@ -1141,6 +1158,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let eqFinal = mergeEqCollections(eq ?? get().eq, pulse);
       if (useGeofon && geofon) {
         eqFinal = mergeEqCollections(eqFinal, geofon);
+      }
+      if (jma) {
+        const age =
+          timeWindow === "hour"
+            ? 6 * 3600_000
+            : timeWindow === "day"
+              ? 2 * 86_400_000
+              : timeWindow === "week"
+                ? 10 * 86_400_000
+                : 32 * 86_400_000;
+        eqFinal = mergeJmaIntoCollection(eqFinal, jma, { maxAgeMs: age });
       }
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
         eqFinal = {

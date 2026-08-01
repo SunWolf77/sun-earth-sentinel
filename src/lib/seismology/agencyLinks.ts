@@ -95,13 +95,17 @@ export function agencyLinksForEvent(opts: {
   const links: AgencyLink[] = [];
   const id = eventId ? String(eventId) : "";
   const isGeofon = id.startsWith("geofon:");
+  const isJma = id.startsWith("jma:");
   const geofonId = isGeofon ? id.replace(/^geofon:/, "") : "";
-  const usgsId = !isGeofon && id ? id : null;
+  const usgsId = !isGeofon && !isJma && id ? id : null;
   const placeL = (place || "").toLowerCase();
-  const japan = isJapanRegion(lat, lon, place);
+  const japan = isJapanRegion(lat, lon, place) || isJma;
 
   // Primary source link
-  if (isGeofon && geofonId) {
+  if (isJma) {
+    links.push(...jmaLinksForEvent(lat, lon));
+    // still add USGS map nearby below
+  } else if (isGeofon && geofonId) {
     links.push({
       id: "geofon",
       label: "GEOFON event",
@@ -125,7 +129,7 @@ export function agencyLinksForEvent(opts: {
   }
 
   // Japan — JMA first among regional (map + list + hypocenters)
-  if (japan) {
+  if (japan && !links.some((l) => l.id.startsWith("jma"))) {
     links.push(...jmaLinksForEvent(lat, lon));
   }
 

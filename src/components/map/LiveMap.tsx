@@ -39,6 +39,7 @@ import {
   agencyLinksForEvent,
   agencyLinksHtml,
 } from "@/lib/seismology/agencyLinks";
+import { isJmaFeature } from "@/lib/feeds/jma";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -335,18 +336,21 @@ export function LiveMap() {
         const place = f.properties.place ?? "Unknown";
         const time = formatUtc(f.properties.time);
         const isSig = mag >= 6;
+        const isJma = isJmaFeature(f);
         const radius = Math.max(
-          5,
-          Math.min(22, (mag - 2) * 3.4) + (isSig && overlays.significant ? 3 : 0),
+          4,
+          Math.min(18, (mag - 3.2) * 3.0) + (isSig && overlays.significant ? 3 : 0),
         );
         const fill = overlays.depthColor ? depthColor(depth) : magColor(mag);
         const stroke = isSig
           ? "#fbbf24"
-          : sat
-            ? "#ffffff"
-            : overlays.depthColor
-              ? magColor(mag)
-              : "#0f172a";
+          : isJma
+            ? "#22d3ee"
+            : sat
+              ? "#ffffff"
+              : overlays.depthColor
+                ? magColor(mag)
+                : "#0f172a";
         const mmi = f.properties.mmi;
         const sm =
           hasShakeMapProduct(f.properties.types) ||
@@ -372,7 +376,7 @@ export function LiveMap() {
           radius: isMmiSource ? radius + 3 : radius,
           color: isMmiSource ? "#fbbf24" : stroke,
           fillColor: fill,
-          fillOpacity: overlays.heatmap ? 0.62 : sat ? 0.95 : 0.9,
+          fillOpacity: overlays.heatmap ? 0.55 : sat ? 0.82 : 0.88,
           weight: isMmiSource || isSig ? 2.5 : sat ? 2 : overlays.depthColor ? 1.75 : 1.25,
           opacity: 0.95,
           bubblingMouseEvents: true,
@@ -402,12 +406,23 @@ export function LiveMap() {
                 ? `<div style="margin-top:4px"><a href="${smUrl}" target="_blank" rel="noopener noreferrer" style="color:#22d3ee;font-weight:600;font-size:11px">USGS ShakeMap →</a></div>`
                 : "";
             const coords = `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
-            el.innerHTML = `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}</div>
+            const jmaMaxi = f.properties.jmaMaxi;
+            const jmaNote = jmaMaxi
+              ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA shindo ${jmaMaxi}${isJma ? " · JMA catalog" : " · matched"}</div>`
+              : isJma
+                ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA catalog</div>`
+                : "";
+            const srcBadge = isJma
+              ? `<span style="color:#22d3ee;font-size:10px;font-weight:600"> · JMA</span>`
+              : f.properties.jmaEnriched
+                ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
+                : "";
+            el.innerHTML = `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
               <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
               <div style="margin-top:4px;color:#e2e8f0">${place}</div>
               <div style="color:#64748b;font-size:11px;margin-top:3px">${time}</div>
               ${metaBits ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${metaBits}${eventId ? ` · ${eventId}` : ""}</div>` : eventId ? `<div style="color:#64748b;font-size:10px;margin-top:2px">${eventId}</div>` : ""}
-              ${mmiLine}${contourNote}${smLink}
+              ${jmaNote}${mmiLine}${contourNote}${smLink}
               <div style="margin-top:6px;padding-top:6px;border-top:1px solid #1e293b;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.04em">Agency assessment</div>
               ${agencyLinksHtml(agencyLinks)}`;
             return el;

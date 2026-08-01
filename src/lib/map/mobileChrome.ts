@@ -38,20 +38,15 @@ export function onMapChrome(handler: (msg: MapChromeMessage) => void): () => voi
  */
 export const MOBILE_QUICK_LAYERS = [] as const;
 
-/** Full desktop quick bar */
+/** Desktop quick bar — clear on/off only; rest live in Layers sheet */
 export const DESKTOP_QUICK_LAYERS = [
   "quakes",
   "heatmap",
   "significant",
   "globalActivity",
   "plates",
-  "depthColor",
-  "timeDecay",
-  "mmiContours",
   "nodes",
   "volcanoes",
-  "globalVolcanoes",
-  "corridors",
 ] as const;
 
 export const LAYER_GROUPS: {

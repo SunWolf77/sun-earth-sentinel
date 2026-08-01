@@ -24,6 +24,15 @@ export type EqFeature = {
     tsunami?: number | null;
     sig?: number | null;
     detail?: string | null;
+    /** Agency / network tag (us, jma, geofon, …) */
+    net?: string | null;
+    magType?: string | null;
+    /** JMA shindo class when known */
+    jmaMaxi?: string | null;
+    jmaEid?: string | null;
+    jmaProduct?: string | null;
+    jmaJson?: string | null;
+    jmaEnriched?: boolean;
   };
   geometry: {
     type: "Point";

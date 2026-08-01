@@ -141,17 +141,15 @@ export function MapStyleControl() {
               </p>
             </div>
             <div className="flex items-center gap-1">
-              {mobile && (
-                <button
-                  type="button"
-                  className="ww-btn min-h-8 px-2 text-[0.62rem]"
-                  onClick={applySimpleMap}
-                  title="Quakes + nodes only — hide plates/depth chrome"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  Simple
-                </button>
-              )}
+              <button
+                type="button"
+                className="ww-btn min-h-8 px-2 text-[0.62rem]"
+                onClick={applySimpleMap}
+                title="Minimal map — quakes + nodes only"
+              >
+                <Sparkles className="h-3 w-3" />
+                Minimal
+              </button>
               <button
                 type="button"
                 className="ww-btn ww-btn--icon h-9 w-9 min-h-0"
@@ -217,10 +215,11 @@ export function MapStyleControl() {
                             </span>
                           </span>
                           <span
-                            className={`h-2 w-2 shrink-0 rounded-full ${
-                              on ? "bg-primary" : "bg-border"
-                            }`}
-                          />
+                            className={`ww-layer-state ${on ? "ww-layer-state--on" : "ww-layer-state--off"}`}
+                            aria-hidden
+                          >
+                            {on ? "ON" : "OFF"}
+                          </span>
                         </button>
                       </li>
                     );
@@ -246,10 +245,11 @@ export function MapStyleControl() {
             <button
               key={id}
               type="button"
-              title={meta.hint}
+              title={`${meta.label}: ${on ? "ON — click to turn off" : "OFF — click to turn on"}. ${meta.hint}`}
               aria-pressed={on}
+              aria-label={`${meta.label} ${on ? "on" : "off"}`}
               onClick={() => setOverlay(id as MapOverlayId, !on)}
-              className={`ww-toggle ${on ? "ww-toggle--on" : ""} ${
+              className={`ww-toggle ${on ? "ww-toggle--on" : "ww-toggle--off"} ${
                 on && id === "heatmap" ? "ww-toggle--heat" : ""
               } ${on && id === "plates" ? "ww-toggle--plates" : ""} ${
                 on && id === "significant" ? "ww-toggle--mmi" : ""
@@ -257,6 +257,9 @@ export function MapStyleControl() {
             >
               <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>{meta.short}</span>
+              <span className="ww-toggle-state" aria-hidden>
+                {on ? "ON" : "OFF"}
+              </span>
             </button>
           );
         })}

@@ -42,7 +42,7 @@ export const BASEMAP_STYLES: Record<BasemapStyleId, MapStyleConfig> = {
     id: "dark",
     label: "Night ops",
     short: "Night",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
     attribution: "&copy; OSM &copy; CARTO",
     subdomains: "abcd",
     maxZoom: 19,
@@ -69,28 +69,26 @@ export const BASEMAP_STYLES: Record<BasemapStyleId, MapStyleConfig> = {
   },
 };
 
+/**
+ * Startup defaults — map readable first, layers opt-in.
+ * Quakes on (filtered by minMag M4.5+), nodes on; plates/depth/zones off.
+ */
 export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   quakes: true,
   heatmap: false,
   nodes: true,
-  volcanoes: true,
-  /** Smithsonian GVP Holocene (recent eruptions) — opt-in, heavier */
+  volcanoes: false,
   globalVolcanoes: false,
-  corridors: true,
-  depthColor: true,
-  timeDecay: true,
+  corridors: false,
+  depthColor: false,
+  timeDecay: false,
   mmiContours: true,
-  plates: true,
-  /** Emphasize M6+ in the active window */
+  plates: false,
   significant: false,
-  /** Global M4.5+ / significant day context */
   globalActivity: false,
 };
 
-/**
- * First-open mobile: map-first, fewer chrome/legend drivers.
- * Plates + depth coloring off → no stacked legend blocks; mag colors stay readable.
- */
+/** Mobile first-open: even leaner */
 export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
   return {
     ...DEFAULT_OVERLAYS,
@@ -118,7 +116,7 @@ export const OVERLAY_META: {
     id: "quakes",
     label: "Earthquake markers",
     short: "Quakes",
-    hint: "Individual event circles (size = magnitude)",
+    hint: "On/off event circles (size = magnitude · JMA densifies Japan)",
   },
   {
     id: "heatmap",
@@ -130,13 +128,13 @@ export const OVERLAY_META: {
     id: "significant",
     label: "Significant M6+",
     short: "M6+",
-    hint: "Highlight strong events (M≥6) in the active window",
+    hint: "Show only strong events (M≥6) in the active window",
   },
   {
     id: "globalActivity",
     label: "Global M4.5+ (day)",
     short: "World",
-    hint: "Worldwide USGS M4.5+ and significant events (24h context layer)",
+    hint: "Worldwide USGS M4.5+ and significant events (24h context)",
   },
   {
     id: "depthColor",
@@ -172,13 +170,13 @@ export const OVERLAY_META: {
     id: "volcanoes",
     label: "USGS elevated volcanoes",
     short: "USGS Volc",
-    hint: "USGS HANS elevated (ADVISORY+) + volcanic earthquake proxies — default ops layer",
+    hint: "USGS HANS elevated (ADVISORY+) + volcanic earthquake proxies",
   },
   {
     id: "globalVolcanoes",
     label: "Global volcanoes (GVP)",
     short: "GVP World",
-    hint: "Opt-in Smithsonian GVP Holocene vents with eruption since 2010 · click for region + profile",
+    hint: "Opt-in Smithsonian GVP Holocene vents with eruption since 2010",
   },
   {
     id: "corridors",
@@ -199,18 +197,22 @@ export function loadBasemapStyle(): BasemapStyleId {
   return "satellite";
 }
 
+/** Bump key when defaults change so users get the lean map once. */
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v2";
+
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
   try {
-    const raw = localStorage.getItem("wolfwatch_overlays");
+    const raw = localStorage.getItem(OVERLAY_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Record<MapOverlayId, boolean>>;
       return { ...DEFAULT_OVERLAYS, ...parsed };
     }
+    // migrate: drop old dense prefs once
+    localStorage.removeItem("wolfwatch_overlays");
   } catch {
     /* ignore */
   }
-  // No saved prefs: lean on narrow / mobile first open
   if (opts?.mobile) return mobileLeanOverlays();
   try {
     if (window.matchMedia?.("(max-width: 767px)").matches) return mobileLeanOverlays();
@@ -218,4 +220,12 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
     /* ignore */
   }
   return { ...DEFAULT_OVERLAYS };
+}
+
+export function saveOverlays(overlays: Record<MapOverlayId, boolean>): void {
+  try {
+    localStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(overlays));
+  } catch {
+    /* ignore */
+  }
 }
