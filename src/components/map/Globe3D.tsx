@@ -5,6 +5,12 @@ import { filterFeaturesByTimeWindow } from "@/lib/feeds/usgs";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
+import {
+  createWebGlProfiler,
+  formatPerfChip,
+  healthColor,
+  type WebGlPerfSample,
+} from "@/lib/map/webglProfiler";
 import { agencyLinksForEvent } from "@/lib/seismology/agencyLinks";
 import {
   eventPageUrl,
@@ -82,6 +88,10 @@ export function Globe3D() {
   const aimRef = useRef<((lat: number, lon: number, smooth?: boolean) => void) | null>(null);
   const recenterRef = useRef<(() => void) | null>(null);
   const [qualityLabel, setQualityLabel] = useState<string>("");
+  const [perfSample, setPerfSample] = useState<WebGlPerfSample | null>(null);
+  const [perfOpen, setPerfOpen] = useState(false);
+  const setPerfSampleRef = useRef(setPerfSample);
+  setPerfSampleRef.current = setPerfSample;
   const [bootError, setBootError] = useState<string | null>(null);
   const [pickedGlobeNode, setPickedGlobeNode] = useState<DragonNode | null>(null);
   const setPickedGlobeNodeRef = useRef(setPickedGlobeNode);
@@ -137,6 +147,26 @@ export function Globe3D() {
       qualityRef.current = Q;
       setQualityLabel(Q.id === "mobile" ? "3D · mobile" : "3D");
 
+      // WebGL performance profiler — FPS / frame ms / draw calls
+      const profiler = createWebGlProfiler({
+        targetFps: Q.maxFps,
+        enabled: true,
+      });
+      const unsubPerf = profiler.subscribe((s) => {
+        setPerfSampleRef.current(s);
+      });
+      let perfLogTimer: ReturnType<typeof setInterval> | null = null;
+      try {
+        if (
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("wolfwatch_gl_perf_log") === "1"
+        ) {
+          perfLogTimer = setInterval(() => profiler.logSummary(), 5000);
+        }
+      } catch {
+        /* ignore */
+      }
+
       const w = Math.max(container.clientWidth, 280);
       const h = Math.max(container.clientHeight, 280);
 
@@ -161,6 +191,15 @@ export function Globe3D() {
       }
       renderer.setSize(w, h);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pixelRatioCap));
+      try {
+        // Accurate per-frame draw stats for profiler
+        if (renderer.info) {
+          (renderer.info as { autoReset?: boolean }).autoReset = false;
+        }
+      } catch {
+        /* ignore */
+      }
+
       if ("outputColorSpace" in renderer) {
         (renderer as { outputColorSpace: string }).outputColorSpace = "srgb";
       }
@@ -1525,6 +1564,7 @@ export function Globe3D() {
         if (typeof document !== "undefined" && document.hidden) return;
         if (now - lastFrameT < minFrameMs) return;
         lastFrameT = now;
+        profiler.beginFrame(now);
 
         // Spiderfy lerp — pins fan from badge center (~220ms ease-out, staggered)
         if (spiderAnims.length) {
@@ -1588,6 +1628,7 @@ export function Globe3D() {
         }
 
         renderer.render(scene, camera);
+        profiler.endFrame(renderer);
       };
       animate();
 
@@ -1637,6 +1678,13 @@ export function Globe3D() {
         el.removeEventListener("webglcontextlost", onContextLost);
         try {
           clearSpinResume();
+        } catch {
+          /* ignore */
+        }
+        try {
+          unsubPerf();
+          if (perfLogTimer) clearInterval(perfLogTimer);
+          profiler.reset();
         } catch {
           /* ignore */
         }
@@ -1778,11 +1826,65 @@ export function Globe3D() {
     <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border bg-[#0b1220] sm:min-h-[280px]">
       <div ref={containerRef} className="h-full min-h-0 w-full" />
 
-      {qualityLabel && (
-        <div className="pointer-events-none absolute left-2 top-2 z-20 rounded-md border border-border/70 bg-surface/80 px-1.5 py-0.5 text-[0.5rem] font-semibold uppercase tracking-wider text-dim sm:text-[0.55rem]">
-          {qualityLabel}
-        </div>
-      )}
+      <div className="pointer-events-auto absolute left-2 top-2 z-20 flex flex-col items-start gap-1">
+        <button
+          type="button"
+          className="rounded-md border border-border/70 bg-surface/90 px-1.5 py-0.5 text-left text-[0.5rem] font-semibold uppercase tracking-wider shadow backdrop-blur sm:text-[0.55rem]"
+          style={{
+            color: perfSample ? healthColor(perfSample.health) : undefined,
+          }}
+          title="WebGL performance — tap for profile"
+          onClick={() => setPerfOpen((v) => !v)}
+          aria-expanded={perfOpen}
+        >
+          {formatPerfChip(perfSample, qualityLabel || "3D")}
+        </button>
+        {perfOpen && perfSample && (
+          <div className="ww-gl-perf max-w-[min(92vw,16rem)] rounded-lg border border-border bg-surface/95 p-2 text-[0.6rem] text-muted shadow-lg backdrop-blur">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <span className="font-bold uppercase tracking-wider text-fg">WebGL profile</span>
+              <button
+                type="button"
+                className="text-[0.55rem] text-dim hover:text-fg"
+                onClick={() => setPerfOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono tabular-nums">
+              <dt className="text-dim">FPS</dt>
+              <dd className="text-fg">
+                {perfSample.fpsSmooth.toFixed(1)}{" "}
+                <span className="text-dim">(1% {perfSample.fps1pctLow.toFixed(0)})</span>
+              </dd>
+              <dt className="text-dim">Frame</dt>
+              <dd className="text-fg">{perfSample.frameMsSmooth.toFixed(1)} ms</dd>
+              <dt className="text-dim">Draws</dt>
+              <dd className="text-fg">{perfSample.drawCalls}</dd>
+              <dt className="text-dim">Tris</dt>
+              <dd className="text-fg">{perfSample.triangles.toLocaleString()}</dd>
+              <dt className="text-dim">Geom/Tex</dt>
+              <dd className="text-fg">
+                {perfSample.geometries}/{perfSample.textures}
+              </dd>
+              {perfSample.jsHeapMb != null && (
+                <>
+                  <dt className="text-dim">JS heap</dt>
+                  <dd className="text-fg">{perfSample.jsHeapMb.toFixed(1)} MB</dd>
+                </>
+              )}
+              <dt className="text-dim">Health</dt>
+              <dd style={{ color: healthColor(perfSample.health) }} className="font-semibold uppercase">
+                {perfSample.health}
+              </dd>
+            </dl>
+            <p className="mt-1.5 text-[0.55rem] leading-snug text-dim">{perfSample.tip}</p>
+            <p className="mt-1 text-[0.5rem] text-dim/80">
+              localStorage wolfwatch_gl_perf_log=1 → console every 5s
+            </p>
+          </div>
+        )}
+      </div>
       {bootError && (
         <div className="pointer-events-none absolute inset-x-2 top-10 z-20 rounded-md border border-danger/40 bg-surface/95 px-2 py-1.5 text-center text-[0.65rem] text-danger sm:inset-x-auto sm:left-3 sm:right-auto sm:text-left">
           {bootError}
