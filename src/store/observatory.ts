@@ -1,3 +1,4 @@
+import { normalizeTimeWindow } from "@/lib/map/timeWindowLabel";
 import { create } from "zustand";
 import {
   fetchEarthquakes,
@@ -449,7 +450,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   mobileSheet: "closed",
   mapView: "2d",
   mapImmersive: false,
-  timeWindow: "day",
+  timeWindow: "week",
   minMag: 4.5,
   maxMag: 10,
   autoRefresh: true,
@@ -563,7 +564,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     set({ mapImmersive: v });
   },
   setTimeWindow: (w) => {
-    set({ timeWindow: w });
+    const next = normalizeTimeWindow(w) as TimeWindow;
+    set({ timeWindow: next });
     void get().refresh(true);
   },
   setMinMag: (m) => set({ minMag: m }),

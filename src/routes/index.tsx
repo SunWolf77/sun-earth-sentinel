@@ -870,13 +870,11 @@ function ObservatoryApp() {
                         Controls
                       </div>
                       <div className="mt-0.5 truncate text-[0.62rem] text-dim">
-                        {timeWindow === "hour"
-                          ? "1h"
-                          : timeWindow === "day"
-                            ? "1d"
-                            : timeWindow === "week"
-                              ? "1w"
-                              : "1m"}
+                        {timeWindow === "day"
+                          ? "24h"
+                          : timeWindow === "week"
+                            ? "7d"
+                            : "30d"}
                         {" · "}M{minMag.toFixed(1)}+
                         {" · "}
                         {mapView.toUpperCase()}
