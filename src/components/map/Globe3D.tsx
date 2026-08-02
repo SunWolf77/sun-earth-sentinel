@@ -133,7 +133,7 @@ export function Globe3D() {
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0b1220);
       // Slightly tighter FOV + closer default = taller pins read better
-      const camera = new THREE.PerspectiveCamera(42, w / h, 0.08, 100);
+      const camera = new THREE.PerspectiveCamera(48, w / h, 0.08, 100);
 
       let renderer: InstanceType<typeof THREE.WebGLRenderer>;
       try {
@@ -351,7 +351,7 @@ export function Globe3D() {
       let pickRing: InstanceType<typeof THREE.Mesh> | null = null;
 
       // Default zoomed-out framing — globe ~55–65% of short edge (not edge-to-edge)
-      const HOME_RADIUS = 3.85;
+      const HOME_RADIUS = 4.65; // ~45–55% of short edge — breathing room around Earth
       const spherical = { theta: 0.85, phi: 1.05, radius: HOME_RADIUS };
       // Prior-view stack (camera before smooth aim / home)
       type CamSnap = { theta: number; phi: number; radius: number };
@@ -435,7 +435,7 @@ export function Globe3D() {
             theta: toTheta,
             phi: toPhi,
             // Stay pulled back when focusing — never fill the viewport
-            radius: Math.max(3.2, Math.min(Math.max(spherical.radius, 3.2), 4.8)),
+            radius: Math.max(3.8, Math.min(Math.max(spherical.radius, 3.8), 5.4)),
           },
         };
       }
@@ -1312,7 +1312,7 @@ export function Globe3D() {
           const d = touchDist(e.touches[0]!, e.touches[1]!);
           if (pinchStartDist > 0) {
             const scale = pinchStartDist / Math.max(d, 1);
-            spherical.radius = Math.max(2.35, Math.min(6.8, pinchStartRadius * scale));
+            spherical.radius = Math.max(2.8, Math.min(7.5, pinchStartRadius * scale));
             applyCam();
             scheduleRecluster();
           }
@@ -1347,7 +1347,7 @@ export function Globe3D() {
 
       const wheel = (e: WheelEvent) => {
         e.preventDefault();
-        spherical.radius = Math.max(2.35, Math.min(6.8, spherical.radius + e.deltaY * 0.002));
+        spherical.radius = Math.max(2.8, Math.min(7.5, spherical.radius + e.deltaY * 0.002));
         applyCam();
         scheduleRecluster();
       };
