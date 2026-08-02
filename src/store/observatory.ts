@@ -232,6 +232,8 @@ type ObservatoryState = {
   useGeofon: boolean;
   audioAlerts: boolean;
   globeAutoSpin: boolean;
+  /** Bumps when user re-asserts Spin (resume after focus). */
+  globeSpinEpoch: number;
   /** Public-globe style: depth stem height multiplier (0.04–0.4). */
   globeStemScale: number;
   /** Public-globe style: hex / marker size multiplier. */
@@ -313,6 +315,8 @@ type ObservatoryState = {
   setUseGeofon: (v: boolean) => void;
   setAudioAlerts: (v: boolean) => void;
   setGlobeAutoSpin: (v: boolean) => void;
+  /** Re-enable spin even if already ON (after focus pause). */
+  resumeGlobeSpin: () => void;
   setGlobeStemScale: (v: number) => void;
   setGlobeMarkerScale: (v: number) => void;
   setGlobeSpinSpeed: (v: number) => void;
@@ -482,6 +486,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   useGeofon: false,
   audioAlerts: false,
   globeAutoSpin: true,
+  globeSpinEpoch: 0,
   globeStemScale: 0.16,
   globeMarkerScale: 1.2,
   globeSpinSpeed: 1,
@@ -823,7 +828,22 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ globeAutoSpin: v });
+    set((s) => ({
+      globeAutoSpin: v,
+      // Bump epoch when enabling so 3D re-attaches autoRef even if already true
+      globeSpinEpoch: v ? s.globeSpinEpoch + 1 : s.globeSpinEpoch,
+    }));
+  },
+  resumeGlobeSpin: () => {
+    try {
+      localStorage.setItem("wolfwatch_globe_spin", "1");
+    } catch {
+      /* ignore */
+    }
+    set((s) => ({
+      globeAutoSpin: true,
+      globeSpinEpoch: s.globeSpinEpoch + 1,
+    }));
   },
   setGlobeStemScale: (v) => {
     const n = Math.min(0.42, Math.max(0.04, v));

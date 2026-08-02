@@ -45,6 +45,7 @@ export function Globe3D() {
   const mapView = useObservatory((s) => s.mapView);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const globeAutoSpin = useObservatory((s) => s.globeAutoSpin);
+  const globeSpinEpoch = useObservatory((s) => s.globeSpinEpoch);
   const setGlobeAutoSpin = useObservatory((s) => s.setGlobeAutoSpin);
   const globeAntipode = useObservatory((s) => s.globeAntipode);
   const clearGlobeAntipode = useObservatory((s) => s.clearGlobeAntipode);
@@ -71,6 +72,8 @@ export function Globe3D() {
     null,
   );
   const autoRef = useRef(globeAutoSpin);
+  /** User preference (Spin ON) — aim/drag only pause autoRef, not this. */
+  const spinDesiredRef = useRef(globeAutoSpin);
   const spinSpdRef = useRef(globeSpinSpeed);
   const stemRef = useRef(globeStemScale);
   const hexRef = useRef(globeMarkerScale);
@@ -90,8 +93,10 @@ export function Globe3D() {
   const qualityRef = useRef<GlobeQuality | null>(null);
 
   useEffect(() => {
+    spinDesiredRef.current = globeAutoSpin;
+    // Explicit Spin / resume always wins (re-enables after focus pause)
     autoRef.current = globeAutoSpin;
-  }, [globeAutoSpin]);
+  }, [globeAutoSpin, globeSpinEpoch]);
   useEffect(() => {
     spinSpdRef.current = globeSpinSpeed;
   }, [globeSpinSpeed]);
@@ -392,6 +397,7 @@ export function Globe3D() {
         dur: number;
         from: { theta: number; phi: number; radius: number };
         to: { theta: number; phi: number; radius: number };
+        resumeSpin?: boolean;
       } | null = null;
 
       function applyCam() {
@@ -414,17 +420,38 @@ export function Globe3D() {
         );
       }
 
+      let spinResumeTimer: ReturnType<typeof setTimeout> | null = null;
+      const clearSpinResume = () => {
+        if (spinResumeTimer != null) {
+          clearTimeout(spinResumeTimer);
+          spinResumeTimer = null;
+        }
+      };
+      /** Pause auto-spin during focus / drag; resume if Spin preference is ON. */
+      const scheduleSpinResume = (delayMs = 700) => {
+        clearSpinResume();
+        spinResumeTimer = setTimeout(() => {
+          spinResumeTimer = null;
+          if (spinDesiredRef.current && !rotating) {
+            autoRef.current = true;
+          }
+        }, delayMs);
+      };
+
       function aimAt(lat: number, lon: number, smooth = true) {
         if (smooth) pushPrior();
         const aim = latLonToVec(lat, lon, 1);
         const toTheta = Math.atan2(aim.x, aim.z);
         const toPhi = Math.acos(Math.max(-1, Math.min(1, aim.y)));
+        // Pause spin for the fly-to; resume if user still has Spin ON
+        clearSpinResume();
         autoRef.current = false;
         if (!smooth) {
           spherical.theta = toTheta;
           spherical.phi = toPhi;
           applyCam();
           aimAnim = null;
+          scheduleSpinResume(900);
           return;
         }
         aimAnim = {
@@ -437,16 +464,20 @@ export function Globe3D() {
             // Stay pulled back when focusing — never fill the viewport
             radius: Math.max(2.9, Math.min(Math.max(spherical.radius, 2.9), 4.4)),
           },
+          resumeSpin: true,
         };
       }
       aimRef.current = aimAt;
       recenterRef.current = () => {
         pushPrior();
         aimAnim = null;
+        clearSpinResume();
         spherical.theta = 0.85;
         spherical.phi = 1.05;
         spherical.radius = HOME_RADIUS;
         applyCam();
+        // Home view re-enables spin when preference is ON
+        scheduleSpinResume(400);
       };
 
       const hexGeo = makeHexRingGeometry(THREE, 1, 0.22);
@@ -1216,6 +1247,7 @@ export function Globe3D() {
 
       const onDown = (x: number, y: number) => {
         rotating = true;
+        clearSpinResume();
         autoRef.current = false;
         lastX = x;
         lastY = y;
@@ -1232,6 +1264,8 @@ export function Globe3D() {
       };
       const onUp = () => {
         rotating = false;
+        // Drag ended — resume auto-spin if Spin is still preferred
+        if (spinDesiredRef.current) scheduleSpinResume(900);
       };
 
       let pinchStartDist = 0;
@@ -1428,7 +1462,12 @@ export function Globe3D() {
           spherical.phi = aimAnim.from.phi + (aimAnim.to.phi - aimAnim.from.phi) * e;
           spherical.radius = aimAnim.from.radius + (aimAnim.to.radius - aimAnim.from.radius) * e;
           applyCam();
-          if (t >= 1) aimAnim = null;
+          if (t >= 1) {
+            const resume = aimAnim.resumeSpin;
+            aimAnim = null;
+            // After EQ/node focus fly-to: re-spin if Spin preference is still ON
+            if (resume) scheduleSpinResume(800);
+          }
         } else if (autoRef.current && !rotating && spiderAnims.length === 0) {
           // Prograde Earth: west→east. Matches three.js OrbitControls autoRotate
           // (theta decreases) and Dutchsinse Public Seismic Globe. Prior += was retrograde.
@@ -1490,6 +1529,11 @@ export function Globe3D() {
         el.removeEventListener("touchcancel", te);
         el.removeEventListener("wheel", wheel);
         el.removeEventListener("webglcontextlost", onContextLost);
+        try {
+          clearSpinResume();
+        } catch {
+          /* ignore */
+        }
         try {
           clearHoverHighlight();
           hoverTip.remove();

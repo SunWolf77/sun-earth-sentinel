@@ -132,7 +132,11 @@ export function MapChromeDock({
           <button
             type="button"
             className={`ww-map-dock__icon-btn ${globeAutoSpin ? "ww-map-dock__icon-btn--on" : ""}`}
-            title="Auto-spin Earth west→east"
+            title={
+              globeAutoSpin
+                ? "Spin ON — pauses on focus/drag, then resumes · click to stop"
+                : "Start auto-spin west→east"
+            }
             onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
           >
             <Globe2 className="h-3.5 w-3.5" />
