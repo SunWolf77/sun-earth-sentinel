@@ -14,6 +14,7 @@ import {
 } from "@/lib/seismology/shakemap";
 import { formatUtc } from "@/lib/utils";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import { MapChromeDock } from "@/components/map/MapChromeDock";
 import {
   nodeWhyLine,
   nodeRoleLine,
@@ -82,6 +83,10 @@ export function Globe3D() {
   const [pickedGlobeNode, setPickedGlobeNode] = useState<DragonNode | null>(null);
   const setPickedGlobeNodeRef = useRef(setPickedGlobeNode);
   setPickedGlobeNodeRef.current = setPickedGlobeNode;
+  const [canPrior, setCanPrior] = useState(false);
+  const setCanPriorRef = useRef(setCanPrior);
+  setCanPriorRef.current = setCanPrior;
+  const priorViewRef = useRef<(() => void) | null>(null);
   const qualityRef = useRef<GlobeQuality | null>(null);
 
   useEffect(() => {
@@ -127,7 +132,8 @@ export function Globe3D() {
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0b1220);
-      const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
+      // Slightly tighter FOV + closer default = taller pins read better
+      const camera = new THREE.PerspectiveCamera(36, w / h, 0.08, 100);
 
       let renderer: InstanceType<typeof THREE.WebGLRenderer>;
       try {
@@ -148,6 +154,24 @@ export function Globe3D() {
       if ("outputColorSpace" in renderer) {
         (renderer as { outputColorSpace: string }).outputColorSpace = "srgb";
       }
+      // Film-like response so marble + markers pop without washout
+      if ("toneMapping" in renderer) {
+        (renderer as { toneMapping: number }).toneMapping = 4; // ACESFilmic approx if enum unavailable
+      }
+      try {
+        const THREE_TM = THREE as typeof THREE & {
+          ACESFilmicToneMapping?: number;
+          SRGBColorSpace?: string;
+        };
+        if (THREE_TM.ACESFilmicToneMapping != null) {
+          (renderer as { toneMapping: number }).toneMapping = THREE_TM.ACESFilmicToneMapping;
+        }
+        if ("toneMappingExposure" in renderer) {
+          (renderer as { toneMappingExposure: number }).toneMappingExposure = 1.12;
+        }
+      } catch {
+        /* ignore */
+      }
       container.innerHTML = "";
       container.appendChild(renderer.domElement);
       renderer.domElement.style.display = "block";
@@ -155,14 +179,18 @@ export function Globe3D() {
       renderer.domElement.style.height = "100%";
       renderer.domElement.style.touchAction = "none";
 
-      scene.add(new THREE.AmbientLight(0xb8d4f0, 0.9));
-      scene.add(new THREE.HemisphereLight(0xdbeafe, 0x1e3a5f, 0.6));
-      const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-      sun.position.set(4.5, 2.2, 3.5);
+      // Balanced lighting: keep night side readable, day side crisp (not muddy)
+      scene.add(new THREE.AmbientLight(0x8ba4c0, 0.42));
+      scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0b1a2e, 0.55));
+      const sun = new THREE.DirectionalLight(0xfff4e5, 1.85);
+      sun.position.set(5.2, 2.8, 3.2);
       scene.add(sun);
-      const fill = new THREE.DirectionalLight(0x93c5fd, 0.5);
-      fill.position.set(-3, -1, -2);
+      const fill = new THREE.DirectionalLight(0x6ec8ff, 0.55);
+      fill.position.set(-4.2, -0.6, -2.4);
       scene.add(fill);
+      const rim = new THREE.DirectionalLight(0x93c5fd, 0.35);
+      rim.position.set(0.5, 3.5, -2.5);
+      scene.add(rim);
 
       // Sketch continents until blue-marble loads (not the final look)
       const baseTex = makeProceduralEarth(THREE);
@@ -170,10 +198,10 @@ export function Globe3D() {
       const mat = new THREE.MeshPhongMaterial({
         map: baseTex,
         color: 0xffffff,
-        shininess: Q.id === "mobile" ? 12 : 18,
-        specular: 0x334155,
-        emissive: 0x0c1a30,
-        emissiveIntensity: 0.35,
+        shininess: Q.id === "mobile" ? 22 : 32,
+        specular: 0x4a6278,
+        emissive: 0x061018,
+        emissiveIntensity: 0.22,
       });
       const earth = new THREE.Mesh(geo, mat);
       scene.add(earth);
@@ -322,7 +350,30 @@ export function Globe3D() {
       let focusRing: InstanceType<typeof THREE.Line> | null = null;
       let pickRing: InstanceType<typeof THREE.Mesh> | null = null;
 
-      const spherical = { theta: 0.55, phi: 1.15, radius: 2.85 };
+      const spherical = { theta: 0.85, phi: 1.05, radius: 2.45 };
+      // Prior-view stack (camera before smooth aim / home)
+      type CamSnap = { theta: number; phi: number; radius: number };
+      let priorCam: CamSnap | null = null;
+      function pushPrior() {
+        priorCam = {
+          theta: spherical.theta,
+          phi: spherical.phi,
+          radius: spherical.radius,
+        };
+        setCanPriorRef.current(true);
+      }
+      function restorePrior() {
+        if (!priorCam) return;
+        aimAnim = {
+          t0: performance.now(),
+          dur: 700,
+          from: { theta: spherical.theta, phi: spherical.phi, radius: spherical.radius },
+          to: { ...priorCam },
+        };
+        priorCam = null;
+        setCanPriorRef.current(false);
+      }
+      priorViewRef.current = restorePrior;
       let rotating = false;
       let lastX = 0;
       let lastY = 0;
@@ -362,6 +413,7 @@ export function Globe3D() {
       }
 
       function aimAt(lat: number, lon: number, smooth = true) {
+        if (smooth) pushPrior();
         const aim = latLonToVec(lat, lon, 1);
         const toTheta = Math.atan2(aim.x, aim.z);
         const toPhi = Math.acos(Math.max(-1, Math.min(1, aim.y)));
@@ -382,10 +434,11 @@ export function Globe3D() {
       }
       aimRef.current = aimAt;
       recenterRef.current = () => {
+        pushPrior();
         aimAnim = null;
-        spherical.theta = 0.55;
-        spherical.phi = 1.15;
-        spherical.radius = 2.85;
+        spherical.theta = 0.85;
+        spherical.phi = 1.05;
+        spherical.radius = 2.45;
         applyCam();
       };
 
@@ -1401,7 +1454,7 @@ export function Globe3D() {
 
       const hint = document.createElement("div");
       hint.className =
-        "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
+        "pointer-events-none absolute bottom-20 left-1/2 z-10 max-w-[90%] -translate-x-1/2 truncate rounded-md border border-border/60 bg-surface/80 px-2.5 py-1 text-[0.6rem] text-dim backdrop-blur sm:bottom-4 sm:left-1/2";
       hint.textContent =
         "Long pins · hover for context · tap EQ / node / volcano to switch · badge = spiderfy";
       container.style.position = "relative";
@@ -1409,7 +1462,7 @@ export function Globe3D() {
 
       const legend = document.createElement("div");
       legend.className =
-        "pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-[0.68rem] text-muted";
+        "pointer-events-none absolute bottom-3 left-3 z-10 max-w-[min(70vw,16rem)] rounded-md border border-border bg-surface/85 px-2 py-1 text-[0.6rem] text-muted backdrop-blur";
       legend.innerHTML =
         '<span style="color:#ff8c00">📍</span> long EQ pin &nbsp; <span style="opacity:.85">n</span> cluster &nbsp; <span style="color:#fbbf24">●</span> SES &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="opacity:.7">hover · tap switch</span>';
       container.appendChild(legend);
@@ -1569,7 +1622,7 @@ export function Globe3D() {
       <div ref={containerRef} className="h-full min-h-[320px] w-full" />
 
       {qualityLabel && (
-        <div className="pointer-events-none absolute right-2 top-2 z-20 rounded-md border border-border bg-surface/90 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-primary sm:right-3">
+        <div className="pointer-events-none absolute left-2 top-2 z-20 rounded-md border border-border/70 bg-surface/80 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
           {qualityLabel}
         </div>
       )}
@@ -1740,22 +1793,14 @@ export function Globe3D() {
         </div>
       )}
 
-      <div className="pointer-events-auto absolute bottom-12 right-2 z-20 flex flex-col gap-1.5 sm:right-3">
-        <button
-          type="button"
-          className={`ww-btn text-[0.65rem] ${globeAutoSpin ? "ww-btn--active" : ""}`}
-          title="Auto-rotate Earth west→east (prograde), same sense as real Earth / standard globe viewers"
-          onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
-        >
-          {globeAutoSpin ? "Spin ON" : "Spin OFF"}
-        </button>
-        <button
-          type="button"
-          className="ww-btn text-[0.65rem]"
-          onClick={() => recenterRef.current?.()}
-        >
-          Recenter
-        </button>
+      {/* Edge dock — keeps chrome off the Earth */}
+      <div className="pointer-events-none absolute bottom-3 right-2 z-30 sm:bottom-4 sm:right-3">
+        <MapChromeDock
+          className="items-end"
+          canPriorView={canPrior}
+          onPriorView={() => priorViewRef.current?.()}
+          onHomeView={() => recenterRef.current?.()}
+        />
       </div>
 
     </div>

@@ -208,6 +208,8 @@ type ObservatoryState = {
   tab: TabId;
   mobileSheet: MobileSheet;
   mapView: MapView;
+  /** Immersive fullscreen map/globe (chrome minimal). */
+  mapImmersive: boolean;
   timeWindow: TimeWindow;
   minMag: number;
   maxMag: number;
@@ -288,6 +290,7 @@ type ObservatoryState = {
   setTab: (t: TabId) => void;
   setMobileSheet: (s: MobileSheet) => void;
   setMapView: (v: MapView) => void;
+  setMapImmersive: (v: boolean) => void;
   setTimeWindow: (w: TimeWindow) => void;
   setMinMag: (m: number) => void;
   setMaxMag: (m: number) => void;
@@ -445,6 +448,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   tab: "live",
   mobileSheet: "closed",
   mapView: "2d",
+  mapImmersive: false,
   timeWindow: "day",
   minMag: 4.5,
   maxMag: 10,
@@ -550,6 +554,14 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }
     set({ mapView: v });
   },
+  setMapImmersive: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_map_immersive", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    set({ mapImmersive: v });
+  },
   setTimeWindow: (w) => {
     set({ timeWindow: w });
     void get().refresh(true);
@@ -597,12 +609,12 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     set({
       focusNodeId: null,
       gvpFocusNode: null,
-      mapView: "2d",
       tab: "live",
       mobileSheet: "closed",
       focusMmi: { ...EMPTY_FOCUS_MMI },
       pickedEvent: null,
       mapFlyTo: null,
+      // keep mapView + immersive — Home = world frame, not force 2D
     });
   },
   focusGvpVolcano: (v) => {

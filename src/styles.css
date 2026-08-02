@@ -1244,3 +1244,70 @@
   background: rgba(8, 15, 28, 0.94);
   backdrop-filter: blur(8px);
 }
+
+/* Map edge dock — chrome off the Earth */
+.ww-map-dock {
+  max-width: min(100vw - 1rem, 15rem);
+}
+.ww-map-dock__chip {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ww-map-dock__chip + .ww-map-dock__chip {
+  border-left: 1px solid var(--color-border);
+}
+.ww-map-dock__chip:hover {
+  color: var(--color-fg);
+  background: color-mix(in oklab, var(--color-elevated) 70%, transparent);
+}
+.ww-map-dock__chip--on {
+  color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary) 18%, transparent);
+}
+.ww-map-dock__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-surface) 92%, transparent);
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.ww-map-dock__icon-btn:hover:not(:disabled) {
+  color: var(--color-fg);
+  border-color: color-mix(in oklab, var(--color-primary) 40%, var(--color-border));
+}
+.ww-map-dock__icon-btn--on {
+  color: var(--color-primary);
+  border-color: color-mix(in oklab, var(--color-primary) 50%, var(--color-border));
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+}
+.ww-map-dock__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ww-map-dock__label {
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .ww-map-dock__label {
+    display: none;
+  }
+  .ww-map-dock__icon-btn {
+    padding: 0.35rem;
+  }
+}

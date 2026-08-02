@@ -19,6 +19,7 @@ import {
 import { useObservatory, filteredEq, viewEvents, getAllFocusNodes, type TabId } from "@/store/observatory";
 import { TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 import { MapViewToggle } from "@/components/map/MapViewToggle";
+import { MapChromeDock } from "@/components/map/MapChromeDock";
 import { MODES, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
 import { ClientOnly } from "@/components/ops/ClientOnly";
@@ -79,6 +80,8 @@ function ObservatoryApp() {
   const mode = useObservatory((s) => s.mode);
   const tab = useObservatory((s) => s.tab);
   const mapView = useObservatory((s) => s.mapView);
+  const mapImmersive = useObservatory((s) => s.mapImmersive);
+  const setMapImmersive = useObservatory((s) => s.setMapImmersive);
   const timeWindow = useObservatory((s) => s.timeWindow);
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
@@ -472,6 +475,31 @@ function ObservatoryApp() {
     if (s < 60) return `${s}s ago`;
     return `${Math.round(s / 60)}m ago`;
   }, [lastUpdate, ageTick, loading]);
+
+
+  // Immersive: Escape exits fullscreen map without killing the session
+  useEffect(() => {
+    if (!mapImmersive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMapImmersive(false);
+    };
+    window.addEventListener("keydown", onKey);
+    // lock body scroll
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [mapImmersive, setMapImmersive]);
+
+  useEffect(() => {
+    // mapImmersive resize — Leaflet/WebGL need a size pulse after layout change
+    const id = window.setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [mapImmersive, mapView]);
 
   const filtersBlock = (
     <div className="space-y-3 p-3">
@@ -893,9 +921,35 @@ function ObservatoryApp() {
             )}
           </aside>
 
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="relative min-h-[52dvh] flex-1 lg:min-h-0">
-              <div className="absolute inset-0 lg:inset-2.5 lg:overflow-hidden lg:rounded-lg">
+          <div
+            className={
+              mapImmersive
+                ? "fixed inset-0 z-[800] flex min-h-0 min-w-0 flex-col bg-[#050a14]"
+                : "relative flex min-h-0 min-w-0 flex-1 flex-col"
+            }
+          >
+            {mapImmersive && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-[810] flex items-center justify-between gap-2 bg-gradient-to-b from-black/50 to-transparent px-3 py-2">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-primary/90">
+                  Immersive · {mapView === "3d" ? "3D Globe" : "2D Map"}
+                </span>
+                <button
+                  type="button"
+                  className="pointer-events-auto ww-btn text-[0.65rem] font-semibold"
+                  onClick={() => setMapImmersive(false)}
+                >
+                  Exit full
+                </button>
+              </div>
+            )}
+            <div className={mapImmersive ? "relative min-h-0 flex-1" : "relative min-h-[52dvh] flex-1 lg:min-h-0"}>
+              <div
+                className={
+                  mapImmersive
+                    ? "absolute inset-0 overflow-hidden"
+                    : "absolute inset-0 lg:inset-2.5 lg:overflow-hidden lg:rounded-lg"
+                }
+              >
                 <ClientOnly
                   fallback={
                     <div className="flex h-full min-h-[52dvh] flex-col items-center justify-center gap-2 bg-bg px-4 text-center text-sm text-muted">
@@ -914,10 +968,12 @@ function ObservatoryApp() {
                     {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
                 </ClientOnly>
-                {/* Always-visible 2D/3D switch + active EQ window */}
-                <div className="pointer-events-none absolute left-1/2 top-2 z-[550] -translate-x-1/2 sm:top-3">
-                  <MapViewToggle className="map-view-dock items-center" />
-                </div>
+                {/* Edge chrome dock — out of the way of Earth / map center */}
+                {mapView === "2d" && (
+                  <div className="pointer-events-none absolute bottom-3 right-2 z-[550] sm:bottom-4 sm:right-3">
+                    <MapChromeDock className="items-end" />
+                  </div>
+                )}
               </div>
             </div>
             {mobileSheet !== "closed" && (
