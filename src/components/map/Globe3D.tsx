@@ -90,6 +90,11 @@ export function Globe3D() {
   const setCanPriorRef = useRef(setCanPrior);
   setCanPriorRef.current = setCanPrior;
   const priorViewRef = useRef<(() => void) | null>(null);
+  const tiltByRef = useRef<((delta: number) => void) | null>(null);
+  const tiltPresetRef = useRef<((kind: "equator" | "north" | "oblique") => void) | null>(null);
+  const [spinResumeHint, setSpinResumeHint] = useState<string | null>(null);
+  const setSpinResumeHintRef = useRef(setSpinResumeHint);
+  setSpinResumeHintRef.current = setSpinResumeHint;
   const qualityRef = useRef<GlobeQuality | null>(null);
 
   useEffect(() => {
@@ -357,6 +362,11 @@ export function Globe3D() {
 
       // Default zoomed-out framing — globe ~55–65% of short edge (not edge-to-edge)
       const HOME_RADIUS = 3.45; // balanced: room around Earth without feeling tiny
+      const FLY_TO_MIN_MS = 420;
+      const FLY_TO_MAX_MS = 900;
+      const FLY_TO_HOLD_MS = 450;
+      const SPIN_RESUME_AFTER_DRAG_MS = 650;
+      const SPIN_RESUME_AFTER_HOME_MS = 280;
       const spherical = { theta: 0.85, phi: 1.05, radius: HOME_RADIUS };
       // Prior-view stack (camera before smooth aim / home)
       type CamSnap = { theta: number; phi: number; radius: number };
@@ -398,6 +408,7 @@ export function Globe3D() {
         from: { theta: number; phi: number; radius: number };
         to: { theta: number; phi: number; radius: number };
         resumeSpin?: boolean;
+        holdMs?: number;
       } | null = null;
 
       function applyCam() {
@@ -426,24 +437,62 @@ export function Globe3D() {
           clearTimeout(spinResumeTimer);
           spinResumeTimer = null;
         }
+        try {
+          setSpinResumeHintRef.current(null);
+        } catch {
+          /* ignore */
+        }
       };
       /** Pause auto-spin during focus / drag; resume if Spin preference is ON. */
-      const scheduleSpinResume = (delayMs = 700) => {
+      const scheduleSpinResume = (delayMs: number, reason: string) => {
         clearSpinResume();
+        if (!spinDesiredRef.current) {
+          setSpinResumeHintRef.current(null);
+          return;
+        }
+        const sec = Math.max(0.3, delayMs / 1000);
+        setSpinResumeHintRef.current(
+          `Spin resumes in ~${sec < 1 ? sec.toFixed(1) : Math.round(sec)}s · ${reason}`,
+        );
         spinResumeTimer = setTimeout(() => {
           spinResumeTimer = null;
+          setSpinResumeHintRef.current(null);
           if (spinDesiredRef.current && !rotating) {
             autoRef.current = true;
           }
         }, delayMs);
       };
 
+      function aimAngularDist(
+        from: { theta: number; phi: number },
+        to: { theta: number; phi: number },
+      ): number {
+        let dTh = to.theta - from.theta;
+        while (dTh > Math.PI) dTh -= Math.PI * 2;
+        while (dTh < -Math.PI) dTh += Math.PI * 2;
+        return Math.hypot(dTh, to.phi - from.phi);
+      }
+
+      function flyDurationMs(
+        from: { theta: number; phi: number },
+        to: { theta: number; phi: number },
+      ): number {
+        const ang = aimAngularDist(from, to);
+        const u = Math.min(1, ang / Math.PI);
+        return Math.round(FLY_TO_MIN_MS + u * u * (FLY_TO_MAX_MS - FLY_TO_MIN_MS));
+      }
+
       function aimAt(lat: number, lon: number, smooth = true) {
         if (smooth) pushPrior();
         const aim = latLonToVec(lat, lon, 1);
-        const toTheta = Math.atan2(aim.x, aim.z);
+        let toTheta = Math.atan2(aim.x, aim.z);
         const toPhi = Math.acos(Math.max(-1, Math.min(1, aim.y)));
-        // Pause spin for the fly-to; resume if user still has Spin ON
+        // Shortest yaw arc (no full-spin fly-to)
+        let dTh = toTheta - spherical.theta;
+        while (dTh > Math.PI) dTh -= Math.PI * 2;
+        while (dTh < -Math.PI) dTh += Math.PI * 2;
+        toTheta = spherical.theta + dTh;
+
         clearSpinResume();
         autoRef.current = false;
         if (!smooth) {
@@ -451,23 +500,53 @@ export function Globe3D() {
           spherical.phi = toPhi;
           applyCam();
           aimAnim = null;
-          scheduleSpinResume(900);
+          scheduleSpinResume(FLY_TO_HOLD_MS, "after focus");
           return;
         }
+        const from = { theta: spherical.theta, phi: spherical.phi, radius: spherical.radius };
+        const to = {
+          theta: toTheta,
+          phi: toPhi,
+          radius: Math.max(2.9, Math.min(Math.max(spherical.radius, 2.9), 4.4)),
+        };
         aimAnim = {
           t0: performance.now(),
-          dur: 1200,
-          from: { theta: spherical.theta, phi: spherical.phi, radius: spherical.radius },
-          to: {
-            theta: toTheta,
-            phi: toPhi,
-            // Stay pulled back when focusing — never fill the viewport
-            radius: Math.max(2.9, Math.min(Math.max(spherical.radius, 2.9), 4.4)),
-          },
+          dur: flyDurationMs(from, to),
+          from,
+          to,
           resumeSpin: true,
+          holdMs: FLY_TO_HOLD_MS,
         };
       }
       aimRef.current = aimAt;
+
+      function tiltBy(delta: number) {
+        clearSpinResume();
+        autoRef.current = false;
+        aimAnim = null;
+        spherical.phi = Math.max(0.18, Math.min(Math.PI - 0.18, spherical.phi + delta));
+        applyCam();
+        if (spinDesiredRef.current) scheduleSpinResume(SPIN_RESUME_AFTER_DRAG_MS, "after tilt");
+      }
+      function tiltPreset(kind: "equator" | "north" | "oblique") {
+        clearSpinResume();
+        autoRef.current = false;
+        const from = { theta: spherical.theta, phi: spherical.phi, radius: spherical.radius };
+        const phi =
+          kind === "equator" ? Math.PI / 2 : kind === "north" ? 0.55 : 1.05;
+        const to = { theta: spherical.theta, phi, radius: spherical.radius };
+        aimAnim = {
+          t0: performance.now(),
+          dur: flyDurationMs(from, to),
+          from,
+          to,
+          resumeSpin: true,
+          holdMs: SPIN_RESUME_AFTER_HOME_MS,
+        };
+      }
+      tiltByRef.current = tiltBy;
+      tiltPresetRef.current = tiltPreset;
+
       recenterRef.current = () => {
         pushPrior();
         aimAnim = null;
@@ -476,8 +555,7 @@ export function Globe3D() {
         spherical.phi = 1.05;
         spherical.radius = HOME_RADIUS;
         applyCam();
-        // Home view re-enables spin when preference is ON
-        scheduleSpinResume(400);
+        scheduleSpinResume(SPIN_RESUME_AFTER_HOME_MS, "after home");
       };
 
       const hexGeo = makeHexRingGeometry(THREE, 1, 0.22);
@@ -1265,7 +1343,7 @@ export function Globe3D() {
       const onUp = () => {
         rotating = false;
         // Drag ended — resume auto-spin if Spin is still preferred
-        if (spinDesiredRef.current) scheduleSpinResume(900);
+        if (spinDesiredRef.current) scheduleSpinResume(SPIN_RESUME_AFTER_DRAG_MS, "after drag");
       };
 
       let pinchStartDist = 0;
@@ -1388,12 +1466,39 @@ export function Globe3D() {
       el.addEventListener("wheel", wheel, { passive: false });
 
       const onKey = (e: KeyboardEvent) => {
-        if (e.key === "r" || e.key === "R") {
-          recenterRef.current?.();
-        }
-        if (e.ctrlKey && (e.key === "a" || e.key === "A")) {
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
           e.preventDefault();
-          // antipode of picked or focus
+          tiltBy(-0.08);
+        } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+          e.preventDefault();
+          tiltBy(0.08);
+        } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+          e.preventDefault();
+          clearSpinResume();
+          autoRef.current = false;
+          spherical.theta += 0.12;
+          applyCam();
+          if (spinDesiredRef.current) scheduleSpinResume(SPIN_RESUME_AFTER_DRAG_MS, "after pan");
+        } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+          e.preventDefault();
+          clearSpinResume();
+          autoRef.current = false;
+          spherical.theta -= 0.12;
+          applyCam();
+          if (spinDesiredRef.current) scheduleSpinResume(SPIN_RESUME_AFTER_DRAG_MS, "after pan");
+        } else if (e.key === "e" || e.key === "E") {
+          e.preventDefault();
+          tiltPreset("equator");
+        } else if (e.key === "n" || e.key === "N") {
+          e.preventDefault();
+          tiltPreset("north");
+        } else if (e.key === "o" || e.key === "O") {
+          e.preventDefault();
+          tiltPreset("oblique");
+        } else if (e.key === "r" || e.key === "R") {
+          recenterRef.current?.();
         }
       };
       window.addEventListener("keydown", onKey);
@@ -1457,16 +1562,17 @@ export function Globe3D() {
 
         if (aimAnim) {
           const t = Math.min(1, (performance.now() - aimAnim.t0) / aimAnim.dur);
-          const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+          // Ease-out cubic — quick start, soft settle
+          const e = 1 - Math.pow(1 - t, 3);
           spherical.theta = aimAnim.from.theta + (aimAnim.to.theta - aimAnim.from.theta) * e;
           spherical.phi = aimAnim.from.phi + (aimAnim.to.phi - aimAnim.from.phi) * e;
           spherical.radius = aimAnim.from.radius + (aimAnim.to.radius - aimAnim.from.radius) * e;
           applyCam();
           if (t >= 1) {
             const resume = aimAnim.resumeSpin;
+            const hold = aimAnim.holdMs ?? FLY_TO_HOLD_MS;
             aimAnim = null;
-            // After EQ/node focus fly-to: re-spin if Spin preference is still ON
-            if (resume) scheduleSpinResume(800);
+            if (resume) scheduleSpinResume(hold, "after focus");
           }
         } else if (autoRef.current && !rotating && spiderAnims.length === 0) {
           // Prograde Earth: west→east. Matches three.js OrbitControls autoRotate
@@ -1502,7 +1608,7 @@ export function Globe3D() {
       hint.className =
         "pointer-events-none absolute bottom-20 left-1/2 z-10 max-w-[90%] -translate-x-1/2 truncate rounded-md border border-border/60 bg-surface/80 px-2.5 py-1 text-[0.6rem] text-dim backdrop-blur sm:bottom-4 sm:left-1/2";
       hint.textContent =
-        "Long pins · hover for context · tap EQ / node / volcano to switch · badge = spiderfy";
+        "↑↓ tilt · E equator · pins · tap switch · spin resumes after focus";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -1845,12 +1951,20 @@ export function Globe3D() {
       )}
 
       {/* Edge dock — keeps chrome off the Earth */}
+      {spinResumeHint && (
+        <div className="pointer-events-none absolute bottom-[7.5rem] right-2 z-30 max-w-[14rem] rounded-md border border-primary/30 bg-surface/90 px-2 py-1 text-[0.6rem] font-semibold text-primary shadow backdrop-blur sm:right-3">
+          {spinResumeHint}
+        </div>
+      )}
       <div className="pointer-events-none absolute bottom-3 right-2 z-30 sm:bottom-4 sm:right-3">
         <MapChromeDock
           className="items-end"
           canPriorView={canPrior}
           onPriorView={() => priorViewRef.current?.()}
           onHomeView={() => recenterRef.current?.()}
+          onTiltUp={() => tiltByRef.current?.(-0.1)}
+          onTiltDown={() => tiltByRef.current?.(0.1)}
+          onTiltPreset={(k) => tiltPresetRef.current?.(k)}
         />
       </div>
 

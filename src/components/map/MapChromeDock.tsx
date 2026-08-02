@@ -1,9 +1,11 @@
 /**
  * Edge dock for map/globe chrome — out of the way of the Earth.
- * 2D/3D · window chip · home · prior · immersive fullscreen.
+ * 2D/3D · window chip · home · prior · tilt · immersive · spin.
  */
 
 import {
+  ChevronDown,
+  ChevronUp,
   Expand,
   Globe2,
   Home,
@@ -14,12 +16,18 @@ import {
 import { useObservatory } from "@/store/observatory";
 import { timeWindowChip, timeWindowTitle, TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 
+type TiltPreset = "equator" | "north" | "oblique";
+
 type Props = {
   /** Optional: restore previous globe camera (3D only) */
   onPriorView?: (() => void) | null;
   canPriorView?: boolean;
   /** Optional: recenter / home on globe */
   onHomeView?: (() => void) | null;
+  /** Nudge camera tilt (3D) */
+  onTiltUp?: (() => void) | null;
+  onTiltDown?: (() => void) | null;
+  onTiltPreset?: ((kind: TiltPreset) => void) | null;
   className?: string;
 };
 
@@ -27,6 +35,9 @@ export function MapChromeDock({
   onPriorView,
   canPriorView = false,
   onHomeView,
+  onTiltUp,
+  onTiltDown,
+  onTiltPreset,
   className = "",
 }: Props) {
   const mapView = useObservatory((s) => s.mapView);
@@ -43,6 +54,8 @@ export function MapChromeDock({
     exitToHomeView();
     onHomeView?.();
   };
+
+  const showTilt = mapView === "3d" && (onTiltUp || onTiltDown || onTiltPreset);
 
   return (
     <div
@@ -92,6 +105,57 @@ export function MapChromeDock({
         ))}
       </div>
 
+      {/* 3D tilt controls */}
+      {showTilt && (
+        <div
+          className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface/95 p-1 shadow-md backdrop-blur"
+          role="group"
+          aria-label="Globe tilt"
+        >
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn"
+            title="Tilt up (more polar) · ↑ / W"
+            onClick={() => onTiltUp?.()}
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+            <span className="ww-map-dock__label">Tilt</span>
+          </button>
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn"
+            title="Tilt down (more equator) · ↓ / S"
+            onClick={() => onTiltDown?.()}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn"
+            title="Equator view · E"
+            onClick={() => onTiltPreset?.("equator")}
+          >
+            <span className="ww-map-dock__label">Eq</span>
+          </button>
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn"
+            title="North oblique · N"
+            onClick={() => onTiltPreset?.("north")}
+          >
+            <span className="ww-map-dock__label">N</span>
+          </button>
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn"
+            title="Default oblique · O"
+            onClick={() => onTiltPreset?.("oblique")}
+          >
+            <span className="ww-map-dock__label">O</span>
+          </button>
+        </div>
+      )}
+
       {/* View actions */}
       <div className="flex flex-wrap gap-1">
         <button
@@ -134,7 +198,7 @@ export function MapChromeDock({
             className={`ww-map-dock__icon-btn ${globeAutoSpin ? "ww-map-dock__icon-btn--on" : ""}`}
             title={
               globeAutoSpin
-                ? "Spin ON — pauses on focus/drag, then resumes · click to stop"
+                ? "Spin ON — pauses ~0.4–0.9s after focus/drag, then resumes · click to stop"
                 : "Start auto-spin west→east"
             }
             onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
@@ -147,6 +211,7 @@ export function MapChromeDock({
 
       <div className="px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
         EQ · {timeWindowChip(timeWindow)}
+        {mapView === "3d" ? " · ↑↓ tilt" : ""}
       </div>
     </div>
   );
