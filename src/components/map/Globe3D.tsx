@@ -478,6 +478,8 @@ export function Globe3D() {
             elevBoost?: number;
             displayLat?: number;
             displayLon?: number;
+            /** Extra pin height for spiderfied events */
+            pinTall?: boolean;
           },
         ) => {
           const mag = f.properties.mag ?? 3.5;
@@ -486,33 +488,70 @@ export function Globe3D() {
           const id = f.id ? String(f.id) : `${lat}_${lon}_${f.properties.time ?? 0}`;
           const st = globeMagStyle(mag);
           const neon = st.neon;
-          let base = 0.018 + Math.pow(Math.max(mag, 0.5), 1.1) * 0.01;
-          if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
+          let base = 0.016 + Math.pow(Math.max(mag, 0.5), 1.05) * 0.009;
+          if (mag >= 5) base *= 1 + (mag - 5) * 0.16;
           const size = base * hexScale;
-          const lift = (Math.min(depth, 700) / 700) * stemMul;
-          const elev = 1.012 + lift + size * 0.28 + (opts?.elevBoost ?? 0);
+          const lift = (Math.min(depth, 700) / 700) * Math.max(0.04, stemMul);
+          // Significantly taller pins so they read as needles, not flat discs
+          const tall = opts?.pinTall ? 1.55 : 1;
+          const pinHeight =
+            (0.055 + lift * 1.35 + size * 0.9 + (opts?.elevBoost ?? 0)) * tall;
+          const elev = 1.008 + pinHeight;
           const dLat = opts?.displayLat ?? lat;
           const dLon = opts?.displayLon ?? lon;
           const pos = latLonToVec(dLat, dLon, elev);
+          const surf = latLonToVec(dLat, dLon, 1.0035);
           const colHex = st.color;
           const col = new THREE.Color(colHex);
 
           const g = new THREE.Group();
           g.position.copy(pos);
+          // +Z points outward from Earth after lookAt origin
           g.lookAt(0, 0, 0);
           g.rotateY(Math.PI);
 
+          // --- Long pin stem (local −Z toward surface) ---
+          const stemLen = pinHeight * 0.92;
+          const stemR = Math.max(0.0022, size * 0.12);
+          const stemGeo = new THREE.CylinderGeometry(stemR * 0.55, stemR, stemLen, 6);
+          const stemMat = new THREE.MeshBasicMaterial({
+            color: col,
+            transparent: true,
+            opacity: opac * 0.9,
+            depthWrite: false,
+          });
+          const stem = new THREE.Mesh(stemGeo, stemMat);
+          stem.rotation.x = Math.PI / 2; // Y-up cylinder → along Z
+          stem.position.z = -stemLen / 2;
+          stem.renderOrder = 8;
+          g.add(stem);
+
+          // Surface foot
+          const foot = new THREE.Mesh(
+            new THREE.SphereGeometry(stemR * 1.6, 8, 8),
+            new THREE.MeshBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: opac * 0.75,
+              depthWrite: false,
+            }),
+          );
+          foot.position.z = -stemLen;
+          foot.renderOrder = 7;
+          g.add(foot);
+
+          // --- Pin head (hex rings + sphere) ---
           const allRings = neon
-            ? [1.1, 1.0, 0.7, 0.42]
+            ? [1.05, 0.78, 0.5]
             : mag >= 5
-              ? [1.0, 0.7, 0.42]
-              : [1.0, 0.7];
-          const rings = allRings.slice(0, Q.maxRings);
+              ? [1.0, 0.7]
+              : [1.0];
+          const rings = allRings.slice(0, Math.max(1, Q.maxRings));
           rings.forEach((s, i) => {
             const ringMat = new THREE.MeshBasicMaterial({
               color: col,
               transparent: true,
-              opacity: opac * (1 - i * 0.18) * (neon && i === 0 ? 0.95 : 0.88),
+              opacity: opac * (1 - i * 0.2) * (neon && i === 0 ? 0.95 : 0.9),
               side: THREE.DoubleSide,
               depthWrite: false,
             });
@@ -520,18 +559,40 @@ export function Globe3D() {
               neonMats.push({ mat: ringMat, base: opac * 0.95 });
             }
             const mesh = new THREE.Mesh(hexGeo, ringMat);
-            mesh.scale.setScalar(size * s);
-            mesh.renderOrder = 10 + Math.floor(mag);
+            mesh.scale.setScalar(size * s * 1.15);
+            mesh.renderOrder = 12 + Math.floor(mag);
             g.add(mesh);
           });
+          const head = new THREE.Mesh(
+            new THREE.SphereGeometry(size * 0.42, 10, 10),
+            new THREE.MeshBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: Math.min(1, opac + 0.08),
+              depthWrite: false,
+            }),
+          );
+          head.renderOrder = 14;
+          g.add(head);
 
-          // Labels only when spiderfied or strong M6+ (avoids the stacked digit soup)
+          // Invisible larger hit sphere for easy pick / hover
+          const hit = new THREE.Mesh(
+            new THREE.SphereGeometry(Math.max(0.028, size * 1.6), 8, 8),
+            new THREE.MeshBasicMaterial({
+              transparent: true,
+              opacity: 0.001,
+              depthWrite: false,
+            }),
+          );
+          g.add(hit);
+
+          // Labels: spiderfied, strong, or when magSprites on
           const showLabel =
-            opts?.showLabel ?? (Q.magSprites && mag >= 6);
+            opts?.showLabel ?? (Q.magSprites && mag >= 5.5);
           if (showLabel) {
             const spr = makeMagSprite(THREE, mag, colHex, opac);
-            spr.scale.setScalar(size * 2.8);
-            spr.position.set(0, 0, size * 0.15);
+            spr.scale.setScalar(size * 3.2);
+            spr.position.set(0, 0, size * 0.55);
             g.add(spr);
           }
 
@@ -552,8 +613,8 @@ export function Globe3D() {
             },
           });
 
-          if (depth > Q.stemMinDepthKm) {
-            const surf = latLonToVec(dLat, dLon, 1.004);
+          // World-space stem (surface → head) for depth cue when far
+          if (depth > Q.stemMinDepthKm || pinHeight > 0.04) {
             stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
             stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
           }
@@ -570,7 +631,7 @@ export function Globe3D() {
 
           const expanded = expandedGlobe.has(cl.key);
           if (expanded) {
-            const offs = spiderfyOffsets(cl.points.length, 4.2);
+            const offs = spiderfyOffsets(cl.points.length, 16);
             const animateOpen = spiderExpandKey === cl.key;
             const t0 = performance.now();
             for (let i = 0; i < cl.points.length; i++) {
@@ -584,7 +645,13 @@ export function Globe3D() {
               if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
               const size = base * hexScale;
               const lift = (Math.min(depth, 700) / 700) * stemMul;
-              const elev = 1.012 + lift + size * 0.28 + 0.014;
+              const pinH =
+                (0.055 +
+                  (Math.min(depth, 700) / 700) * Math.max(0.04, stemMul) * 1.35 +
+                  size * 0.9 +
+                  0.04) *
+                1.55;
+              const elev = 1.008 + pinH;
               const from = latLonToVec(cl.lat, cl.lon, elev);
               const to = latLonToVec(plat, plon, elev);
 
@@ -593,7 +660,8 @@ export function Globe3D() {
               const startLon = animateOpen ? cl.lon : plon;
               placeEventHex(p.f, p.lat, p.lon, {
                 showLabel: true,
-                elevBoost: 0.014,
+                elevBoost: 0.04,
+                pinTall: true,
                 displayLat: startLat,
                 displayLon: startLon,
               });
@@ -617,8 +685,9 @@ export function Globe3D() {
                 new THREE.LineBasicMaterial({
                   color: legCol,
                   transparent: true,
-                  opacity: 0.55,
+                  opacity: 0.75,
                   depthWrite: false,
+                  linewidth: 2,
                 }),
               );
               quakeGroup.add(leg);
@@ -631,7 +700,7 @@ export function Globe3D() {
                   from: from.clone(),
                   to: to.clone(),
                   t0: t0 + delay,
-                  dur: 220,
+                  dur: 280,
                   legPos: legArr,
                   legGeo,
                 });
@@ -721,7 +790,7 @@ export function Globe3D() {
             new THREE.LineBasicMaterial({
               vertexColors: true,
               transparent: true,
-              opacity: Math.max(0.2, opac * 0.5),
+              opacity: Math.max(0.45, opac * 0.72),
               depthWrite: false,
             }),
           );
@@ -801,7 +870,8 @@ export function Globe3D() {
             (node.bounds[0][1] <= node.bounds[1][1]
               ? (node.bounds[0][1] + node.bounds[1][1]) / 2
               : -175);
-          const elev = 1.032;
+          // Tall node pin (same language as EQ pins)
+          const elev = 1.055;
           const v = latLonToVec(clat, clon, elev);
           const col =
             node.kind === "volcano"
@@ -814,8 +884,21 @@ export function Globe3D() {
           g.lookAt(0, 0, 0);
           g.rotateY(Math.PI);
 
-          // Larger hit sphere (invisible) + visible pin so taps register
-          const hitR = node.publishedFocus || node.kind === "volcano" ? 0.04 : 0.032;
+          const stemLen = 0.048;
+          const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.003, 0.0045, stemLen, 6),
+            new THREE.MeshBasicMaterial({
+              color: col,
+              transparent: true,
+              opacity: 0.9,
+              depthWrite: false,
+            }),
+          );
+          stem.rotation.x = Math.PI / 2;
+          stem.position.z = -stemLen / 2;
+          g.add(stem);
+
+          const hitR = node.publishedFocus || node.kind === "volcano" ? 0.045 : 0.036;
           const hit = new THREE.Mesh(
             new THREE.SphereGeometry(hitR, 10, 10),
             new THREE.MeshBasicMaterial({
@@ -828,7 +911,7 @@ export function Globe3D() {
 
           const core = new THREE.Mesh(
             new THREE.SphereGeometry(
-              node.publishedFocus ? 0.018 : 0.013,
+              node.publishedFocus ? 0.02 : 0.015,
               Q.pinSeg,
               Q.pinSeg,
             ),
@@ -842,16 +925,16 @@ export function Globe3D() {
           g.add(core);
 
           const ring = new THREE.Mesh(
-            new THREE.RingGeometry(0.022, 0.03, 20),
+            new THREE.RingGeometry(0.024, 0.034, 20),
             new THREE.MeshBasicMaterial({
               color: col,
               transparent: true,
-              opacity: 0.85,
+              opacity: 0.9,
               side: THREE.DoubleSide,
               depthWrite: false,
             }),
           );
-          ring.scale.setScalar(node.publishedFocus ? 1.15 : 1);
+          ring.scale.setScalar(node.publishedFocus ? 1.2 : 1);
           g.add(ring);
 
           // Always-visible name + chip so users know what/why
@@ -907,18 +990,22 @@ export function Globe3D() {
         const x = clientX - rect.left;
         const y = clientY - rect.top;
         if (meta.kind === "node") {
-          hoverTip.innerHTML = `<div class="ww-hover-tip__title">${meta.place}</div>
+          const isVolc = (meta.chip || "").toLowerCase().includes("volcano");
+          hoverTip.innerHTML = `<div class="ww-hover-tip__kind">${isVolc ? "VOLCANO / NODE" : "FOCUS NODE"}</div>
+            <div class="ww-hover-tip__title">${meta.place}</div>
             <div class="ww-hover-tip__chip">${meta.chip || "Focus zone"}</div>
             <div class="ww-hover-tip__role">${meta.role || ""}</div>
-            <div class="ww-hover-tip__hint">Click for why · focus zone</div>`;
+            <div class="ww-hover-tip__hint">Click · detail · switch anytime</div>`;
         } else if (meta.kind === "cluster") {
-          hoverTip.innerHTML = `<div class="ww-hover-tip__title">${meta.count ?? "?"} events</div>
+          hoverTip.innerHTML = `<div class="ww-hover-tip__kind">CLUSTER</div>
+            <div class="ww-hover-tip__title">${meta.count ?? "?"} nearby EQs</div>
             <div class="ww-hover-tip__chip">max M${meta.mag.toFixed(1)}</div>
-            <div class="ww-hover-tip__hint">Click to expand pins</div>`;
+            <div class="ww-hover-tip__hint">Click · long spider pins</div>`;
         } else {
-          hoverTip.innerHTML = `<div class="ww-hover-tip__title">M${meta.mag.toFixed(1)} · ${meta.place}</div>
-            <div class="ww-hover-tip__role">${meta.depth.toFixed(0)} km depth</div>
-            <div class="ww-hover-tip__hint">Click for assessment</div>`;
+          hoverTip.innerHTML = `<div class="ww-hover-tip__kind">EARTHQUAKE</div>
+            <div class="ww-hover-tip__title">M${meta.mag.toFixed(1)} · ${meta.place}</div>
+            <div class="ww-hover-tip__role">${meta.depth.toFixed(0)} km · ${meta.lat.toFixed(2)}°, ${meta.lon.toFixed(2)}°</div>
+            <div class="ww-hover-tip__hint">Click · assessment · no close needed</div>`;
         }
         hoverTip.style.display = "block";
         const pad = 12;
@@ -935,6 +1022,23 @@ export function Globe3D() {
       function hideHoverTip() {
         hoverTip.style.display = "none";
         if (!rotating) el.style.cursor = "grab";
+      }
+
+      // Hover scale highlight (seamless target feedback)
+      let hoverObj: InstanceType<typeof THREE.Object3D> | null = null;
+      let hoverScale = 1;
+      function clearHoverHighlight() {
+        if (hoverObj) {
+          hoverObj.scale.setScalar(hoverScale);
+          hoverObj = null;
+        }
+      }
+      function setHoverHighlight(mesh: InstanceType<typeof THREE.Object3D>) {
+        if (hoverObj === mesh) return;
+        clearHoverHighlight();
+        hoverObj = mesh;
+        hoverScale = mesh.scale.x || 1;
+        mesh.scale.setScalar(hoverScale * 1.28);
       }
 
       const ray = new THREE.Raycaster();
@@ -974,8 +1078,11 @@ export function Globe3D() {
       }
 
       function applyPick(meta: PickMeta) {
+        // Seamless switch: any pick replaces the previous detail card
+        hideHoverTip();
+        clearHoverHighlight();
         if (meta.kind === "node" && meta.nodeId) {
-          pickEvent(null); // clear EQ card so node card owns the panel
+          pickEvent(null);
           const node =
             getAllFocusNodes().find((n) => n.id === meta.nodeId) ||
             DRAGON_NODES.find((n) => n.id === meta.nodeId) ||
@@ -987,6 +1094,8 @@ export function Globe3D() {
         }
         // Cluster badge: expand / collapse spider pins (globe equivalent of 2D spiderfy)
         if (meta.kind === "cluster" && meta.clusterKey) {
+          setPickedGlobeNodeRef.current(null);
+          pickEvent(null);
           if (expandedGlobe.has(meta.clusterKey)) {
             expandedGlobe.delete(meta.clusterKey);
             spiderExpandKey = null;
@@ -1081,6 +1190,7 @@ export function Globe3D() {
           if (d > 3) dragMoved = true;
           onMove(e.clientX, e.clientY);
           hideHoverTip();
+          clearHoverHighlight();
           return;
         }
         // Hover tooltips when idle — quick context without click
@@ -1095,8 +1205,14 @@ export function Globe3D() {
           return;
         }
         const meta = pickAt(e.clientX, e.clientY);
-        if (meta) showHoverTip(meta, e.clientX, e.clientY);
-        else hideHoverTip();
+        if (meta) {
+          showHoverTip(meta, e.clientX, e.clientY);
+          const hit = pickList.find((p) => p.meta.id === meta.id);
+          if (hit) setHoverHighlight(hit.mesh);
+        } else {
+          hideHoverTip();
+          clearHoverHighlight();
+        }
       };
       const mu = (e: MouseEvent) => {
         const was = rotating;
@@ -1287,7 +1403,7 @@ export function Globe3D() {
       hint.className =
         "pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[92%] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-surface/95 px-3 py-1.5 text-[0.68rem] text-muted shadow";
       hint.textContent =
-        "Tap badge → longer pins · tap any EQ to switch (no need to close) · Spin W→E";
+        "Long pins · hover for context · tap EQ / node / volcano to switch · badge = spiderfy";
       container.style.position = "relative";
       container.appendChild(hint);
 
@@ -1295,7 +1411,7 @@ export function Globe3D() {
       legend.className =
         "pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-border bg-surface/90 px-2.5 py-1.5 text-[0.68rem] text-muted";
       legend.innerHTML =
-        '<span style="color:#00ee66">⬡</span> EQ &nbsp; <span style="color:#fbbf24">●</span> SES node &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="color:#22d3ee">●</span> zone &nbsp; <span style="opacity:.75">tap label = why</span>';
+        '<span style="color:#ff8c00">📍</span> long EQ pin &nbsp; <span style="opacity:.85">n</span> cluster &nbsp; <span style="color:#fbbf24">●</span> SES &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="opacity:.7">hover · tap switch</span>';
       container.appendChild(legend);
 
       cleanupRef.current = () => {
@@ -1315,6 +1431,7 @@ export function Globe3D() {
         el.removeEventListener("wheel", wheel);
         el.removeEventListener("webglcontextlost", onContextLost);
         try {
+          clearHoverHighlight();
           hoverTip.remove();
         } catch {
           /* ignore */
