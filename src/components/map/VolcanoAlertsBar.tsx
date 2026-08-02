@@ -4,6 +4,7 @@ import {
   colorCodeHex,
   type UsgsVolcanoAlert,
 } from "@/lib/feeds/usgsVolcanoAlerts";
+import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { alertKey, nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
@@ -66,6 +67,12 @@ function AlertChip({ v }: { v: UsgsVolcanoAlert }) {
               {v.colorCode}
             </span>
             <span className="text-[0.62rem] text-dim">{v.alertLevel}</span>
+            {(v as { officialNative?: string }).officialNative && (
+              <span className="rounded border border-border px-1 text-[0.55rem] font-bold uppercase text-gold">
+                {(v as { officialNative?: string }).officialNative}
+              </span>
+            )}
+            <span className="text-[0.55rem] text-dim">{alertSourceLabel(v)}</span>
             {pinned && (
               <span className="text-[0.55rem] font-semibold text-primary">PIN</span>
             )}
@@ -192,7 +199,7 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
     return (
       <div className="rounded-lg border border-border/80 bg-panel/60 px-2.5 py-2 text-[0.68rem] text-dim">
         <span className="inline-flex items-center gap-1 font-semibold text-muted">
-          <Mountain className="h-3.5 w-3.5" /> USGS volcano alerts
+          <Mountain className="h-3.5 w-3.5" /> Official volcano alerts
         </span>
         <p className="mt-0.5">
           All baseline (NORMAL / GREEN). Enable <strong className="text-fg">GVP world</strong> in

@@ -42,6 +42,7 @@ import {
   type UsgsVolcanoAlert,
   type VolcWatchTransition,
 } from "@/lib/feeds/usgsVolcanoAlerts";
+import { fetchAllElevatedVolcanoes } from "@/lib/feeds/globalVolcanoAlerts";
 import { fetchGlobalSeismic, type GlobalSeismicBundle } from "@/lib/feeds/globalSeismic";
 import {
   buildWatchNodes,
@@ -1168,7 +1169,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       // USGS HANS elevated volcanoes — small; always refresh when missing
       if (!usgsVolcAlerts) {
         tasks.push(
-          withTimeout(fetchUsgsElevatedVolcanoes(), 18_000, "usgs-volc")
+          withTimeout(fetchAllElevatedVolcanoes(), 22_000, "volc-alerts")
             .then((d) => {
               usgsVolcAlerts = d;
               setCache("usgs_volc_alerts", d);
@@ -1463,16 +1464,40 @@ export function getFocusNode(id: string | null) {
   );
 }
 
-/** Static corridors + live USGS elevated volcano watches + active GVP pick. */
+/** Static corridors + multi-source volcano alerts (no double pin on SES ids). */
 export function getAllFocusNodes(): DragonNode[] {
   const state = useObservatory.getState();
   const dynamic = state.volcWatchNodes;
-  const staticIds = new Set(DRAGON_NODES.map((n) => n.id));
-  // Prefer dynamic USGS pins for same vnum if ever collides with manual watches
-  const dyn = dynamic.filter((n) => !staticIds.has(n.id));
-  const list = [...dyn, ...DRAGON_NODES];
+  const dynById = new Map(dynamic.map((n) => [n.id, n]));
+  const list: DragonNode[] = [];
+
+  for (const n of DRAGON_NODES) {
+    const live = dynById.get(n.id);
+    if (live) {
+      list.push({
+        ...n,
+        ...live,
+        name: n.name,
+        bounds: n.bounds,
+        center: n.center ?? live.center,
+        kind: live.kind || n.kind,
+        role: live.role || n.role,
+        focusNote: [live.focusNote, n.focusNote].filter(Boolean).join(" "),
+        publishedFocus: n.publishedFocus || live.publishedFocus,
+        watchPriority: true,
+        monitorUrl: live.monitorUrl || n.monitorUrl,
+        agencyUrl: live.agencyUrl || n.agencyUrl,
+        aviationCode: live.aviationCode ?? n.aviationCode,
+      });
+      dynById.delete(n.id);
+    } else {
+      list.push(n);
+    }
+  }
+  for (const n of dynById.values()) list.push(n);
+
   const gvp = state.gvpFocusNode;
-  if (gvp && !list.some((n) => n.id === gvp.id)) list.unshift(gvp);
+  if (gvp && !list.some((x) => x.id === gvp.id)) list.unshift(gvp);
   return list;
 }
 

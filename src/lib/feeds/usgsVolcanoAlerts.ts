@@ -40,6 +40,13 @@ export type UsgsVolcanoAlert = {
   elevationM: number | null;
   region: string | null;
   volcanoUrl: string | null;
+  /** Multi-source: usgs | ingv | kvert | official */
+  source?: string;
+  /** Native agency level (e.g. GIALLO) */
+  officialNative?: string;
+  /** Reuse SES/app node id — avoids second map pin */
+  preferNodeId?: string;
+  restless?: boolean;
 };
 
 export type VolcWatchTransition = {
@@ -126,13 +133,22 @@ export function alertToWatchNode(v: UsgsVolcanoAlert): DragonNode | null {
   if (v.lat == null || v.lon == null) return null;
   const av = colorToAviation(v.colorCode);
   if (av === "green" && rankAlert(v.alertLevel) <= 1) return null;
-  const id = `usgs-volc-${v.vnum || v.id}`;
+  const id = v.preferNodeId || `usgs-volc-${v.vnum || v.id}`;
+  const src =
+    v.source === "ingv"
+      ? "INGV/PC"
+      : v.source === "kvert"
+        ? "KVERT"
+        : v.source === "official"
+          ? "Official"
+          : "USGS HANS";
+  const native = v.officialNative ? ` · ${v.officialNative}` : "";
   return {
     id,
     name: v.name,
-    role: `USGS ${v.alertLevel} · Aviation ${v.colorCode} · ${v.obsAbbr}`,
+    role: `${src} ${v.alertLevel} · ${v.colorCode}${native}`,
     kind: "volcano",
-    bounds: boundsAround(v.lat, v.lon),
+    bounds: boundsAround(v.lat, v.lon, v.preferNodeId ? 0.2 : 0.75),
     center: [v.lat, v.lon],
     aviationCode: av,
     monitorUrl: v.volcanoUrl || v.noticeUrl || undefined,
@@ -141,9 +157,11 @@ export function alertToWatchNode(v: UsgsVolcanoAlert): DragonNode | null {
       ? `https://volcano.si.edu/volcano.cfm?vn=${v.vnum}`
       : undefined,
     watchPriority: true,
-    publishedFocus: false,
-    focusNote: `Live USGS HANS watch while elevated (${v.alertLevel} / ${v.colorCode}). Returns to baseline when NORMAL/GREEN. ${v.region || ""} · ${v.obsName}. Not a forecast.`,
-    aliases: v.vnum ? [v.vnum] : undefined,
+    publishedFocus: !!v.preferNodeId,
+    focusNote: `Live ${src} alert (${v.alertLevel} / ${v.colorCode}${native}). ${
+      v.region || ""
+    } · ${v.obsName}. Updates with official feeds. Not a forecast.`,
+    aliases: v.vnum ? [v.vnum, v.id] : [v.id],
   };
 }
 

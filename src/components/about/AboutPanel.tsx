@@ -118,7 +118,7 @@ export function AboutPanel() {
       <Section title="Key data layers">
         <ul className="list-disc space-y-1.5 pl-5 text-sm">
           <li>
-            <strong className="text-fg">USGS HANS</strong> — elevated volcano alerts (aviation +
+            <strong className="text-fg">USGS HANS + INGV/PC + KVERT</strong> — elevated volcano alerts (aviation +
             ground level); notices remain authoritative
           </li>
           <li>

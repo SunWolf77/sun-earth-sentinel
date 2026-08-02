@@ -453,7 +453,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #2 — Campi Flegrei caldera west of Naples. Open full board for INGV-OV GOSSIP microseismicity, depth profile, and SUPT continuum. USGS under-samples this box. Not a forecast.",
+      "SES node #2 — Campi Flegrei caldera west of Naples. Live official alert from INGV/Protezione Civile (giallo = ADVISORY/YELLOW) when elevated — not USGS HANS. Open full board for INGV-OV GOSSIP microseismicity & SUPT continuum. Not a forecast.",
     aliases: ["campi-flegrei", "campi", "cf", "flegrei"],
   },
   {

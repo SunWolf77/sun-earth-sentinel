@@ -24,6 +24,15 @@ export function nodeMarkKind(node: DragonNode): NodeMarkKind {
 
 /** Short chip for map labels (always visible). */
 export function nodeMarkChip(node: DragonNode): string {
+  // Live multi-source volcano alert on SES/volcano nodes
+  if (node.kind === "volcano" || node.aviationCode) {
+    const av = (node.aviationCode || "").toLowerCase();
+    if (av === "yellow" || av === "orange" || av === "red") {
+      const lvl =
+        av === "red" ? "WARNING" : av === "orange" ? "WATCH" : "ADVISORY";
+      return `${lvl} · ${av.toUpperCase()}`;
+    }
+  }
   switch (nodeMarkKind(node)) {
     case "ses-published":
       return "SES focus";

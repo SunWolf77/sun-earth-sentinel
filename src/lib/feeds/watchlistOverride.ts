@@ -51,7 +51,12 @@ export function alertKey(v: { vnum?: string | null; id: string }): string {
   return v.vnum || v.id;
 }
 
-export function nodeIdForAlert(v: { vnum?: string | null; id: string }): string {
+export function nodeIdForAlert(v: {
+  vnum?: string | null;
+  id: string;
+  preferNodeId?: string;
+}): string {
+  if (v.preferNodeId) return v.preferNodeId;
   return `usgs-volc-${alertKey(v)}`;
 }
 

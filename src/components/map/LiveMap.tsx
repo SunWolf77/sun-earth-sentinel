@@ -33,6 +33,7 @@ import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
+import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
 import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
 import { formatUtc } from "@/lib/utils";
 import {
@@ -899,12 +900,16 @@ export function LiveMap() {
         : "";
       marker.bindPopup(
         `<strong style="color:${fill}">${v.name}</strong><br/>` +
-          `<span style="font-size:11px">${v.alertLevel} · Aviation ${v.colorCode}</span><br/>` +
+          `<span style="font-size:11px;font-weight:700">${v.alertLevel} · ${v.colorCode}${
+            (v as { officialNative?: string }).officialNative
+              ? " · " + (v as { officialNative?: string }).officialNative
+              : ""
+          }</span><br/>` +
           `<span style="color:#64748b;font-size:11px">${v.obsName}${v.region ? " · " + v.region : ""}</span>` +
           elev +
           notice +
           gvpL +
-          `<br/><span style="color:#64748b;font-size:10px">USGS HANS · not a forecast</span>` +
+          `<br/><span style="color:#64748b;font-size:10px">${alertSourceLabel(v)} · not a forecast</span>` +
           `<br/><button type="button" class="ww-volc-focus-btn" data-node="${nodeId}" style="margin-top:6px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:11px">${isFocus ? "Home view" : "Focus region"}</button>`,
       );
       marker.on("popupopen", () => {
