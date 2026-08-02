@@ -17,6 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { useObservatory, filteredEq, viewEvents, getAllFocusNodes, type TabId } from "@/store/observatory";
+import { TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
+import { MapViewToggle } from "@/components/map/MapViewToggle";
 import { MODES, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
 import { ClientOnly } from "@/components/ops/ClientOnly";
@@ -71,12 +73,7 @@ const TABS: {
   { id: "about", label: "About", short: "About", Icon: BookOpen },
 ];
 
-const WINDOWS = [
-  { id: "hour" as const, label: "1h", title: "Past hour" },
-  { id: "day" as const, label: "1d", title: "Past day" },
-  { id: "week" as const, label: "1w", title: "Past week" },
-  { id: "month" as const, label: "1m", title: "Past month" },
-];
+const WINDOWS = TIME_WINDOWS;
 
 function ObservatoryApp() {
   const mode = useObservatory((s) => s.mode);
@@ -480,7 +477,7 @@ function ObservatoryApp() {
     <div className="space-y-3 p-3">
       <div>
         <label className="mb-1 block text-[0.65rem] uppercase tracking-wider text-dim">
-          Time window
+          Earthquake time window
         </label>
         <div className="ww-seg ww-seg--compact flex flex-wrap">
           {WINDOWS.map((w) => (
@@ -528,22 +525,14 @@ function ObservatoryApp() {
           Audio M4.5+
         </label>
       </div>
-      <div className="ww-seg ww-seg--compact">
-        {(["2d", "3d"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            title={
-              v === "3d"
-                ? "3D globe: tap hex for USGS / waveforms / agency assessment"
-                : "2D Leaflet map"
-            }
-            onClick={() => setMapView(v)}
-            className={`ww-seg__btn uppercase ${mapView === v ? "ww-seg__btn--on" : ""}`}
-          >
-            {v}
-          </button>
-        ))}
+      <div>
+        <label className="mb-1 block text-[0.65rem] uppercase tracking-wider text-dim">
+          Map view · same EQ time window on both
+        </label>
+        <MapViewToggle className="w-full items-stretch [&>div:first-child]:w-full" showWindow={false} />
+        <p className="mt-1 text-[0.6rem] text-dim">
+          Active catalog: <span className="font-semibold text-primary">{WINDOWS.find((w) => w.id === timeWindow)?.title ?? timeWindow}</span>
+        </p>
       </div>
     </div>
   );
@@ -925,6 +914,10 @@ function ObservatoryApp() {
                     {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
                 </ClientOnly>
+                {/* Always-visible 2D/3D switch + active EQ window */}
+                <div className="pointer-events-none absolute left-1/2 top-2 z-[550] -translate-x-1/2 sm:top-3">
+                  <MapViewToggle className="map-view-dock items-center" />
+                </div>
               </div>
             </div>
             {mobileSheet !== "closed" && (

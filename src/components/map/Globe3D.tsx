@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes, type PickedEvent } from "@/store/observatory";
 import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
+import { filterFeaturesByTimeWindow } from "@/lib/feeds/usgs";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { hasWebGl, resolveGlobeQuality, type GlobeQuality } from "@/lib/device";
@@ -888,7 +889,10 @@ export function Globe3D() {
 
 
       updateRef.current = updateMarkers;
-      updateMarkers(filteredEq(eq?.features, minMag, maxMag), focusNodeId);
+      updateMarkers(
+        filterFeaturesByTimeWindow(filteredEq(eq?.features, minMag, maxMag), timeWindow),
+        focusNodeId,
+      );
 
       const el = renderer.domElement;
       el.style.touchAction = "none";
@@ -1376,7 +1380,9 @@ export function Globe3D() {
 
   useEffect(() => {
     if (mapView !== "3d" || !updateRef.current) return;
+    // Same catalog pipeline as 2D: mag floor + hard time-window clip
     let list = filteredEq(eq?.features, minMag, maxMag);
+    list = filterFeaturesByTimeWindow(list, timeWindow);
     // Mirror 2D: significant filter + educational replay cursor
     if (overlays.significant) {
       list = list.filter((f) => (f.properties.mag ?? 0) >= 6);
@@ -1632,13 +1638,6 @@ export function Globe3D() {
           onClick={() => recenterRef.current?.()}
         >
           Recenter
-        </button>
-        <button
-          type="button"
-          className="ww-btn text-[0.65rem]"
-          onClick={() => setMapView("2d")}
-        >
-          2D Map
         </button>
       </div>
 
