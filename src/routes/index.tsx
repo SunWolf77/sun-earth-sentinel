@@ -650,30 +650,43 @@ function ObservatoryApp() {
   }, []);
 
   return (
-    <div className="ww-shell relative flex h-full max-h-full flex-col overflow-hidden">
+    <div
+      className={`ww-shell relative flex h-full max-h-full flex-col overflow-hidden ${
+        isMobile && tab === "live" ? "ww-shell--map-focus" : ""
+      } ${mapImmersive ? "ww-shell--immersive" : ""}`}
+    >
       <VolcWatchSmart />
       <SuptOnboarding />
 
       <header className="ww-header shrink-0 border-b border-border bg-bg/95 backdrop-blur">
-        <div className="flex items-center justify-between gap-2 px-2 py-1.5 sm:px-4 sm:py-2">
+        <div className="flex items-center justify-between gap-1.5 px-2 py-1 sm:gap-2 sm:px-4 sm:py-2">
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold tracking-tight text-fg sm:text-base">
+            <h1 className="truncate text-[0.8rem] font-semibold tracking-tight text-fg sm:text-base">
               Sun-Earth <span className="text-primary">Sentinel</span>
             </h1>
-            <p className="text-[0.58rem] text-dim sm:text-[0.62rem]">
-              Sentinel · updated {updatedLabel} · newest {ageLabel}
-              {livePulseAt ? " · live pulse" : ""}
-              {liveStatus === "ws"
-                ? " · WS"
-                : liveStatus === "live"
-                  ? " · LIVE"
-                  : liveStatus === "paused"
-                    ? " · paused"
-                    : liveStatus === "offline"
-                      ? " · offline"
-                      : liveStatus === "polling"
-                        ? " · …"
-                        : ""}
+            <p className="truncate text-[0.55rem] text-dim sm:text-[0.62rem]">
+              {isMobile ? (
+                <>
+                  {updatedLabel} · {ageLabel}
+                  {liveStatus === "live" || liveStatus === "ws" ? " · LIVE" : ""}
+                </>
+              ) : (
+                <>
+                  Sentinel · updated {updatedLabel} · newest {ageLabel}
+                  {livePulseAt ? " · live pulse" : ""}
+                  {liveStatus === "ws"
+                    ? " · WS"
+                    : liveStatus === "live"
+                      ? " · LIVE"
+                      : liveStatus === "paused"
+                        ? " · paused"
+                        : liveStatus === "offline"
+                          ? " · offline"
+                          : liveStatus === "polling"
+                            ? " · …"
+                            : ""}
+                </>
+              )}
             </p>
             {!isMobile && (
               <div className="mt-0.5 hidden sm:block">
@@ -801,18 +814,29 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Map-first on phone: Today stays a single collapsed chip; full brief on expand */}
-      {tab !== "about" && (
+      {/* Map-first on phone: brief bar only; feed ages behind tap (saves vertical map space) */}
+      {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
         <div
-          className={`shrink-0 border-b border-border/60 px-2 sm:px-3 ${
+          className={`ww-brief-strip shrink-0 border-b border-border/60 px-2 sm:px-3 ${
             isMobile && tab === "live" ? "py-0.5" : "py-1 sm:py-1.5"
           }`}
         >
           <TodayBriefBar dense />
-          {isMobile && (
+          {/* Desktop: feeds live under title. Mobile map: optional one-line strip, landscape-hidden via CSS */}
+          {isMobile && tab !== "live" && (
             <div className="mt-1 px-0.5">
               <FeedHealthStrip compact />
             </div>
+          )}
+          {isMobile && tab === "live" && (
+            <details className="ww-feed-details mt-0.5">
+              <summary className="cursor-pointer select-none px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
+                Feed ages
+              </summary>
+              <div className="mt-0.5 px-0.5 pb-0.5">
+                <FeedHealthStrip compact />
+              </div>
+            </details>
           )}
         </div>
       )}
@@ -940,17 +964,23 @@ function ObservatoryApp() {
                 </button>
               </div>
             )}
-            <div className={mapImmersive ? "relative min-h-0 flex-1" : "relative min-h-[52dvh] flex-1 lg:min-h-0"}>
+            <div
+              className={
+                mapImmersive
+                  ? "relative min-h-0 flex-1"
+                  : "relative min-h-0 flex-1 ww-map-stage"
+              }
+            >
               <div
                 className={
                   mapImmersive
                     ? "absolute inset-0 overflow-hidden"
-                    : "absolute inset-0 lg:inset-2.5 lg:overflow-hidden lg:rounded-lg"
+                    : "absolute inset-0 overflow-hidden lg:inset-2.5 lg:rounded-lg"
                 }
               >
                 <ClientOnly
                   fallback={
-                    <div className="flex h-full min-h-[52dvh] flex-col items-center justify-center gap-2 bg-bg px-4 text-center text-sm text-muted">
+                    <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 bg-bg px-4 text-center text-sm text-muted">
                       <span>Loading map…</span>
                       <span className="text-[0.7rem] text-dim">Feeds bootstrap on first open — map appears as soon as the client mounts.</span>
                     </div>

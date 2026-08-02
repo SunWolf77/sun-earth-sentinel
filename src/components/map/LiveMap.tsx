@@ -989,10 +989,10 @@ export function LiveMap() {
 
   return (
     <div
-      className="relative h-full min-h-[280px] w-full overflow-hidden rounded-lg border border-border"
+      className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border sm:min-h-[280px]"
       style={{ display: mapView === "2d" ? "block" : "none" }}
     >
-      <div ref={mapRef} className="ww-map h-full min-h-[280px] w-full" />
+      <div ref={mapRef} className="ww-map h-full min-h-0 w-full" />
       <NodeFocusBanner />
       <MmiFocusBanner />
       {mapView === "2d" && (

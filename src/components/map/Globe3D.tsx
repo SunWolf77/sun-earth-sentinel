@@ -1606,7 +1606,7 @@ export function Globe3D() {
 
       const hint = document.createElement("div");
       hint.className =
-        "pointer-events-none absolute bottom-20 left-1/2 z-10 max-w-[90%] -translate-x-1/2 truncate rounded-md border border-border/60 bg-surface/80 px-2.5 py-1 text-[0.6rem] text-dim backdrop-blur sm:bottom-4 sm:left-1/2";
+        "ww-globe-bottom-hint pointer-events-none absolute z-10 rounded-md border border-border/60 bg-surface/80 px-2 py-1 text-dim backdrop-blur";
       hint.textContent =
         "↑↓ tilt · E equator · pins · tap switch · spin resumes after focus";
       container.style.position = "relative";
@@ -1614,7 +1614,7 @@ export function Globe3D() {
 
       const legend = document.createElement("div");
       legend.className =
-        "pointer-events-none absolute bottom-3 left-3 z-10 max-w-[min(70vw,16rem)] rounded-md border border-border bg-surface/85 px-2 py-1 text-[0.6rem] text-muted backdrop-blur";
+        "ww-globe-legend pointer-events-none absolute bottom-3 left-2 z-10 max-w-[min(42vw,11rem)] rounded-md border border-border bg-surface/85 px-1.5 py-0.5 text-[0.55rem] text-muted backdrop-blur sm:left-3 sm:max-w-[min(70vw,16rem)] sm:px-2 sm:py-1 sm:text-[0.6rem]";
       legend.innerHTML =
         '<span style="color:#ff8c00">📍</span> long EQ pin &nbsp; <span style="opacity:.85">n</span> cluster &nbsp; <span style="color:#fbbf24">●</span> SES &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="opacity:.7">hover · tap switch</span>';
       container.appendChild(legend);
@@ -1775,11 +1775,11 @@ export function Globe3D() {
   const focus = getFocusNode(focusNodeId);
 
   return (
-    <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-lg border border-border bg-[#0b1220]">
-      <div ref={containerRef} className="h-full min-h-[320px] w-full" />
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border bg-[#0b1220] sm:min-h-[280px]">
+      <div ref={containerRef} className="h-full min-h-0 w-full" />
 
       {qualityLabel && (
-        <div className="pointer-events-none absolute left-2 top-2 z-20 rounded-md border border-border/70 bg-surface/80 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
+        <div className="pointer-events-none absolute left-2 top-2 z-20 rounded-md border border-border/70 bg-surface/80 px-1.5 py-0.5 text-[0.5rem] font-semibold uppercase tracking-wider text-dim sm:text-[0.55rem]">
           {qualityLabel}
         </div>
       )}
@@ -1952,11 +1952,11 @@ export function Globe3D() {
 
       {/* Edge dock — keeps chrome off the Earth */}
       {spinResumeHint && (
-        <div className="pointer-events-none absolute bottom-[7.5rem] right-2 z-30 max-w-[14rem] rounded-md border border-primary/30 bg-surface/90 px-2 py-1 text-[0.6rem] font-semibold text-primary shadow backdrop-blur sm:right-3">
+        <div className="pointer-events-none absolute bottom-[5.5rem] right-2 z-30 max-w-[11rem] rounded-md border border-primary/30 bg-surface/90 px-2 py-1 text-[0.55rem] font-semibold text-primary shadow backdrop-blur sm:bottom-[7.5rem] sm:right-3 sm:max-w-[14rem] sm:text-[0.6rem]">
           {spinResumeHint}
         </div>
       )}
-      <div className="pointer-events-none absolute bottom-3 right-2 z-30 sm:bottom-4 sm:right-3">
+      <div className="pointer-events-none absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] right-[max(0.35rem,env(safe-area-inset-right))] z-30 sm:bottom-4 sm:right-3">
         <MapChromeDock
           className="items-end"
           canPriorView={canPrior}
