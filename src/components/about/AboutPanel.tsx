@@ -1,3 +1,4 @@
+import { HelpGuide } from "@/components/ops/HelpGuide";
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { PERF_TIPS } from "@/lib/map/perfSnippets";
@@ -36,6 +37,13 @@ export function AboutPanel() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 text-sm leading-relaxed text-muted md:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2">
+        <div className="min-w-0 text-sm text-muted">
+          <strong className="text-fg">New to the map or globe?</strong> Open the How-to guide anytime from the header <span className="text-primary">?</span> or map Help.
+        </div>
+        <HelpGuide />
+      </div>
+
       <header>
         <h2 className="text-xl font-semibold text-gold">Sun-Earth Sentinel</h2>
         <p className="mt-2">

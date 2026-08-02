@@ -20,6 +20,7 @@ import { useObservatory, filteredEq, viewEvents, getAllFocusNodes, type TabId } 
 import { TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 import { MapViewToggle } from "@/components/map/MapViewToggle";
 import { MapChromeDock } from "@/components/map/MapChromeDock";
+import { HelpGuide, HelpTipBanner } from "@/components/ops/HelpGuide";
 import { MODES, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
 import { ClientOnly } from "@/components/ops/ClientOnly";
@@ -659,12 +660,18 @@ function ObservatoryApp() {
       <SuptOnboarding />
 
       <header className="ww-header shrink-0 border-b border-border bg-bg/95 backdrop-blur">
-        <div className="flex items-center justify-between gap-1.5 px-2 py-1 sm:gap-2 sm:px-4 sm:py-2">
-          <div className="min-w-0">
-            <h1 className="truncate text-[0.8rem] font-semibold tracking-tight text-fg sm:text-base">
-              Sun-Earth <span className="text-primary">Sentinel</span>
+        <div className="flex items-center justify-between gap-1 px-2 py-1 sm:gap-2 sm:px-4 sm:py-2">
+          <div className="min-w-0 flex-1 pr-1">
+            <h1 className="text-[0.78rem] font-semibold leading-tight tracking-tight text-fg sm:text-base">
+              <span className="sm:hidden">
+                <span className="text-fg">Sun-Earth</span>{" "}
+                <span className="text-primary">Sentinel</span>
+              </span>
+              <span className="hidden sm:inline">
+                Sun-Earth <span className="text-primary">Sentinel</span>
+              </span>
             </h1>
-            <p className="truncate text-[0.55rem] text-dim sm:text-[0.62rem]">
+            <p className="truncate text-[0.55rem] leading-tight text-dim sm:text-[0.62rem]">
               {isMobile ? (
                 <>
                   {updatedLabel} · {ageLabel}
@@ -694,7 +701,8 @@ function ObservatoryApp() {
               </div>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <HelpGuide />
             <button
               type="button"
               className="ww-btn ww-btn--icon ww-btn--compact"
@@ -952,8 +960,8 @@ function ObservatoryApp() {
           >
             {mapImmersive && (
               <div className="pointer-events-none absolute inset-x-0 top-0 z-[810] flex items-center justify-between gap-2 bg-gradient-to-b from-black/50 to-transparent px-3 py-2">
-                <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-primary/90">
-                  Immersive · {mapView === "3d" ? "3D Globe" : "2D Map"}
+                <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-primary/90">
+                  Full · {mapView === "3d" ? "3D" : "2D"}
                 </span>
                 <button
                   type="button"

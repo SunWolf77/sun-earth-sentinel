@@ -1647,15 +1647,14 @@ export function Globe3D() {
 
       const hint = document.createElement("div");
       hint.className =
-        "ww-globe-bottom-hint pointer-events-none absolute z-10 rounded-md border border-border/60 bg-surface/80 px-2 py-1 text-dim backdrop-blur";
-      hint.textContent =
-        "↑↓ tilt · E equator · pins · tap switch · spin resumes after focus";
+        "ww-globe-bottom-hint pointer-events-none absolute z-10 hidden";
+      hint.textContent = ""; // tips live in Help guide — less map clutter
       container.style.position = "relative";
       container.appendChild(hint);
 
       const legend = document.createElement("div");
       legend.className =
-        "ww-globe-legend pointer-events-none absolute bottom-3 left-2 z-10 max-w-[min(42vw,11rem)] rounded-md border border-border bg-surface/85 px-1.5 py-0.5 text-[0.55rem] text-muted backdrop-blur sm:left-3 sm:max-w-[min(70vw,16rem)] sm:px-2 sm:py-1 sm:text-[0.6rem]";
+        "ww-globe-legend pointer-events-none absolute bottom-3 left-2 z-10 hidden max-w-[min(42vw,11rem)] rounded-md border border-border bg-surface/85 px-1.5 py-0.5 text-[0.55rem] text-muted backdrop-blur sm:left-3 sm:block sm:max-w-[min(70vw,16rem)] sm:px-2 sm:py-1 sm:text-[0.6rem]";
       legend.innerHTML =
         '<span style="color:#ff8c00">📍</span> long EQ pin &nbsp; <span style="opacity:.85">n</span> cluster &nbsp; <span style="color:#fbbf24">●</span> SES &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="opacity:.7">hover · tap switch</span>';
       container.appendChild(legend);
