@@ -7,6 +7,7 @@
  */
 
 import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
+import { fetchIngvStatusHtml } from "@/lib/feeds/ingvVolcanoProxy";
 
 type ItalyVolc = {
   id: string;
@@ -111,7 +112,14 @@ export function italyToUsgsStyle(level: ItalyAlertLevel): {
   }
 }
 
+/** Prefer server proxy (CORS-safe); fall back to direct only if server unavailable. */
 async function fetchHtml(url: string): Promise<string | null> {
+  try {
+    const r = await fetchIngvStatusHtml({ data: { url } });
+    if (r?.html) return r.html;
+  } catch {
+    /* server fn may fail in pure node smoke — try direct */
+  }
   try {
     const res = await fetch(url, {
       headers: {
