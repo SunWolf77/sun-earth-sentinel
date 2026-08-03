@@ -28,12 +28,19 @@ export type NoaaScales = {
   RText?: string;
   SText?: string;
   GText?: string;
+  /** Previous day / prior period scale (SWPC key "-1") — often shows recent peak */
+  GPrev?: string;
+  RPrev?: string;
+  SPrev?: string;
+  GPrevText?: string;
   /** Day+1 / Day+2 G scale if present */
   G1?: string;
   G2?: string;
   RMinorProb?: string;
   RMajorProb?: string;
   SProb?: string;
+  /** ISO-ish stamp from SWPC now block */
+  issued?: string | null;
 };
 
 export type ProtonPoint = {
@@ -141,10 +148,17 @@ export async function fetchNoaaScales(): Promise<NoaaScales | null> {
     if (!res.ok) return null;
     const data = await res.json();
     const now = data["0"] ?? data[0];
+    const prev = data["-1"] ?? data[-1];
     const d1 = data["1"] ?? data[1];
     const d2 = data["2"] ?? data[2];
     const d3 = data["3"] ?? data[3];
     if (!now) return null;
+    const stamp =
+      now.DateStamp && now.TimeStamp
+        ? `${now.DateStamp}T${now.TimeStamp}Z`
+        : now.DateStamp
+          ? String(now.DateStamp)
+          : null;
     return {
       R: String(now.R?.Scale ?? "—"),
       S: String(now.S?.Scale ?? "—"),
@@ -152,11 +166,16 @@ export async function fetchNoaaScales(): Promise<NoaaScales | null> {
       RText: now.R?.Text ?? undefined,
       SText: now.S?.Text ?? undefined,
       GText: now.G?.Text ?? undefined,
+      GPrev: prev?.G?.Scale != null ? String(prev.G.Scale) : undefined,
+      RPrev: prev?.R?.Scale != null ? String(prev.R.Scale) : undefined,
+      SPrev: prev?.S?.Scale != null ? String(prev.S.Scale) : undefined,
+      GPrevText: prev?.G?.Text ?? undefined,
       G1: d1?.G?.Scale != null ? String(d1.G.Scale) : undefined,
       G2: d2?.G?.Scale != null ? String(d2.G.Scale) : d3?.G?.Scale != null ? String(d3.G.Scale) : undefined,
       RMinorProb: d1?.R?.MinorProb != null ? String(d1.R.MinorProb) : undefined,
       RMajorProb: d1?.R?.MajorProb != null ? String(d1.R.MajorProb) : undefined,
       SProb: d1?.S?.Prob != null ? String(d1.S.Prob) : undefined,
+      issued: stamp,
     };
   } catch {
     return null;
