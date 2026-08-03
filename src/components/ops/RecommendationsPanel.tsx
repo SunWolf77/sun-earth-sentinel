@@ -31,7 +31,7 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
     [solar, resonance, scales, donki],
   );
 
-  const bt = useMemo(() => (openBt ? runFullBacktest(mode === "lite" ? 24 : 36) : null), [openBt, mode]);
+  const bt = useMemo(() => (openBt ? runFullBacktest(36) : null), [openBt, mode]);
 
   return (
     <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
@@ -41,7 +41,7 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
       </h3>
       <p className="mb-3 text-[0.68rem] text-dim">
         Deterministic triage from scales · L1 · DONKI · SUPT — not official SWPC watches.
-        {mode === "lite" && " Lite mode: catalogs off until you switch Standard/Full."}
+        
       </p>
       <ul className="space-y-2">
         {brief.recommendations.map((r) => (
@@ -71,7 +71,7 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
         ))}
       </ul>
 
-      {showBacktest && mode !== "lite" && (
+      {showBacktest && (
         <div className="mt-3 border-t border-border/70 pt-2">
           <button
             type="button"

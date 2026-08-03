@@ -28,7 +28,6 @@ export function AnalyticsCharts() {
   const eq = useObservatory((s) => s.eq);
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
-  const mode = useObservatory((s) => s.mode);
   const setTab = useObservatory((s) => s.setTab);
 
   const kpData = kp.slice(-48).map((p) => ({
@@ -95,13 +94,7 @@ export function AnalyticsCharts() {
 
       <RecommendationsPanel />
 
-      {mode === "lite" ? (
-        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-sm text-muted">
-          Detailed charts off in Lite. Continuum above still updates. Switch to Standard or Full for
-          Kp / X-ray / rate plots.
-        </p>
-      ) : (
-        <>
+      <>
           <p className="text-[0.7rem] font-medium uppercase tracking-wider text-dim">
             Time series (supporting visuals)
           </p>
@@ -216,8 +209,7 @@ export function AnalyticsCharts() {
               )}
             </ChartCard>
           </div>
-        </>
-      )}
+      </>
 
       <p className="text-[0.65rem] leading-relaxed text-dim">
         Charts support the continuum — they do not replace SWPC or USGS. SUPT timing structure is

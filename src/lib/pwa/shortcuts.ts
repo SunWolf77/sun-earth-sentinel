@@ -5,7 +5,7 @@
 
 import type { TabId, TimeWindow, MapView } from "@/store/observatory";
 import type { MapOverlayId, BasemapStyleId } from "@/lib/feeds/mapStyles";
-import type { PerformanceMode } from "@/lib/feeds/modes";
+import { normalizePerformanceMode, type PerformanceMode } from "@/lib/feeds/modes";
 import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 
 export const TAB_IDS: TabId[] = ["live", "solar", "resonance", "analytics", "about"];
@@ -88,7 +88,7 @@ export type ViewDeepLink = {
 };
 
 const WINDOWS: TimeWindow[] = ["hour", "day", "week", "month"];
-const MODES: PerformanceMode[] = ["lite", "standard", "full"];
+const MODES: PerformanceMode[] = ["standard", "full"];
 const MAP_VIEWS: MapView[] = ["2d", "3d"];
 const BASEMAPS: BasemapStyleId[] = ["soft", "dark", "satellite", "topo"];
 const LAYER_IDS: MapOverlayId[] = [
@@ -125,8 +125,8 @@ export function viewFromLocation(loc?: Location): ViewDeepLink {
       const n = Number(mag);
       if (Number.isFinite(n) && n >= 2 && n <= 8) out.minMag = n;
     }
-    const mode = q.get("mode") as PerformanceMode | null;
-    if (mode && MODES.includes(mode)) out.mode = mode;
+    const mode = normalizePerformanceMode(q.get("mode"));
+    if (mode) out.mode = mode;
     const view = q.get("view") as MapView | null;
     if (view && MAP_VIEWS.includes(view)) out.mapView = view;
     const basemap = q.get("basemap") as BasemapStyleId | null;

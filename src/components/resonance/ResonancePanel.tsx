@@ -100,7 +100,7 @@ export function ResonancePanel() {
         reason: wh.reason,
       };
     }
-    const whiteScore = resonanceScore(wh.residualGaps, mode === "lite" ? 40 : 60);
+    const whiteScore = resonanceScore(wh.residualGaps, mode === "full" ? 80 : 60);
     const white = {
       d_ij: whiteScore.d_ij,
       separated: whiteScore.separated,

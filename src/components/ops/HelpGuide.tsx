@@ -78,10 +78,10 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
   },
   {
     id: "modes",
-    title: "Modes L · S · F",
+    title: "Modes S · F",
     body: [
-      "Lite / Standard / Full change data density and refresh — not a paywall.",
-      "Mobile 3D uses a safe WebGL profile; the FPS chip (top-left on globe) shows performance.",
+      "Standard / Full change catalog density and refresh rate — not a paywall.",
+      "Mobile 3D uses a safe WebGL profile; Full loads denser quakes (M3.5+) and a faster live pulse.",
     ],
   },
 ];

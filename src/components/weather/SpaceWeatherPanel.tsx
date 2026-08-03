@@ -28,7 +28,6 @@ import { SuptSolarAgent } from "@/components/weather/SuptSolarAgent";
 import { isMobileViewport } from "@/lib/device";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { RecommendationsPanel } from "@/components/ops/RecommendationsPanel";
-import { LiteModeChip } from "@/components/ops/LiteModeChip";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
@@ -239,7 +238,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         </div>
       </header>
 
-      <LiteModeChip />
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
         <AttentionSparkline />
         {kpUpcoming.length > 0 && (
@@ -391,12 +389,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           {deepOpen.catalogs ? "Collapse" : "Expand"}
         </button>
       </Ladder>
-      {mode === "lite" && (
-        <p className="rounded-md border border-dashed border-border px-3 py-2 text-center text-[0.7rem] text-dim">
-          Lite mode: DONKI catalogs & imagery off for data saver. Switch to Standard for full Solar stack.
-        </p>
-      )}
-      {deepOpen.catalogs && mode !== "lite" && (
+      {deepOpen.catalogs && (
       <section className="grid gap-3 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-panel p-3 sm:p-4">
           <h3 className="mb-2 flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
@@ -500,7 +493,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       <Ladder title="4 · Look" hint="Disk · corona · far side · models" />
       {/* Imagery stack */}
-      {showImages ? (
+      {showImages && (
         <section className="space-y-3">
           <div className="flex flex-wrap gap-1" role="tablist" aria-label="Solar media">
             {(
@@ -792,11 +785,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             </div>
           )}
         </section>
-      ) : (
-        <p className="rounded-md border border-dashed border-border px-3 py-2 text-center text-xs text-dim">
-          Imagery off in Lite (data saver). Gauges, scales, forecast & DONKI still run. Use Standard
-          or Full for SDO / LASCO / STEREO / Solo.
-        </p>
       )}
 
       {/* Dense still wall — opt-in only; no image GETs until expanded */}

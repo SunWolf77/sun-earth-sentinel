@@ -13,9 +13,9 @@ export function isMobileViewport(): boolean {
   return /Android|iPhone|iPod|Mobile|webOS|BlackBerry/i.test(ua);
 }
 
-/** First visit with no saved mode → lite on phone, standard on desktop. */
-export function defaultPerformanceMode(): "lite" | "standard" {
-  return isMobileViewport() ? "lite" : "standard";
+/** First visit with no saved mode → Standard (Lite merged into Standard). */
+export function defaultPerformanceMode(): "standard" {
+  return "standard";
 }
 
 export function historyCap(): number {

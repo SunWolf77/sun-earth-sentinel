@@ -21,7 +21,7 @@ import { TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 import { MapViewToggle } from "@/components/map/MapViewToggle";
 import { MapChromeDock } from "@/components/map/MapChromeDock";
 import { HelpGuide, HelpTipBanner } from "@/components/ops/HelpGuide";
-import { MODES, type PerformanceMode } from "@/lib/feeds/modes";
+import { MODES, MODE_ORDER, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
 import { ClientOnly } from "@/components/ops/ClientOnly";
 import { ResonancePanel } from "@/components/resonance/ResonancePanel";
@@ -37,7 +37,6 @@ import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
 import { VolcWatchSmart } from "@/components/map/VolcWatchSmart";
 import { startRealtime } from "@/lib/realtime/transport";
-import { LiteModeChip } from "@/components/ops/LiteModeChip";
 import { createTabSwipe } from "@/lib/map/touchGestures";
 import {
   tabFromLocation,
@@ -427,8 +426,8 @@ function ObservatoryApp() {
       },
       {
         baseMs: MODES[mode].realtimeMs,
-        minMs: mode === "lite" ? 18_000 : 12_000,
-        maxMs: mode === "lite" ? 240_000 : 180_000,
+        minMs: 12_000,
+        maxMs: 180_000,
       },
     );
     return stop;
@@ -724,7 +723,7 @@ function ObservatoryApp() {
               {copiedShare ? <Check className="h-4 w-4 text-ok" /> : <Link2 className="h-4 w-4" />}
             </button>
             <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">
-              {(["lite", "standard", "full"] as PerformanceMode[]).map((m) => (
+              {MODE_ORDER.map((m) => (
                 <button
                   key={m}
                   type="button"

@@ -1,4 +1,13 @@
-export type PerformanceMode = "lite" | "standard" | "full";
+/**
+ * Performance modes — density / refresh profiles.
+ * Lite was merged into Standard (2026-08): one balanced profile + Full dense.
+ * Saved "lite" preferences normalize to "standard".
+ */
+
+export type PerformanceMode = "standard" | "full";
+
+/** Legacy id still may appear in localStorage / share URLs */
+export type LegacyPerformanceMode = PerformanceMode | "lite";
 
 export type ModeConfig = {
   key: PerformanceMode;
@@ -19,21 +28,6 @@ export type ModeConfig = {
 };
 
 export const MODES: Record<PerformanceMode, ModeConfig> = {
-  lite: {
-    key: "lite",
-    label: "Lite",
-    minMag: 4.5,
-    maxMarkers: 60,
-    refreshMs: 180_000,
-    realtimeMs: 90_000,
-    loadChart: false,
-    loadVolc: false,
-    loadSolarWind: true,
-    loadImage: false,
-    load3d: true,
-    shuffleN: 40,
-    description: "Mobile / low-data. Sparse quakes · solar wind on.",
-  },
   standard: {
     key: "standard",
     label: "Standard",
@@ -47,7 +41,8 @@ export const MODES: Record<PerformanceMode, ModeConfig> = {
     loadImage: true,
     load3d: true,
     shuffleN: 80,
-    description: "Minimal quake layer at start (M4.5+) · JMA Japan densifies.",
+    description:
+      "Balanced — M4.5+ catalog, charts, volcanoes, solar stack. Default for all devices.",
   },
   full: {
     key: "full",
@@ -62,6 +57,17 @@ export const MODES: Record<PerformanceMode, ModeConfig> = {
     loadImage: true,
     load3d: true,
     shuffleN: 120,
-    description: "Higher density, analytics, 3D globe, faster live pulse.",
+    description: "Dense catalog (M3.5+), faster live pulse, fuller analytics.",
   },
 };
+
+/** Map legacy "lite" → standard; ignore unknown. */
+export function normalizePerformanceMode(
+  raw: string | null | undefined,
+): PerformanceMode | null {
+  if (raw === "full") return "full";
+  if (raw === "standard" || raw === "lite") return "standard";
+  return null;
+}
+
+export const MODE_ORDER: PerformanceMode[] = ["standard", "full"];

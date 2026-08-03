@@ -35,7 +35,7 @@ import {
 } from "@/lib/feeds/swpc";
 import type { DonkiBundle } from "@/lib/feeds/donki";
 import { fetchDonkiBundle, fetchSolarCore } from "@/lib/feeds/solarProxy";
-import { MODES, type PerformanceMode } from "@/lib/feeds/modes";
+import { MODES, normalizePerformanceMode, type PerformanceMode } from "@/lib/feeds/modes";
 import {
   diffVolcWatch,
   fetchUsgsElevatedVolcanoes,
@@ -341,9 +341,17 @@ type ObservatoryState = {
 
 function loadMode(): PerformanceMode {
   try {
-    const m = localStorage.getItem("wolfwatch_mode");
-    if (m === "lite" || m === "standard" || m === "full") return m;
-    // First open — no preference yet
+    const raw = localStorage.getItem("wolfwatch_mode");
+    const normalized = normalizePerformanceMode(raw);
+    if (normalized) {
+      // Migrate legacy "lite" → standard in storage
+      if (raw === "lite") {
+        try {
+          localStorage.setItem("wolfwatch_mode", "standard");
+        } catch { /* ignore */ }
+      }
+      return normalized;
+    }
     const def = defaultPerformanceMode();
     try {
       localStorage.setItem("wolfwatch_mode", def);
@@ -421,7 +429,7 @@ function buildSolarAssessmentFromState(s: {
     flares: s.donki?.flares ?? [],
     protons: s.protons,
     enlilTimeHint: s.enlil?.timeHint,
-    shuffleN: s.mode === "lite" ? 40 : 60,
+    shuffleN: s.mode === "full" ? 80 : 60,
   });
 }
 
@@ -541,14 +549,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     // Align mag floor with mode when user was still on previous mode default
     if (get().minMag === prevMin) patch.minMag = MODES[m].minMag;
     // 3D globe is mode-independent (mobile-safe quality profile handles phones).
-    // Lite still leaves mapView alone so users can keep globe without Full.
     set(patch);
-    // Drop heavy caches when entering lite
-    if (m === "lite") {
-      try {
-        pruneCache(true);
-      } catch { /* */ }
-    }
     void get().refresh(true);
   },
   setTab: (t) => set({ tab: t, mobileSheet: "closed" as const }),
@@ -1141,7 +1142,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         }
       }
       // DONKI catalogs: skip on Lite (mobile first-open) unless forced later via mode bump
-      if (cfg.loadSolarWind && mode !== "lite" && !donki) {
+      if (cfg.loadSolarWind && !donki) {
         tasks.push(
           withTimeout(fetchDonkiBundle(), 25_000, "donki")
             .then((d) => {
@@ -1381,17 +1382,22 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       if (savedView === "2d" || savedView === "3d") {
         patch.mapView = savedView;
       }
-      if (saved === "lite" || saved === "standard" || saved === "full") {
-        patch.mode = m;
-        patch.minMag = MODES[m].minMag;
-        // keep saved mapView (2d/3d) across modes
+      if (saved) {
+        const nm = normalizePerformanceMode(saved) ?? m;
+        patch.mode = nm;
+        patch.minMag = MODES[nm].minMag;
+        if (saved === "lite") {
+          try {
+            localStorage.setItem("wolfwatch_mode", "standard");
+          } catch { /* */ }
+        }
       } else if (isMobileViewport()) {
         try {
-          localStorage.setItem("wolfwatch_mode", "lite");
+          localStorage.setItem("wolfwatch_mode", "standard");
           localStorage.setItem("wolfwatch_first_open", "mobile");
         } catch { /* */ }
-        patch.mode = "lite";
-        patch.minMag = MODES.lite.minMag;
+        patch.mode = "standard";
+        patch.minMag = MODES.standard.minMag;
         // Default 2D on first mobile open; 3D is one tap away with safe profile
         patch.mapView = "2d";
       }
