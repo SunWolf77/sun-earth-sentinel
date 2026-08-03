@@ -446,6 +446,7 @@ export function LiveMap() {
     map.flyTo([mapFlyTo.lat, mapFlyTo.lon], mapFlyTo.zoom ?? 6, {
       animate: true,
       duration: 0.85,
+      easeLinearity: 0.25, // current preset — soft default Leaflet curve
     });
     clearMapFlyTo();
   }, [mapFlyTo, mapView, clearMapFlyTo]);
