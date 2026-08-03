@@ -2460,8 +2460,14 @@ function makeCountSprite(
   ctx.strokeStyle = color;
   ctx.lineWidth = 4;
   const r = 28;
+  const x0 = 16, y0 = 28, w = 96, h = 72;
   ctx.beginPath();
-  ctx.roundRect(16, 28, 96, 72, r);
+  ctx.moveTo(x0 + r, y0);
+  ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r);
+  ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
+  ctx.arcTo(x0, y0 + h, x0, y0, r);
+  ctx.arcTo(x0, y0, x0 + w, y0, r);
+  ctx.closePath();
   ctx.fill();
   ctx.stroke();
   ctx.font = "bold 44px system-ui,sans-serif";
@@ -2496,10 +2502,18 @@ function makeMagSprite(
   ctx.fillStyle = "rgba(15,23,42,0.88)";
   ctx.strokeStyle = color;
   ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(8, 10, 112, 44, 12);
-  ctx.fill();
-  ctx.stroke();
+  {
+    const r = 12, x0 = 8, y0 = 10, w = 112, h = 44;
+    ctx.beginPath();
+    ctx.moveTo(x0 + r, y0);
+    ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r);
+    ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
+    ctx.arcTo(x0, y0 + h, x0, y0, r);
+    ctx.arcTo(x0, y0, x0 + w, y0, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
   ctx.font = "bold 32px system-ui,sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
