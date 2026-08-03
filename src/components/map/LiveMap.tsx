@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import L from "leaflet";
 import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes } from "@/store/observatory";
 import {
@@ -203,6 +204,7 @@ export function LiveMap() {
   const touchHandle = useRef<MapTouchHandle | null>(null);
 
   const [pressLabel, setPressLabel] = useState<string | null>(null);
+  const isMobileMap = useIsMobile();
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [showGestureTip, setShowGestureTip] = useState(false);
 
@@ -1014,7 +1016,7 @@ export function LiveMap() {
         <>
           <MapLegend />
           <MapStyleControl />
-          <EventReplayBar />
+          <EventReplayBar hideIdleOnMobile />
         </>
       )}
 
@@ -1024,7 +1026,7 @@ export function LiveMap() {
         </div>
       )}
 
-      {showGestureTip && mapView === "2d" && (
+      {showGestureTip && mapView === "2d" && !isMobileMap && (
         <div className="absolute bottom-[4.6rem] left-1/2 z-[510] w-[min(92%,16rem)] -translate-x-1/2 rounded-lg border border-border bg-bg/95 p-2 text-[0.65rem] text-muted shadow-xl backdrop-blur sm:bottom-20">
           <div className="mb-0.5 font-semibold text-fg">Touch</div>
           <ul className="mb-1.5 space-y-0.5 text-[0.62rem] leading-snug text-dim">

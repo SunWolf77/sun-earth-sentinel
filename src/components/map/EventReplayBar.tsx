@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Pause, Play, SkipBack, SkipForward, X, History } from "lucide-react";
 import { useObservatory, filteredEq } from "@/store/observatory";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 
 function fmtUtc(ms: number): string {
@@ -15,7 +16,8 @@ function fmtUtc(ms: number): string {
  * Educational event replay — scrub quakes in the current window.
  * Opt-in; pauses auto-refresh while active. Sits above map chrome (legend z~500).
  */
-export function EventReplayBar() {
+export function EventReplayBar({ hideIdleOnMobile = false }: { hideIdleOnMobile?: boolean }) {
+  const mobile = useIsMobile();
   const eq = useObservatory((s) => s.eq);
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
@@ -78,6 +80,7 @@ export function EventReplayBar() {
   if (!times.length) return null;
 
   if (!replayActive) {
+    if (hideIdleOnMobile && mobile) return null;
     return (
       <div className="pointer-events-none absolute bottom-[5.5rem] left-2 z-[560] sm:bottom-24 sm:left-3">
         <button

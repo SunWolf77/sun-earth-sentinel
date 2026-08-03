@@ -13,6 +13,7 @@ import {
   Settings2,
   Undo2,
   X,
+  History,
 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { timeWindowChip, timeWindowTitle, TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
@@ -49,6 +50,8 @@ export function MapChromeDock({
   const exitToHomeView = useObservatory((s) => s.exitToHomeView);
   const globeAutoSpin = useObservatory((s) => s.globeAutoSpin);
   const setGlobeAutoSpin = useObservatory((s) => s.setGlobeAutoSpin);
+  const setReplayActive = useObservatory((s) => s.setReplayActive);
+  const replayActive = useObservatory((s) => s.replayActive);
   const mobile = useIsMobile();
   const [expanded, setExpanded] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -120,15 +123,7 @@ export function MapChromeDock({
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
-            title="How to use"
-            onClick={() => setHelpOpen(true)}
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
-            title="More controls (tilt, spin, home)"
+            title="More controls (replay, home, help)"
             onClick={() => setExpanded(true)}
             aria-expanded={false}
           >
@@ -250,6 +245,17 @@ export function MapChromeDock({
       )}
 
       <div className="flex flex-wrap gap-1">
+        {mobile && !replayActive && (
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn"
+            title="Replay events"
+            onClick={() => setReplayActive(true)}
+          >
+            <History className="h-3.5 w-3.5" />
+            <span className="ww-map-dock__label">Replay</span>
+          </button>
+        )}
         <button type="button" className="ww-map-dock__icon-btn" title="World home view" onClick={home}>
           <Home className="h-3.5 w-3.5" />
           <span className="ww-map-dock__label">Home</span>

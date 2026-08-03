@@ -664,8 +664,7 @@ function ObservatoryApp() {
           <div className="min-w-0 flex-1 pr-1">
             <h1 className="text-[0.78rem] font-semibold leading-tight tracking-tight text-fg sm:text-base">
               <span className="sm:hidden">
-                <span className="text-fg">Sun-Earth</span>{" "}
-                <span className="text-primary">Sentinel</span>
+                <span className="text-fg">SES</span>
               </span>
               <span className="hidden sm:inline">
                 Sun-Earth <span className="text-primary">Sentinel</span>
@@ -705,7 +704,7 @@ function ObservatoryApp() {
             <HelpGuide />
             <button
               type="button"
-              className="ww-btn ww-btn--icon ww-btn--compact"
+              className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile && tab === "live" ? "hidden" : ""}`}
               title="Copy shareable view link"
               aria-label="Copy shareable view link"
               onClick={async () => {
@@ -723,6 +722,7 @@ function ObservatoryApp() {
             >
               {copiedShare ? <Check className="h-4 w-4 text-ok" /> : <Link2 className="h-4 w-4" />}
             </button>
+            {!(isMobile && tab === "live") && (
             <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">
               {MODE_ORDER.map((m) => (
                 <button
@@ -737,6 +737,7 @@ function ObservatoryApp() {
                 </button>
               ))}
             </div>
+            )}
             <button
               type="button"
               onClick={() => void refresh(true)}
@@ -830,26 +831,16 @@ function ObservatoryApp() {
           }`}
         >
           <TodayBriefBar dense />
-          {tab === "live" && (
+          {/* Cross-feed desktop only — mobile map stays clean */}
+          {tab === "live" && !isMobile && (
             <div className="mt-0.5 min-w-0">
               <CrossFeedChips />
             </div>
           )}
-          {/* Desktop: feeds live under title. Mobile map: optional one-line strip, landscape-hidden via CSS */}
           {isMobile && tab !== "live" && (
             <div className="mt-1 px-0.5">
               <FeedHealthStrip compact />
             </div>
-          )}
-          {isMobile && tab === "live" && (
-            <details className="ww-feed-details mt-0.5">
-              <summary className="cursor-pointer select-none px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
-                Feed ages
-              </summary>
-              <div className="mt-0.5 px-0.5 pb-0.5">
-                <FeedHealthStrip compact />
-              </div>
-            </details>
           )}
         </div>
       )}

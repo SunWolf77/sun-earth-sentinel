@@ -92,11 +92,12 @@ export function TodayBriefBar({
       >
         <Sun className="h-3 w-3 shrink-0 opacity-90" />
         <span className="shrink-0 font-semibold uppercase tracking-wide opacity-80">SW</span>
-        <span className="min-w-0 flex-1 truncate font-medium text-fg">{brief.headline}</span>
-        <span className="shrink-0 tabular-nums text-dim">
-          {brief.scales}
-          {age != null ? ` · ${age}m` : ""}
+        <span className="min-w-0 flex-1 truncate font-medium text-fg">
+          {mobile ? brief.scales : brief.headline}
         </span>
+        {age != null && (
+          <span className="shrink-0 tabular-nums text-dim">{age}m</span>
+        )}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
       </button>
     );
