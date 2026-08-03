@@ -74,9 +74,9 @@ export function SuptMathSection({
           )}
           <FunctionSquare className="h-4 w-4 shrink-0 text-accent" />
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-accent">SUPT math</h3>
+            <h3 className="text-sm font-semibold text-accent">Technical method (SUPT)</h3>
             <p className="text-[0.65rem] text-dim">
-              Frozen probe · α = {SUPT_ALPHA} · how d<sub>ij</sub> is built
+              Optional depth · α = {SUPT_ALPHA} · how d<sub>ij</sub> is built
             </p>
           </div>
         </button>
@@ -94,12 +94,12 @@ export function SuptMathSection({
       <header className="mb-3 sm:mb-4">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-accent sm:text-xl">
           <FunctionSquare className="h-5 w-5" />
-          SUPT math
+          Technical method (SUPT)
         </h2>
         <p className="mt-1 text-xs text-muted sm:text-sm">
-          Derivation of the live operator used across Map, Solar, Rhythm, and Charts. Probe by{" "}
-          <XPerson profile="sheppard" /> · α = {SUPT_ALPHA} · seed {SUPT_SEED} (do not retune).
-          Copyright effective date on TXu is not an operator-freeze claim.
+          Optional deep dive — the live spacing operator behind Rhythm and Solar timing reads. Probe
+          by <XPerson profile="sheppard" /> · α = {SUPT_ALPHA} · seed {SUPT_SEED} (do not retune).
+          Everyday UI uses plain “timing / spacing” language first.
         </p>
       </header>
       <MathBody />

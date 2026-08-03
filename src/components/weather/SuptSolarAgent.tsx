@@ -23,7 +23,7 @@ export function SuptSolarAgent({ assessment }: { assessment: SolarAssessment }) 
         <div className="min-w-0">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-accent">
             <Bot className="h-4 w-4" />
-            SUPT Solar Interpreter
+            Solar timing read
           </h3>
           <p className="mt-0.5 text-[0.68rem] text-dim">
             Deterministic multi-channel agent · frozen probe by <XPerson profile="sheppard" /> ·
@@ -91,7 +91,7 @@ export function SuptSolarAgent({ assessment }: { assessment: SolarAssessment }) 
         <ul className="mt-1 space-y-1 border-t border-border/60 pt-2 text-[0.65rem] leading-relaxed text-dim">
           <li>
             Inputs: NOAA R/S/G + L1 wind + GOES X-ray + protons + DONKI flares/CMEs + ENLIL frame
-            tag. SUPT runs only on ordered inter-event gaps (flares, CMEs, X-ray peaks).
+            tag. Timing score uses gaps between flares, CMEs, and X-ray peaks — not X-ray class size.
           </li>
           {a.caveats.map((c, i) => (
             <li key={i}>{c}</li>

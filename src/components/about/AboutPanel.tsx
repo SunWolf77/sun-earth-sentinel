@@ -49,9 +49,9 @@ export function AboutPanel() {
         <p className="mt-2">
           Free Sun-Earth observatory by{" "}
           <XPerson profile="sunwolf" /> — live seismic map, volcano watches, space weather, and
-          SUPT resonance. Continuum work grounded in{" "}
-          <strong className="text-fg">Sheppard's Universal Proxy Theory (SUPT)</strong> by{" "}
-          <XPerson profile="sheppard" />.
+          event-timing patterns. Optional method credit:{" "}
+          <strong className="text-fg">SUPT</strong> (Sheppard) by{" "}
+          <XPerson profile="sheppard" /> — technical depth when you open it.
         </p>
         <div className="mt-3">
           <p className="mb-1.5 text-[0.65rem] font-medium uppercase tracking-wider text-dim">
@@ -68,12 +68,12 @@ export function AboutPanel() {
             volcano alerts, global context layers
           </li>
           <li>
-            <strong className="text-fg">Solar</strong> — NOAA SWPC space weather + SDO imagery, SUPT
-            solar interpreter
+            <strong className="text-fg">Solar</strong> — NOAA SWPC space weather + SDO imagery, plus
+            optional timing patterns on flares / CMEs
           </li>
           <li>
-            <strong className="text-fg">Rhythm</strong> — frozen SUPT probe on event timing (null is
-            valid)
+            <strong className="text-fg">Rhythm</strong> — earthquake spacing over time (ordinary vs
+            unusual); quiet is a real status
           </li>
           <li>
             <strong className="text-fg">Not a forecast</strong> — educational monitoring; official
@@ -105,11 +105,16 @@ export function AboutPanel() {
         </p>
       </Section>
 
-      <Section title="SUPT continuum">
+      <Section title="Timing patterns (method: SUPT)">
         <p>
-          The same frozen probe reads ordered gaps across domains (Rhythm seismicity; Solar flare /
-          CME / X-ray peaks). A shared continuum strip keeps vocabulary identical on Map, Solar,
-          Rhythm, and Charts. Timing structure is not amplitude (R/S/G or magnitude).
+          Default UI talks about <strong className="text-fg">event spacing</strong> — clustered,
+          mixed, even, or quiet — on both Earth (Rhythm) and solar channels. Size/intensity
+          (magnitude, R/S/G) stay separate. The shared strip is a plain “timing overview.”
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          Under the hood, the fixed method is <strong className="text-fg">SUPT</strong> (Sheppard’s
+          Universal Proxy Theory): same probe on ordered gaps. Full symbols and math are in the
+          section below and under “Technical detail” on Rhythm / Solar.
         </p>
       </Section>
 

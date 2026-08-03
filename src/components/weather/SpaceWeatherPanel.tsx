@@ -263,7 +263,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       <MagnetoPanel />
 
-      <Ladder title="1 · Ops brief" hint="Scales · wind · CME impact (not SUPT)" />
+      <Ladder title="1 · Ops brief" hint="Scales · wind · CME impact (official sizes)" />
       {/* Impact command card — ops brief from data */}
       <section className={`rounded-xl border p-4 ${levelBorder}`}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -804,7 +804,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         <SolarImageryWall mode={mode} bust={bust} />
       )}
 
-      <Ladder title="5 · SUPT read" hint="Multi-channel interpreter after instruments + look" />
+      <Ladder title="5 · Timing read" hint="Spacing of flares / CMEs / peaks (optional depth)" />
       <SuptSolarAgent assessment={assessment} />
 
       <Ladder title="6 · Recommendations" hint="What to watch next" />

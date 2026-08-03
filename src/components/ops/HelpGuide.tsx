@@ -64,6 +64,17 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     ],
   },
   {
+    id: "timing",
+    title: "Rhythm & timing",
+    body: [
+      "Rhythm answers: are quakes spaced oddly in time, or like a random mix?",
+      "It does not measure size or location — only gaps between events.",
+      "Quiet / ordinary spacing is normal and valid — not a broken feed.",
+      "Solar has the same idea for flares and CMEs. Not a forecast.",
+      "Want the research name? Expand “Technical detail” or Method & credit (SUPT / Sheppard).",
+    ],
+  },
+  {
     id: "modes",
     title: "Modes L · S · F",
     body: [

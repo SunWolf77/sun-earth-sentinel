@@ -133,10 +133,9 @@ export function ResonancePanel() {
     <div className="mx-auto max-w-3xl space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
       <SuptContinuumStrip compact />
       <header>
-        <h2 className="text-lg font-semibold text-accent sm:text-xl">Catalog rhythm</h2>
+        <h2 className="text-lg font-semibold text-accent sm:text-xl">Catalog timing</h2>
         <p className="mt-1 text-xs text-muted sm:text-sm">
-          Spacing of recent quakes in time — not a forecast. (SUPT ·{" "}
-          <XHandle profile="sheppard" />)
+          How evenly recent quakes are spaced in time — not how big they are, not a forecast.
         </p>
       </header>
 
@@ -144,8 +143,8 @@ export function ResonancePanel() {
         <div className="rounded-lg border border-border bg-panel px-3 py-2 text-xs text-muted">
           <p className="mb-0.5 font-semibold text-fg">What this does</p>
           <p>
-            Compares gaps between quakes ({windowLabel}) to a shuffled “random” version of the same
-            times.
+            Looks at gaps between quakes ({windowLabel}) and asks: does that spacing look ordinary,
+            or more ordered / mixed than a random shuffle of the same times?
           </p>
         </div>
         <div className="rounded-lg border border-danger/25 bg-danger/5 px-3 py-2 text-xs text-muted">
@@ -154,7 +153,7 @@ export function ResonancePanel() {
             Not a prediction
           </p>
           <p>
-            Not magnitude/location forecast, ShakeMap, or EEW. Check USGS / local agencies for
+            Not magnitude, location, ShakeMap, or early warning. Use USGS and local agencies for
             alerts.
           </p>
         </div>
@@ -197,12 +196,16 @@ export function ResonancePanel() {
               ) : (
                 <ChevronRight className="h-3.5 w-3.5" />
               )}
-              SUPT detail (operators)
+              Technical detail
             </button>
             {showSupTDetail && (
-              <p className="mt-1 rounded-md border border-border/70 bg-bg/40 px-2 py-1.5 font-mono text-[0.62rem] leading-relaxed text-dim">
-                {techLine}
-              </p>
+              <div className="mt-1 space-y-1.5 rounded-md border border-border/70 bg-bg/40 px-2 py-1.5 text-left">
+                <p className="font-mono text-[0.62rem] leading-relaxed text-dim">{techLine}</p>
+                <p className="text-[0.62rem] leading-snug text-muted">
+                  Method: SUPT frozen probe (Sheppard) · α=0.01 · shuffle null |z|≥3 = “unusual.”{" "}
+                  <XHandle profile="sheppard" /> · full math in About.
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -227,7 +230,7 @@ export function ResonancePanel() {
 
         <dl className="mx-auto mt-4 grid max-w-md grid-cols-3 gap-1.5 text-center text-[0.65rem] sm:mt-5 sm:gap-2 sm:text-xs">
           <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5 sm:px-2 sm:py-2">
-            <dt className="text-dim">Gaps used</dt>
+            <dt className="text-dim">Intervals</dt>
             <dd className="mt-0.5 font-mono text-sm font-semibold text-fg">
               {resonance?.n ?? "—"}
             </dd>

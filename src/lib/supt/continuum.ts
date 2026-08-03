@@ -1,5 +1,5 @@
 /**
- * Cross-domain SUPT continuum — one vocabulary for seismic + solar.
+ * Cross-domain timing continuum — plain labels first; SUPT method is credit, not headline.
  * Reliability: pure functions over already-fetched store data (no extra network).
  */
 
@@ -32,18 +32,25 @@ export function buildContinuum(opts: {
   const v = resonanceVerdict(seismic);
   const seismicTone: ContinuumDomain["tone"] =
     v.tone === "null" ? "none" : v.tone;
+
   const seismicDomain: ContinuumDomain = {
     id: "seismic",
-    label: "Earth catalog",
+    label: "Earthquakes",
     status: v.title,
     detail: seismic
-      ? `${bandPlainLabel(seismic.band)} · n=${seismic.n}${seismic.separated ? " · sep" : " · null"}`
-      : "Waiting for quake gaps",
+      ? seismic.n < 4
+        ? "Need more events to score spacing"
+        : seismic.separated
+          ? `${bandPlainLabel(seismic.band)} · unusual vs random`
+          : `${bandPlainLabel(seismic.band)} · ordinary spacing`
+      : "Waiting for quake catalog",
     tone: seismicTone,
     metric:
       seismic?.d_ij != null
-        ? `d=${seismic.d_ij.toFixed(3)}`
-        : "d=—",
+        ? seismic.separated
+          ? "Unusual"
+          : "Typical"
+        : "—",
   };
 
   const solarAtt = solar?.attention ?? 0;
@@ -58,14 +65,15 @@ export function buildContinuum(opts: {
             ? "chance"
             : "none";
 
+  const sepCh = solar?.channels?.filter((c) => c.score.separated).length ?? 0;
+  const chN = solar?.channels?.length ?? 0;
+
   const solarDomain: ContinuumDomain = {
     id: "solar",
-    label: "Solar storm stack",
-    status: solar?.impact.title ?? "Solar loading…",
+    label: "Space weather",
+    status: solar?.impact.title ?? "Loading solar…",
     detail: solar
-      ? `Attention ${solar.attention}/100 · ${
-          solar.channels.filter((c) => c.score.separated).length
-        }/${solar.channels.length} SUPT channels non-null`
+      ? `Attention ${solar.attention}/100 · timing channels ${sepCh}/${chN} unusual`
       : "Waiting for space-weather feeds",
     tone: solarTone,
     metric: solar ? `${solar.attention}` : "—",
@@ -73,24 +81,26 @@ export function buildContinuum(opts: {
 
   const domains = [solarDomain, seismicDomain];
 
-  // Headline prioritizes storm/watch, then ordered structure
-  let headline = "Continuum quiet";
-  if (solarTone === "storm" || seismic?.separated) {
-    headline =
-      solarTone === "storm"
-        ? `Solar elevated · ${seismic?.separated ? "Earth timing non-null" : "Earth timing null"}`
-        : `Earth timing non-null · Solar ${solar?.impact.level ?? "—"}`;
+  let headline = "Timing looks quiet on both sides";
+  if (solarTone === "storm") {
+    headline = seismic?.separated
+      ? "Solar elevated · earthquake spacing also unusual"
+      : "Solar elevated · earthquake spacing ordinary";
   } else if (solarTone === "watch") {
-    headline = `Solar watch · Earth ${seismic?.separated ? "non-null" : "null"}`;
+    headline = seismic?.separated
+      ? "Solar on watch · earthquake spacing unusual"
+      : "Solar on watch · earthquake spacing ordinary";
   } else if (seismic?.separated) {
-    headline = "Earth catalog structure · solar calm";
+    headline = "Earthquake spacing unusual · solar relatively calm";
+  } else if (seismic && seismic.n >= 4) {
+    headline = "Both sides: ordinary timing / quiet attention";
   } else {
-    headline = "Both domains near null / quiet";
+    headline = "Building a timing read from live feeds…";
   }
 
   const plain =
-    "Same frozen SUPT probe on ordered gaps (quakes · flares · CMEs · X-ray peaks). " +
-    "Null is valid. Amplitude scales (R/S/G, mag) are separate from timing structure.";
+    "We look at the clock between events (quakes · flares · CMEs · X-ray peaks) — not how big they are. " +
+    "Quiet or ordinary spacing is a real status. Official size/intensity scales (magnitude, R/S/G) stay separate. Not a forecast.";
 
   return {
     generatedAt: Date.now(),

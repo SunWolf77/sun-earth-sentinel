@@ -1,12 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useObservatory } from "@/store/observatory";
 import { buildContinuum, TONE_CLASS } from "@/lib/supt/continuum";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
-import { Sparkles } from "lucide-react";
+import { Activity, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 
 /**
- * Shared SUPT continuum — uses store-cached solar assessment (no re-probe).
+ * Shared Earth + solar timing strip — plain language; method under disclosure.
  */
 export function SuptContinuumStrip({
   compact = false,
@@ -19,6 +19,7 @@ export function SuptContinuumStrip({
   const solar = useObservatory((s) => s.solarAssessment);
   const setTab = useObservatory((s) => s.setTab);
   const mobile = useIsMobile();
+  const [showMethod, setShowMethod] = useState(false);
 
   const snap = useMemo(
     () => buildContinuum({ seismic: resonance, solar }),
@@ -29,8 +30,8 @@ export function SuptContinuumStrip({
     return (
       <div className="rounded-lg border border-accent/25 bg-accent/5 px-2.5 py-2">
         <div className="mb-1 flex items-center gap-1.5 text-[0.65rem] font-semibold uppercase tracking-wider text-accent">
-          <Sparkles className="h-3 w-3" />
-          SUPT continuum
+          <Activity className="h-3 w-3" />
+          Timing overview
         </div>
         <p className="text-[0.72rem] font-medium leading-snug text-fg">{snap.headline}</p>
         <AttentionSparkline height={22} className="mt-1.5" />
@@ -53,13 +54,13 @@ export function SuptContinuumStrip({
   return (
     <section className="rounded-xl border border-accent/30 bg-gradient-to-b from-accent/10 to-panel p-3 sm:p-4">
       <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-accent">
-            <Sparkles className="h-4 w-4" />
-            SUPT continuum
+            <Activity className="h-4 w-4" />
+            Timing overview
           </h3>
           <p className="mt-0.5 text-[0.68rem] text-dim">
-            Same probe · solar + seismic · null is valid · not a forecast
+            Event spacing · Earth + solar · not size · not a forecast
           </p>
         </div>
         {showNav && (
@@ -106,6 +107,28 @@ export function SuptContinuumStrip({
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        className="mt-2 inline-flex min-h-8 items-center gap-1 text-[0.62rem] font-medium text-dim hover:text-primary"
+        onClick={() => setShowMethod((v) => !v)}
+        aria-expanded={showMethod}
+      >
+        {showMethod ? (
+          <ChevronDown className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5" />
+        )}
+        Method & credit
+      </button>
+      {showMethod && (
+        <p className="mt-1 rounded-md border border-border/70 bg-bg/50 px-2.5 py-2 text-[0.65rem] leading-relaxed text-muted">
+          <Sparkles className="mb-0.5 mr-1 inline h-3 w-3 text-accent" />
+          Technical method: <strong className="text-fg">SUPT continuum</strong> (Sheppard) — the
+          same fixed spacing probe on ordered gaps for quakes and solar channels. Open Rhythm or
+          Solar → “Technical detail” for symbols (d, z, bands).
+        </p>
+      )}
     </section>
   );
 }
