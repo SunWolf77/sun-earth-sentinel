@@ -677,17 +677,28 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     void get().loadFocusMmi();
   },
   flyMapTo: (lat, lon, zoom = 6, id) => {
+    const la = Number(lat);
+    const lo = Number(lon);
+    const z = zoom == null ? 6 : Number(zoom);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return;
+    if (la < -90 || la > 90) return;
+    if (!Number.isFinite(z) || z < 0 || z > 22) return;
+    // normalize lon
+    let lonN = ((((lo + 180) % 360) + 360) % 360) - 180;
     set({
       tab: "live",
       mobileSheet: "closed",
       mapView: "2d",
-      mapFlyTo: { lat, lon, zoom, id },
+      mapFlyTo: { lat: la, lon: lonN, zoom: z, id },
     });
   },
   clearMapFlyTo: () => set({ mapFlyTo: null }),
   antipodeOf: (lat, lon) => {
-    const aLat = -lat;
-    let aLon = lon + 180;
+    const la = Number(lat);
+    const lo = Number(lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo) || la < -90 || la > 90) return;
+    const aLat = -la;
+    let aLon = lo + 180;
     if (aLon > 180) aLon -= 360;
     if (aLon < -180) aLon += 360;
     const full = get().mode === "full";

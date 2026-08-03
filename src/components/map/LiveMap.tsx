@@ -444,8 +444,21 @@ export function LiveMap() {
   useEffect(() => {
     const map = mapObj.current;
     if (!map || !mapFlyTo || mapView !== "2d") return;
+    const lat = Number(mapFlyTo.lat);
+    const lon = Number(mapFlyTo.lon);
+    const zoom = mapFlyTo.zoom == null ? 6 : Number(mapFlyTo.zoom);
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      lat < -90 ||
+      lat > 90 ||
+      !Number.isFinite(zoom)
+    ) {
+      clearMapFlyTo();
+      return;
+    }
     // Custom easeOutCubic flight (same curve as 3D globe aim)
-    flyToEased(map, [mapFlyTo.lat, mapFlyTo.lon], mapFlyTo.zoom ?? 6, {
+    flyToEased(map, [lat, lon], zoom, {
       duration: 0.85,
       ease: easeOutCubic,
     });
