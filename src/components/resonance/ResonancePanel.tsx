@@ -30,6 +30,7 @@ import {
 import { XHandle, XPerson } from "@/components/ui/XProfileLink";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
+import { LunarSkyCard } from "@/components/resonance/LunarSkyCard";
 
 const STATUS_STYLE: Record<NodeStatus, string> = {
   quiet: "bg-primary/30 border-primary",
@@ -249,6 +250,8 @@ export function ResonancePanel() {
           </div>
         </dl>
       </div>
+
+      <LunarSkyCard />
 
       <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
         <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-primary">
