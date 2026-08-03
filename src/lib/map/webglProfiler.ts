@@ -1,43 +1,33 @@
 /**
  * Lightweight WebGL / rAF performance profiler for the 3D globe.
- * Tracks FPS, frame time, Three.js renderer.info, optional GL timer.
- * No extra deps — safe on mobile (sampled, not every-microsecond).
+ * FPS = delivered frame rate (interval between rendered frames).
+ * frameMs = CPU work for that frame (begin → end).
  */
 
 export type WebGlPerfSample = {
-  /** Instantaneous FPS from last completed frame interval */
+  /** Instantaneous delivered FPS (1 / inter-frame interval) */
   fps: number;
-  /** Smoothed FPS (EMA) */
+  /** Smoothed delivered FPS (EMA) */
   fpsSmooth: number;
-  /** Last frame cost ms (JS + GPU submit side) */
+  /** Last frame CPU work ms (begin→end) */
   frameMs: number;
-  /** EMA of frame cost */
+  /** EMA of work ms */
   frameMsSmooth: number;
-  /** 1% low FPS over rolling window */
+  /** 1% low delivered FPS over rolling window */
   fps1pctLow: number;
-  /** drawCalls from last render */
+  /** Cap / target FPS for this quality profile */
+  targetFps: number;
   drawCalls: number;
-  /** triangles from last render */
   triangles: number;
-  /** points from last render */
   points: number;
-  /** lines from last render */
   lines: number;
-  /** geometries in memory (Three cache) */
   geometries: number;
-  /** textures in memory */
   textures: number;
-  /** programs in memory */
   programs: number;
-  /** JS heap MB if performance.memory available */
   jsHeapMb: number | null;
-  /** Quality / health label */
   health: "good" | "ok" | "poor" | "critical";
-  /** Short tip for UI */
   tip: string;
-  /** Samples collected */
   n: number;
-  /** Timestamp */
   t: number;
 };
 
@@ -49,7 +39,7 @@ export type WebGlRendererInfoLike = {
 
 type PerfMem = { usedJSHeapSize?: number };
 
-const WINDOW = 90; // ~1.5–3s at 30–60fps
+const WINDOW = 90;
 
 function pctLow(sortedAsc: number[], pct = 0.01): number {
   if (!sortedAsc.length) return 0;
@@ -57,27 +47,30 @@ function pctLow(sortedAsc: number[], pct = 0.01): number {
   return sortedAsc[i] ?? sortedAsc[0]!;
 }
 
-function healthFrom(fpsSmooth: number, frameMsSmooth: number, targetFps: number): {
-  health: WebGlPerfSample["health"];
-  tip: string;
-} {
+function healthFrom(
+  fpsSmooth: number,
+  frameMsSmooth: number,
+  targetFps: number,
+): { health: WebGlPerfSample["health"]; tip: string } {
   const ratio = fpsSmooth / Math.max(1, targetFps);
-  if (frameMsSmooth > 48 || ratio < 0.45) {
+  // Work budget: ~80% of frame slot
+  const budget = 1000 / Math.max(15, targetFps);
+  if (frameMsSmooth > budget * 1.35 || ratio < 0.5) {
     return {
       health: "critical",
-      tip: "GPU saturated — lower markers / leave immersive / use 2D",
+      tip: "GPU saturated — fewer markers, exit full, or use 2D",
     };
   }
-  if (frameMsSmooth > 28 || ratio < 0.65) {
+  if (frameMsSmooth > budget * 0.9 || ratio < 0.7) {
     return {
       health: "poor",
-      tip: "Frame budget tight — spin/tilt ok, avoid heavy clusters",
+      tip: "Frame budget tight — reduce spin / dense clusters",
     };
   }
-  if (frameMsSmooth > 18 || ratio < 0.85) {
+  if (frameMsSmooth > budget * 0.55 || ratio < 0.88) {
     return {
       health: "ok",
-      tip: "Stable enough — desktop quality preferred when free",
+      tip: "Stable — headroom limited",
     };
   }
   return {
@@ -86,14 +79,11 @@ function healthFrom(fpsSmooth: number, frameMsSmooth: number, targetFps: number)
   };
 }
 
-/**
- * Create a profiler instance. Call `beginFrame` at start of rAF work,
- * `endFrame(renderer)` after render. `snapshot()` for UI.
- */
 export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boolean }) {
   let targetFps = opts?.targetFps ?? 60;
   let enabled = opts?.enabled !== false;
-  let lastT = 0;
+  let beginT = 0;
+  let lastEndT = 0;
   let fpsSmooth = 0;
   let frameMsSmooth = 0;
   let n = 0;
@@ -129,24 +119,29 @@ export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boole
         listeners = listeners.filter((x) => x !== fn);
       };
     },
-    /** Mark start of a rendered frame (after FPS throttle skip). */
+    /** Start of a frame that will actually render (after FPS throttle). */
     beginFrame(now: number) {
       if (!enabled) return;
-      lastT = now;
+      beginT = now;
     },
-    /** After renderer.render — records metrics. */
+    /** After renderer.render — records work + delivered FPS. */
     endFrame(renderer?: { info?: WebGlRendererInfoLike } | null) {
-      if (!enabled || !lastT) return;
+      if (!enabled || !beginT) return;
       const now = performance.now();
-      const frameMs = Math.max(0.01, now - lastT);
-      const fps = 1000 / frameMs;
+      const workMs = Math.max(0.01, now - beginT);
+      // Delivered FPS from full inter-frame interval (includes throttle wait)
+      const intervalMs =
+        lastEndT > 0 ? Math.max(workMs, now - lastEndT) : Math.max(workMs, 1000 / targetFps);
+      lastEndT = now;
+      beginT = 0;
+
+      const fps = 1000 / intervalMs;
       n += 1;
-      // EMA — slightly faster track on first samples
       const a = n < 12 ? 0.28 : 0.12;
       fpsSmooth = fpsSmooth ? fpsSmooth * (1 - a) + fps * a : fps;
-      frameMsSmooth = frameMsSmooth ? frameMsSmooth * (1 - a) + frameMs * a : frameMs;
+      frameMsSmooth = frameMsSmooth ? frameMsSmooth * (1 - a) + workMs * a : workMs;
 
-      frameMsHist.push(frameMs);
+      frameMsHist.push(workMs);
       fpsHist.push(fps);
       if (frameMsHist.length > WINDOW) frameMsHist.shift();
       if (fpsHist.length > WINDOW) fpsHist.shift();
@@ -164,12 +159,17 @@ export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boole
       const fps1pctLow = pctLow(fpsSorted, 0.01);
       const { health, tip } = healthFrom(fpsSmooth, frameMsSmooth, targetFps);
 
+      // Cap displayed FPS near target (throttle intent) so UI doesn't show 300+
+      const fpsShow = Math.min(fps, targetFps * 1.15);
+      const fpsSmoothShow = Math.min(fpsSmooth, targetFps * 1.1);
+
       lastSample = {
-        fps: Math.round(fps * 10) / 10,
-        fpsSmooth: Math.round(fpsSmooth * 10) / 10,
-        frameMs: Math.round(frameMs * 10) / 10,
+        fps: Math.round(fpsShow * 10) / 10,
+        fpsSmooth: Math.round(fpsSmoothShow * 10) / 10,
+        frameMs: Math.round(workMs * 10) / 10,
         frameMsSmooth: Math.round(frameMsSmooth * 10) / 10,
-        fps1pctLow: Math.round(fps1pctLow * 10) / 10,
+        fps1pctLow: Math.round(Math.min(fps1pctLow, targetFps * 1.1) * 10) / 10,
+        targetFps,
         drawCalls: calls,
         triangles,
         points,
@@ -184,9 +184,8 @@ export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boole
         t: now,
       };
 
-      // UI ~4 Hz
-      emitAccum += frameMs;
-      if (emitAccum >= 250 && lastSample) {
+      emitAccum += intervalMs;
+      if (emitAccum >= 280 && lastSample) {
         emitAccum = 0;
         const s = lastSample;
         for (const fn of listeners) {
@@ -198,11 +197,9 @@ export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boole
         }
       }
 
-      // Reset three.js render counters for next frame accuracy
       if (info?.render && typeof info.render.calls === "number") {
         try {
-          // three.js r152+: info.autoReset; older: manual
-          const anyInfo = info as WebGlRendererInfoLike & { autoReset?: boolean; reset?: () => void };
+          const anyInfo = info as WebGlRendererInfoLike & { reset?: () => void };
           if (typeof anyInfo.reset === "function") anyInfo.reset();
           else {
             info.render.calls = 0;
@@ -218,17 +215,17 @@ export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boole
     snapshot(): WebGlPerfSample | null {
       return lastSample;
     },
-    /** One-line console summary */
     logSummary(prefix = "[globe-perf]") {
       const s = lastSample;
       if (!s) return;
       // eslint-disable-next-line no-console
       console.info(
-        `${prefix} fps=${s.fpsSmooth} (1%low ${s.fps1pctLow}) frame=${s.frameMsSmooth}ms draws=${s.drawCalls} tris=${s.triangles} ${s.health}`,
+        `${prefix} fps=${s.fpsSmooth}/${s.targetFps} (1%low ${s.fps1pctLow}) work=${s.frameMsSmooth}ms draws=${s.drawCalls} tris=${s.triangles} ${s.health}`,
       );
     },
     reset() {
-      lastT = 0;
+      beginT = 0;
+      lastEndT = 0;
       fpsSmooth = 0;
       frameMsSmooth = 0;
       n = 0;
@@ -242,11 +239,10 @@ export function createWebGlProfiler(opts?: { targetFps?: number; enabled?: boole
 
 export type WebGlProfiler = ReturnType<typeof createWebGlProfiler>;
 
-/** Format sample for HUD chip */
 export function formatPerfChip(s: WebGlPerfSample | null, qualityId?: string): string {
   if (!s) return qualityId ? `${qualityId} · …` : "perf …";
   const q = qualityId ? `${qualityId} · ` : "";
-  return `${q}${s.fpsSmooth.toFixed(0)}fps · ${s.frameMsSmooth.toFixed(0)}ms`;
+  return `${q}${s.fpsSmooth.toFixed(0)}/${s.targetFps} · ${s.frameMsSmooth.toFixed(0)}ms`;
 }
 
 export function healthColor(h: WebGlPerfSample["health"]): string {

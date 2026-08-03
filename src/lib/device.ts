@@ -76,16 +76,16 @@ export function resolveGlobeQuality(force?: GlobeQualityId): GlobeQuality {
   if (id === "mobile") {
     return {
       id: "mobile",
-      sphereSeg: 40,
-      atmoSeg: 24,
+      sphereSeg: 32,
+      atmoSeg: 20,
       glow: false,
-      stars: 80,
-      maxMarkers: 120,
-      maxRings: 2,
+      stars: 48,
+      maxMarkers: 90,
+      maxRings: 1,
       magSprites: true,
-      pixelRatioCap: 1.5,
+      pixelRatioCap: 1.25,
       antialias: false,
-      anisotropy: 2,
+      anisotropy: 1,
       // Real Earth texture (GPU downsamples); procedural is only a fail-safe
       loadMarble: true,
       powerPreference: "default",

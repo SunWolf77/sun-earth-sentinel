@@ -492,6 +492,7 @@ export function Globe3D() {
       } | null = null;
 
       function applyCam() {
+        needsRender = true;
         camera.position.x =
           spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
         camera.position.y = spherical.radius * Math.cos(spherical.phi);
@@ -1655,7 +1656,6 @@ export function Globe3D() {
       let animId = 0;
       let active = true;
       let blink = 0;
-      let lastFrameT = 0;
       const onContextLost = (ev: Event) => {
         ev.preventDefault();
         active = false;
@@ -1667,6 +1667,8 @@ export function Globe3D() {
         }
       };
       el.addEventListener("webglcontextlost", onContextLost, false);
+      let lastFrameT = 0;
+      let needsRender = true;
       const minFrameMs = 1000 / Math.max(15, Q.maxFps);
       const animate = (now = performance.now()) => {
         if (!active) return;
@@ -1731,11 +1733,27 @@ export function Globe3D() {
           applyCam();
         }
 
-        blink += 0.045;
-        const bo = 0.42 + 0.58 * Math.abs(Math.sin(blink));
-        for (const n of neonMats) {
-          n.mat.opacity = n.base * bo;
+        const busy =
+          !!aimAnim ||
+          spiderAnims.length > 0 ||
+          rotating ||
+          (autoRef.current && !rotating);
+        if (busy || neonMats.length) {
+          blink += 0.045;
+          const bo = 0.42 + 0.58 * Math.abs(Math.sin(blink));
+          for (const n of neonMats) {
+            n.mat.opacity = n.base * bo;
+          }
+          needsRender = true;
         }
+
+        if (!needsRender && !busy) {
+          // Idle hold — skip GPU submit (still throttled rAF)
+          profiler.beginFrame(now);
+          profiler.endFrame(null);
+          return;
+        }
+        needsRender = false;
 
         renderer.render(scene, camera);
         profiler.endFrame(renderer);
@@ -1975,7 +1993,7 @@ export function Globe3D() {
             <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono tabular-nums">
               <dt className="text-dim">FPS</dt>
               <dd className="text-fg">
-                {perfSample.fpsSmooth.toFixed(1)}{" "}
+                {perfSample.fpsSmooth.toFixed(0)}/{perfSample.targetFps}{" "}
                 <span className="text-dim">(1% {perfSample.fps1pctLow.toFixed(0)})</span>
               </dd>
               <dt className="text-dim">Frame</dt>
