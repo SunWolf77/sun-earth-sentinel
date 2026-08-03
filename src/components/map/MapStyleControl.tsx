@@ -17,6 +17,9 @@ import {
   Sparkles,
   Filter,
   List,
+  Satellite,
+  Orbit,
+  Rocket,
 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import {
@@ -48,6 +51,10 @@ const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   volcanoes: Mountain,
   globalVolcanoes: Globe2,
   corridors: Square,
+  iss: Satellite,
+  aurora: Sparkles,
+  wildfires: Flame,
+  neos: Orbit,
 };
 
 export function MapStyleControl() {
@@ -251,7 +258,7 @@ export function MapStyleControl() {
               onClick={() => setOverlay(id as MapOverlayId, !on)}
               className={`ww-toggle ${on ? "ww-toggle--on" : "ww-toggle--off"} ${
                 on && id === "heatmap" ? "ww-toggle--heat" : ""
-              } ${on && id === "plates" ? "ww-toggle--plates" : ""} ${
+              } ${on && (id as string) === "plates" ? "ww-toggle--plates" : ""} ${
                 on && id === "significant" ? "ww-toggle--mmi" : ""
               }`}
             >

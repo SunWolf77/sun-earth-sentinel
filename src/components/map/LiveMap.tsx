@@ -28,6 +28,8 @@ import { createPlateLayer, type PlateLayerHandle } from "@/components/map/PlateL
 import { attachMapTouchGestures, type MapTouchHandle } from "@/lib/map/touchGestures";
 import { NodeFocusBanner } from "@/components/nodes/NodeFocusPanel";
 import { MapStyleControl } from "@/components/map/MapStyleControl";
+import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
+import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
@@ -201,6 +203,7 @@ export function LiveMap() {
   const touchHandle = useRef<MapTouchHandle | null>(null);
 
   const [pressLabel, setPressLabel] = useState<string | null>(null);
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [showGestureTip, setShowGestureTip] = useState(false);
 
   const eq = useObservatory((s) => s.eq);
@@ -329,6 +332,7 @@ export function LiveMap() {
     volcLayer.current = L.layerGroup().addTo(map);
     gvpLayer.current = L.layerGroup().addTo(map);
     mapObj.current = map;
+    setMapInstance(map);
 
     if (useObservatory.getState().overlays.plates) {
       plateLayer.current.setActive(true);
@@ -341,6 +345,7 @@ export function LiveMap() {
       plateLayer.current = null;
       map.remove();
       mapObj.current = null;
+      setMapInstance(null);
       baseLayer.current = null;
       vectorRenderer.current = null;
       heatLayer.current = null;
@@ -992,6 +997,8 @@ export function LiveMap() {
     }
   };
 
+  useAmbientMapLayers(mapInstance);
+
   return (
     <div
       className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border sm:min-h-[280px]"
@@ -999,6 +1006,9 @@ export function LiveMap() {
     >
       <div ref={mapRef} className="ww-map h-full min-h-0 w-full" />
       <NodeFocusBanner />
+      <div className="pointer-events-none absolute left-2 top-14 z-[450] sm:top-16">
+        <CrossFeedChips />
+      </div>
       <MmiFocusBanner />
       {mapView === "2d" && (
         <>

@@ -36,6 +36,11 @@ import {
 import type { DonkiBundle } from "@/lib/feeds/donki";
 import { fetchDonkiBundle, fetchSolarCore } from "@/lib/feeds/solarProxy";
 import { MODES, normalizePerformanceMode, type PerformanceMode } from "@/lib/feeds/modes";
+
+import { fetchIssPosition, type IssPosition } from "@/lib/feeds/iss";
+import { fetchOpenWildfires, type WildfireEvent } from "@/lib/feeds/wildfires";
+import { fetchNeoToday, type NeoItem } from "@/lib/feeds/neows";
+
 import {
   diffVolcWatch,
   fetchUsgsElevatedVolcanoes,
@@ -280,6 +285,10 @@ type ObservatoryState = {
   forecast: ForecastBundle | null;
   enlil: EnlilFrame | null;
   ovation: OvationFrame | null;
+  issPosition: IssPosition | null;
+  wildfires: WildfireEvent[];
+  neos: NeoItem[];
+  ambientLoading: boolean;
   donki: DonkiBundle | null;
   kpForecast: KpForecastPoint[];
   /** Cached SUPT solar assessment — single compute per refresh */
@@ -313,6 +322,8 @@ type ObservatoryState = {
   setLiveStatus: (s: LiveStatus, detail?: string | null) => void;
   rebuildVolcWatch: () => void;
   ensureGvpVolcanoes: () => Promise<void>;
+  ensureAmbientLayers: (force?: boolean) => Promise<void>;
+  pulseIss: () => Promise<void>;
   setUseGeofon: (v: boolean) => void;
   setAudioAlerts: (v: boolean) => void;
   setGlobeAutoSpin: (v: boolean) => void;
@@ -491,6 +502,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     plates: false,
     significant: false,
     globalActivity: false,
+    iss: false,
+    aurora: false,
+    wildfires: false,
+    neos: false,
   },
   useGeofon: false,
   audioAlerts: false,
@@ -528,6 +543,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   forecast: null,
   enlil: null,
   ovation: null,
+  issPosition: null,
+  wildfires: [],
+  neos: [],
+  ambientLoading: false,
   donki: null,
   kpForecast: [],
   solarAssessment: null,
@@ -694,6 +713,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     if (id === "globalVolcanoes" && on) {
       void get().ensureGvpVolcanoes();
     }
+    if (on && (id === "iss" || id === "wildfires" || id === "neos" || id === "aurora")) {
+      void get().ensureAmbientLayers(id === "iss" || id === "wildfires" || id === "neos");
+    }
     if (id === "globalVolcanoes" && !on) {
       const focus = get().focusNodeId;
       const gvp = get().gvpFocusNode;
@@ -711,6 +733,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }
     set({ overlays });
     if (overlays.globalVolcanoes) void get().ensureGvpVolcanoes();
+    if (overlays.iss || overlays.wildfires || overlays.neos || overlays.aurora) {
+      void get().ensureAmbientLayers(true);
+    }
   },
   setLiveStatus: (liveStatus, detail = null) =>
     set({ liveStatus, liveStatusDetail: detail ?? null }),
@@ -751,6 +776,47 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
     })();
     return gvpFetchInFlight;
+  },
+  ensureAmbientLayers: async (force = false) => {
+    const o = get().overlays;
+    const wantIss = o.iss || force;
+    const wantFire = o.wildfires || (force && o.wildfires);
+    const wantNeo = o.neos || force;
+    // Cross-feed needs light data even when layers off: pull NEO/fires only if forced or empty+force
+    set({ ambientLoading: true });
+    try {
+      const jobs: Promise<void>[] = [];
+      if (o.iss || wantIss) {
+        jobs.push(
+          fetchIssPosition().then((iss) => {
+            if (iss) set({ issPosition: iss });
+          }),
+        );
+      }
+      if (o.wildfires || (force && !get().wildfires.length)) {
+        jobs.push(
+          fetchOpenWildfires().then((wildfires) => set({ wildfires })),
+        );
+      }
+      if (o.neos || force) {
+        jobs.push(fetchNeoToday().then((neos) => set({ neos })));
+      }
+      // Quiet default: still warm NEO list once for Solar/cross-feed if empty
+      if (!get().neos.length && !jobs.length) {
+        jobs.push(fetchNeoToday().then((neos) => set({ neos })));
+      }
+      await Promise.all(jobs);
+    } finally {
+      set({ ambientLoading: false });
+    }
+  },
+  pulseIss: async () => {
+    if (!get().overlays.iss && !get().issPosition) {
+      /* still allow cross-feed refresh */
+    }
+    if (!get().overlays.iss) return;
+    const iss = await fetchIssPosition();
+    if (iss) set({ issPosition: iss });
   },
   pinVolcWatch: (key: string) => {
     const pins = new Set<string>(get().volcWatchPins);
@@ -1346,6 +1412,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       if (get().focusNodeId && get().overlays.mmiContours) {
         void get().loadFocusMmi();
       }
+      // Ambient: ISS/fires/NEO when layers on (or warm NEO for Solar)
+      void get().ensureAmbientLayers(false);
     } catch (e) {
       set({
         loading: false,

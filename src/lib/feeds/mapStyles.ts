@@ -14,7 +14,11 @@ export type MapOverlayId =
   | "mmiContours"
   | "plates"
   | "significant"
-  | "globalActivity";
+  | "globalActivity"
+  | "iss"
+  | "aurora"
+  | "wildfires"
+  | "neos";
 
 export type MapStyleConfig = {
   id: BasemapStyleId;
@@ -86,6 +90,10 @@ export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   plates: false,
   significant: false,
   globalActivity: false,
+  iss: false,
+  aurora: false,
+  wildfires: false,
+  neos: false,
 };
 
 /** Mobile first-open: even leaner */
@@ -103,6 +111,10 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     nodes: true,
     significant: false,
     globalActivity: false,
+    iss: false,
+    aurora: false,
+    wildfires: false,
+    neos: false,
   };
 }
 
@@ -184,6 +196,30 @@ export const OVERLAY_META: {
     short: "Zones",
     hint: "Published / focused bounds",
   },
+{
+    id: "iss",
+    label: "ISS track",
+    short: "ISS",
+    hint: "Live ISS position + short ground track (where-the-iss.at)",
+  },
+  {
+    id: "aurora",
+    label: "Aurora oval (Kp)",
+    short: "Aurora",
+    hint: "Approx oval from planetary Kp — SWPC is authoritative",
+  },
+  {
+    id: "wildfires",
+    label: "Wildfires (EONET)",
+    short: "Fires",
+    hint: "NASA EONET open wildfire events — opt-in ambient layer",
+  },
+  {
+    id: "neos",
+    label: "Near-Earth objects",
+    short: "NEO",
+    hint: "Today’s close approaches (NASA NeoWs) — list + map pin for closest",
+  },
 ];
 
 export function loadBasemapStyle(): BasemapStyleId {
@@ -198,7 +234,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v2";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v3";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };

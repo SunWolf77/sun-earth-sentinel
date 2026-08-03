@@ -43,8 +43,8 @@ export const DESKTOP_QUICK_LAYERS = [
   "quakes",
   "heatmap",
   "significant",
-  "globalActivity",
-  "plates",
+  "iss",
+  "aurora",
   "nodes",
   "volcanoes",
 ] as const;
@@ -63,6 +63,16 @@ export const LAYER_GROUPS: {
     id: "geology",
     label: "Geology & depth",
     ids: ["plates", "depthColor", "timeDecay", "volcanoes", "globalVolcanoes", "corridors"],
+  },
+  {
+    id: "space",
+    label: "Space & sky",
+    ids: ["iss", "aurora", "neos"],
+  },
+  {
+    id: "ambient",
+    label: "Ambient Earth",
+    ids: ["wildfires"],
   },
   {
     id: "focus",

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { buildAuroraOval, latestKp } from "@/lib/feeds/auroraOval";
+import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
+import { issTrailPoints } from "@/lib/feeds/iss";
 import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes, type PickedEvent } from "@/store/observatory";
 import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
 import { filterFeaturesByTimeWindow } from "@/lib/feeds/usgs";
@@ -72,11 +75,15 @@ export function Globe3D() {
   const replayActive = useObservatory((s) => s.replayActive);
   const replayCursorMs = useObservatory((s) => s.replayCursorMs);
   const overlays = useObservatory((s) => s.overlays);
+  const issPosition = useObservatory((s) => s.issPosition);
+  const wildfires = useObservatory((s) => s.wildfires);
+  const kp = useObservatory((s) => s.kp);
 
   const cleanupRef = useRef<(() => void) | null>(null);
   const updateRef = useRef<((features: EqFeature[], focusId: string | null) => void) | null>(
     null,
   );
+  const ambientUpdateRef = useRef<(() => void) | null>(null);
   const autoRef = useRef(globeAutoSpin);
   /** User preference (Spin ON) — aim/drag only pause autoRef, not this. */
   const spinDesiredRef = useRef(globeAutoSpin);
@@ -127,6 +134,18 @@ export function Globe3D() {
   useEffect(() => {
     overlaysRef.current = overlays;
   }, [overlays]);
+
+  useEffect(() => {
+    if (mapView !== "3d") return;
+    ambientUpdateRef.current?.();
+  }, [mapView, overlays.iss, overlays.aurora, overlays.wildfires, issPosition, wildfires, kp]);
+
+  useEffect(() => {
+    if (mapView !== "3d" || !overlays.iss) return;
+    void useObservatory.getState().pulseIss();
+    const id = window.setInterval(() => void useObservatory.getState().pulseIss(), 12_000);
+    return () => window.clearInterval(id);
+  }, [mapView, overlays.iss]);
 
   useEffect(() => {
     if (mapView !== "3d" || !containerRef.current) return;
@@ -1046,6 +1065,75 @@ export function Globe3D() {
 
       const pinGroup = new THREE.Group();
       scene.add(pinGroup);
+      const ambientGroup = new THREE.Group();
+      scene.add(ambientGroup);
+
+      function rebuildAmbient() {
+        while (ambientGroup.children.length) {
+          const o = ambientGroup.children[0]!;
+          ambientGroup.remove(o);
+          o.traverse((ch) => {
+            const mesh = ch as InstanceType<typeof THREE.Mesh>;
+            if (mesh.geometry) mesh.geometry.dispose();
+            const mat = mesh.material;
+            if (mat) {
+              if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+              else (mat as InstanceType<typeof THREE.Material>).dispose();
+            }
+          });
+        }
+        const ov = overlaysRef.current;
+        const st = useObservatory.getState();
+        if (ov.aurora) {
+          const oval = buildAuroraOval(latestKp(st.kp));
+          const col =
+            oval.level === "storm" ? 0x34d399 : oval.level === "elevated" ? 0x6ee7b7 : 0x2dd4bf;
+          for (const ring of [oval.northRing, oval.southRing]) {
+            const pts = ring.map((p) => latLonToVec(p.lat, p.lon, 1.012));
+            const geo = new THREE.BufferGeometry().setFromPoints(pts);
+            const line = new THREE.Line(
+              geo,
+              new THREE.LineBasicMaterial({
+                color: col,
+                transparent: true,
+                opacity: oval.level === "quiet" ? 0.35 : 0.65,
+              }),
+            );
+            ambientGroup.add(line);
+          }
+        }
+        if (ov.iss && st.issPosition) {
+          const iss = st.issPosition;
+          const elev = 1.02 + Math.min(0.04, iss.altitudeKm / 20000);
+          const v = latLonToVec(iss.lat, iss.lon, elev);
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.018, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+          );
+          mesh.position.copy(v);
+          ambientGroup.add(mesh);
+          const trail = issTrailPoints(iss.lat, iss.lon, 16, 3).map((p) =>
+            latLonToVec(p.lat, p.lon, 1.015),
+          );
+          ambientGroup.add(
+            new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints(trail),
+              new THREE.LineBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.5 }),
+            ),
+          );
+        }
+        if (ov.wildfires && st.wildfires?.length) {
+          const geo = new THREE.SphereGeometry(0.008, 6, 6);
+          const mat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+          for (const f of st.wildfires.slice(0, 80)) {
+            const m = new THREE.Mesh(geo, mat);
+            m.position.copy(latLonToVec(f.lat, f.lon, 1.01));
+            ambientGroup.add(m);
+          }
+        }
+      }
+      ambientUpdateRef.current = rebuildAmbient;
+      rebuildAmbient();
 
       function rebuildNodePins() {
         // Remove previous node meshes + their pick entries
@@ -1695,6 +1783,7 @@ export function Globe3D() {
         }
         disposeGroup(quakeGroup);
         disposeGroup(pinGroup);
+        disposeGroup(ambientGroup);
         scene.remove(pinGroup);
         if (focusRing) {
           scene.remove(focusRing);
@@ -1824,6 +1913,9 @@ export function Globe3D() {
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border bg-[#0b1220] sm:min-h-[280px]">
       <div ref={containerRef} className="h-full min-h-0 w-full" />
+      <div className="pointer-events-none absolute bottom-14 left-2 z-20 sm:bottom-16">
+        <CrossFeedChips />
+      </div>
 
       <div className="pointer-events-auto absolute left-2 top-2 z-20 flex flex-col items-start gap-1">
         <button

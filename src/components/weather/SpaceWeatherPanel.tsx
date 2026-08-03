@@ -64,6 +64,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const protons = useObservatory((s) => s.protons);
   const solarAssessment = useObservatory((s) => s.solarAssessment);
   const mode = useObservatory((s) => s.mode);
+  const neos = useObservatory((s) => s.neos);
+  const ensureAmbient = useObservatory((s) => s.ensureAmbientLayers);
+  const setOverlay = useObservatory((s) => s.setOverlay);
   const lastUpdate = useObservatory((s) => s.lastUpdate);
   const kpForecast = useObservatory((s) => s.kpForecast);
   const [channel, setChannel] = useState<SdoChannelId>("0193");
@@ -791,6 +794,59 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       {showImages && !compact && (
         <SolarImageryWall mode={mode} bust={bust} />
       )}
+
+
+      <Ladder title="4b · Near-Earth objects" hint="NASA NeoWs · today's approaches" />
+      <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
+            <Orbit className="h-3.5 w-3.5" />
+            Near-Earth objects (today)
+          </h3>
+          <button
+            type="button"
+            className="ww-btn min-h-8 text-[0.62rem]"
+            onClick={() => void ensureAmbient(true)}
+          >
+            Refresh NEOs
+          </button>
+        </div>
+        <p className="mb-2 text-[0.65rem] text-dim">
+          NASA NeoWs close approaches. Not impact predictions. PHA = potentially hazardous (size/orbit class).
+        </p>
+        <div className="scroll-thin max-h-56 space-y-1.5 overflow-y-auto">
+          {neos.length === 0 ? (
+            <p className="py-4 text-center text-xs text-dim">No NEO list yet — tap refresh (DEMO_KEY rate limits apply).</p>
+          ) : (
+            neos.slice(0, 12).map((n) => (
+              <a
+                key={n.id}
+                href={n.neoUrl || "https://cneos.jpl.nasa.gov/"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-lg border border-border/80 bg-bg/40 px-2.5 py-2 text-xs hover:border-primary/40"
+              >
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-medium text-fg">{n.name}</span>
+                  {n.hazardous && (
+                    <span className="rounded bg-warn/20 px-1 py-0.5 text-[0.58rem] font-semibold text-warn">
+                      PHA
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[0.62rem] text-muted">
+                  {n.missKm != null ? `Miss ~${(n.missKm / 384400).toFixed(2)} LD · ${Math.round(n.missKm).toLocaleString()} km` : "Miss —"}
+                  {n.velocityKms != null ? ` · ${n.velocityKms.toFixed(1)} km/s` : ""}
+                  {n.diameterM != null ? ` · ~${Math.round(n.diameterM)} m` : ""}
+                </div>
+                {n.approachDate && (
+                  <div className="text-[0.58rem] text-dim">{n.approachDate} UTC</div>
+                )}
+              </a>
+            ))
+          )}
+        </div>
+      </section>
 
       <Ladder title="5 · Timing read" hint="Spacing of flares / CMEs / peaks (optional depth)" />
       <SuptSolarAgent assessment={assessment} />

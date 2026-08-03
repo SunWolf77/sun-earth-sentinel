@@ -78,7 +78,19 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
   },
   {
     id: "modes",
+    title: "Layers: ISS · Aurora · Fires",
+    body: [
+      "ISS: live station position + short track (opt-in).",
+      "Aurora: approximate oval from planetary Kp — SWPC is authoritative.",
+      "Fires: NASA EONET open wildfires (opt-in ambient).",
+      "NEOs: Solar tab list of today’s approaches (NASA NeoWs).",
+      "Cross-feed chips: rule-based multi-domain pulse (not AI).",
+    ],
+  },
+  {
+    id: "modes",
     title: "Modes S · F",
+
     body: [
       "Standard / Full change catalog density and refresh rate — not a paywall.",
       "Mobile 3D uses a safe WebGL profile; Full loads denser quakes (M3.5+) and a faster live pulse.",
