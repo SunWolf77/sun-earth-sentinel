@@ -127,7 +127,7 @@ export function MapStyleControl() {
   return (
     <div
       ref={panelRef}
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] flex flex-col items-stretch gap-1.5 p-2 sm:items-end sm:gap-2 sm:p-3"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] flex flex-col items-stretch gap-1 p-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] sm:items-end sm:gap-2 sm:p-3 sm:pb-3"
     >
       {open && (
         <div

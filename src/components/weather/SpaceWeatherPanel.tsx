@@ -267,7 +267,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       <Ladder title="1 · Ops brief" hint="Scales · wind · CME impact (official sizes)" />
       {/* Impact command card — ops brief from data */}
-      <section className={`rounded-xl border p-4 ${levelBorder}`}>
+      <section className={`rounded-xl border p-3 sm:p-4 ${levelBorder}`}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <Shield className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-fg">{impact.title}</h3>

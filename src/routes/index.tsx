@@ -670,7 +670,7 @@ function ObservatoryApp() {
                 Sun-Earth <span className="text-primary">Sentinel</span>
               </span>
             </h1>
-            <p className="truncate text-[0.55rem] leading-tight text-dim sm:text-[0.62rem]">
+            <p className={`truncate text-[0.55rem] leading-tight text-dim sm:text-[0.62rem] ${isMobile && tab === "live" ? "hidden" : ""}`}>
               {isMobile ? (
                 <>
                   {updatedLabel} · {ageLabel}
@@ -701,10 +701,12 @@ function ObservatoryApp() {
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-            <HelpGuide />
+            <span className={isMobile && tab === "live" ? "hidden" : undefined}>
+              <HelpGuide />
+            </span>
             <button
               type="button"
-              className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile && tab === "live" ? "hidden" : ""}`}
+              className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile ? "hidden" : ""}`}
               title="Copy shareable view link"
               aria-label="Copy shareable view link"
               onClick={async () => {
@@ -751,7 +753,7 @@ function ObservatoryApp() {
             <button
               type="button"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`ww-btn ww-btn--icon ww-btn--compact ${autoRefresh ? "ww-btn--active" : ""}`}
+              className={`ww-btn ww-btn--icon ww-btn--compact ${autoRefresh ? "ww-btn--active" : ""} ${isMobile && tab === "live" ? "hidden" : ""}`}
               title={autoRefresh ? "Pause auto-refresh" : "Resume auto-refresh"}
               aria-pressed={autoRefresh}
               aria-label={autoRefresh ? "Pause live updates" : "Resume live updates"}
@@ -827,7 +829,7 @@ function ObservatoryApp() {
       {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
         <div
           className={`ww-brief-strip shrink-0 border-b border-border/60 px-2 sm:px-3 ${
-            isMobile && tab === "live" ? "py-0.5" : "py-1 sm:py-1.5"
+            isMobile ? (tab === "live" ? "py-0.5" : "py-0.5") : "py-1 sm:py-1.5"
           }`}
         >
           <TodayBriefBar dense />
@@ -837,7 +839,7 @@ function ObservatoryApp() {
               <CrossFeedChips />
             </div>
           )}
-          {isMobile && (
+          {isMobile && tab !== "live" && (
             <details className="ww-feed-details mt-0.5">
               <summary className="cursor-pointer select-none px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
                 Feed ages
@@ -1007,7 +1009,7 @@ function ObservatoryApp() {
                 </ClientOnly>
                 {/* Edge chrome dock — out of the way of Earth / map center */}
                 {mapView === "2d" && (
-                  <div className="pointer-events-none absolute bottom-3 right-2 z-[550] sm:bottom-4 sm:right-3">
+                  <div className="pointer-events-none absolute bottom-[4.25rem] right-1.5 z-[550] sm:bottom-4 sm:right-3">
                     <MapChromeDock className="items-end" />
                   </div>
                 )}
@@ -1041,7 +1043,7 @@ function ObservatoryApp() {
           role="tabpanel"
           aria-labelledby="tab-solar"
           hidden={tab !== "solar"}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:p-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
         >
           {tab === "solar" && <SpaceWeatherPanel />}
         </div>
@@ -1051,7 +1053,7 @@ function ObservatoryApp() {
           role="tabpanel"
           aria-labelledby="tab-resonance"
           hidden={tab !== "resonance"}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-0"
         >
           {tab === "resonance" && <ResonancePanel />}
         </div>
@@ -1061,7 +1063,7 @@ function ObservatoryApp() {
           role="tabpanel"
           aria-labelledby="tab-analytics"
           hidden={tab !== "analytics"}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:p-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
         >
           {tab === "analytics" && <AnalyticsCharts />}
         </div>
