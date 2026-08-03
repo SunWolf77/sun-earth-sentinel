@@ -51,11 +51,11 @@ import {
   disposeSpriteMaterial,
   clearSpriteCaches,
 } from "@/lib/map/globeSprites";
-import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import {
-  createCss2dChip,
   css2dCap,
   CSS2D_MAG_MIN,
+  Css2dLabelPool,
 } from "@/lib/map/globeCss2d";
 
 
@@ -279,69 +279,22 @@ export function Globe3D() {
       renderer.domElement.style.height = "100%";
       renderer.domElement.style.touchAction = "none";
 
-      // Hybrid CSS2D — crisp DOM labels for sparse strong events / nodes
+      // Hybrid CSS2D — pooled DOM chips (cap + thrifty facing)
       const labelRenderer = new CSS2DRenderer();
       labelRenderer.setSize(w, h);
       labelRenderer.domElement.className = "ww-globe-css2d-root";
+      // contain layout thrash to this layer
+      labelRenderer.domElement.style.contain = "strict";
       container.appendChild(labelRenderer.domElement);
-      type Css2dEntry = {
-        obj: InstanceType<typeof CSS2DObject>;
-        el: HTMLElement;
-        kind: "mag" | "node" | "cluster";
-        nx: number;
-        ny: number;
-        nz: number;
-      };
-      const css2dEntries: Css2dEntry[] = [];
-      let css2dUsed = 0;
-      const CSS2D_MAX = css2dCap(Q.id === "mobile");
-      function removeCss2dEntry(e: Css2dEntry) {
-        try {
-          e.obj.parent?.remove(e.obj);
-          e.el.remove();
-        } catch {
-          /* */
-        }
-      }
-      function clearCss2d(kind?: "mag" | "node" | "cluster") {
-        if (!kind) {
-          for (const e of css2dEntries) removeCss2dEntry(e);
-          css2dEntries.length = 0;
-          css2dUsed = 0;
-          return;
-        }
-        for (let i = css2dEntries.length - 1; i >= 0; i--) {
-          const e = css2dEntries[i]!;
-          if (e.kind !== kind) continue;
-          removeCss2dEntry(e);
-          css2dEntries.splice(i, 1);
-          css2dUsed = Math.max(0, css2dUsed - 1);
-        }
-      }
-      function tryAddCss2d(
+      const css2d = new Css2dLabelPool(scene, css2dCap(Q.id === "mobile"));
+      const clearCss2d = (kind?: "mag" | "node" | "cluster") => css2d.clear(kind);
+      const tryAddCss2d = (
         text: string,
         color: string,
         world: InstanceType<typeof THREE.Vector3>,
         kind: "mag" | "node" | "cluster",
         sub?: string,
-      ): boolean {
-        if (css2dUsed >= CSS2D_MAX) return false;
-        const el = createCss2dChip({ text, color, kind, sub });
-        const obj = new CSS2DObject(el);
-        obj.position.copy(world);
-        scene.add(obj);
-        const len = Math.hypot(world.x, world.y, world.z) || 1;
-        css2dEntries.push({
-          obj,
-          el,
-          kind,
-          nx: world.x / len,
-          ny: world.y / len,
-          nz: world.z / len,
-        });
-        css2dUsed++;
-        return true;
-      }
+      ) => css2d.tryAdd(text, color, world, kind, sub);
 
       // Balanced lighting: keep night side readable, day side crisp (not muddy)
       scene.add(new THREE.AmbientLight(0x8ba4c0, 0.42));
@@ -1896,23 +1849,24 @@ export function Globe3D() {
         }
         needsRender = false;
 
-        // Hide CSS2D labels on the far side of Earth
-        if (css2dEntries.length) {
-          const cx = camera.position.x;
-          const cy = camera.position.y;
-          const cz = camera.position.z;
-          const clen = Math.hypot(cx, cy, cz) || 1;
-          const vx = cx / clen;
-          const vy = cy / clen;
-          const vz = cz / clen;
-          for (const e of css2dEntries) {
-            const facing = e.nx * vx + e.ny * vy + e.nz * vz;
-            e.el.classList.toggle("is-back", facing < 0.12);
-          }
+        // CSS2D: throttled backface cull (display:none), then one DOM pass
+        if (css2d.size > 0) {
+          css2d.updateFacing(
+            camera.position.x,
+            camera.position.y,
+            camera.position.z,
+            now,
+            {
+              force: busy,
+              intervalMs: Q.id === "mobile" ? 100 : 72,
+            },
+          );
         }
 
         renderer.render(scene, camera);
-        labelRenderer.render(scene, camera);
+        if (css2d.size > 0) {
+          labelRenderer.render(scene, camera);
+        }
         profiler.endFrame(renderer);
       };
       animate();
@@ -2024,7 +1978,7 @@ export function Globe3D() {
         if (renderer.domElement.parentNode) {
           renderer.domElement.parentNode.removeChild(renderer.domElement);
         }
-        clearCss2d();
+        css2d.dispose();
         clearSpriteCaches();
         container.innerHTML = "";
         updateRef.current = null;
