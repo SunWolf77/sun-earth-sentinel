@@ -802,15 +802,15 @@ export function Globe3D() {
           const id = f.id ? String(f.id) : `${lat}_${lon}_${f.properties.time ?? 0}`;
           const st = globeMagStyle(mag);
           const neon = st.neon;
-          let base = 0.02 + Math.pow(Math.max(mag, 0.5), 1.05) * 0.011;
-          if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
-          const size = base * Math.max(0.85, hexScale);
-          // Depth + user stem scale → long needles that read at home zoom
-          const lift = (Math.min(depth, 700) / 700) * Math.max(0.08, stemMul);
-          const tall = opts?.pinTall ? 1.65 : 1;
+          let base = 0.028 + Math.pow(Math.max(mag, 0.5), 1.08) * 0.014;
+          if (mag >= 5) base *= 1 + (mag - 5) * 0.2;
+          const size = base * Math.max(1, hexScale);
+          // Long radial needles (head outside, foot on crust)
+          const lift = (Math.min(depth, 700) / 700) * Math.max(0.1, stemMul);
+          const tall = opts?.pinTall ? 1.7 : 1;
           const pinHeight =
-            (0.095 + lift * 1.85 + size * 1.15 + (opts?.elevBoost ?? 0)) * tall;
-          const elev = 1.01 + pinHeight;
+            (0.12 + lift * 2.1 + size * 1.35 + (opts?.elevBoost ?? 0)) * tall;
+          const elev = 1.012 + pinHeight;
           const dLat = opts?.displayLat ?? lat;
           const dLon = opts?.displayLon ?? lon;
           const pos = latLonToVec(dLat, dLon, elev);
@@ -820,9 +820,8 @@ export function Globe3D() {
 
           const g = new THREE.Group();
           g.position.copy(pos);
-          // +Z points outward from Earth after lookAt origin
+          // lookAt: local -Z → Earth center, +Z outward (no rotateY flip)
           g.lookAt(0, 0, 0);
-          g.rotateY(Math.PI);
 
           // --- Long pin stem (shared unit cylinder, scaled) — thick enough to read ---
           const stemLen = pinHeight * 0.98;
@@ -900,12 +899,12 @@ export function Globe3D() {
 
           // Mag labels — readable detail on pins (not only M5.5+)
           const showLabel =
-            opts?.showLabel ??
-            (Q.magSprites && (mag >= 4.5 || opts?.pinTall || mag >= 5));
+            opts?.showLabel ?? (Q.magSprites && (mag >= 4 || !!opts?.pinTall));
           if (showLabel) {
-            const spr = makeMagSprite(THREE, mag, colHex, Math.min(1, opac + 0.15));
-            spr.scale.setScalar(Math.max(0.055, size * 3.8));
-            spr.position.set(0, 0, size * 0.75 + 0.01);
+            const spr = makeMagSprite(THREE, mag, colHex, 1);
+            // Billboards sit outside the head along +Z (away from Earth)
+            spr.scale.setScalar(Math.max(0.07, size * 4.2));
+            spr.position.set(0, 0, size * 0.9 + 0.02);
             g.add(spr);
           }
 
@@ -1020,7 +1019,6 @@ export function Globe3D() {
               } else {
                 last.mesh.position.copy(to);
                 last.mesh.lookAt(0, 0, 0);
-                last.mesh.rotateY(Math.PI);
               }
             }
             if (animateOpen && spiderExpandKey === cl.key) {
@@ -1037,7 +1035,6 @@ export function Globe3D() {
           const bg = new THREE.Group();
           bg.position.copy(badgePos);
           bg.lookAt(0, 0, 0);
-          bg.rotateY(Math.PI);
 
           const cStem = new THREE.Mesh(
             geoStem,
@@ -1255,9 +1252,10 @@ export function Globe3D() {
             (node.bounds[0][1] <= node.bounds[1][1]
               ? (node.bounds[0][1] + node.bounds[1][1]) / 2
               : -175);
-          // Tall node pin — long stem + crisp label (not floating chips)
-          const stemLen = node.publishedFocus || node.kind === "volcano" ? 0.12 : 0.095;
-          const elev = 1.014 + stemLen;
+          // Node pin — shorter than EQ needles so quakes stay primary
+          const important = !!(node.publishedFocus || node.kind === "volcano" || node.watchPriority);
+          const stemLen = important ? 0.085 : 0.055;
+          const elev = 1.01 + stemLen;
           const v = latLonToVec(clat, clon, elev);
           const col =
             node.kind === "volcano"
@@ -1268,7 +1266,6 @@ export function Globe3D() {
           const g = new THREE.Group();
           g.position.copy(v);
           g.lookAt(0, 0, 0);
-          g.rotateY(Math.PI);
 
           const stem = new THREE.Mesh(
             new THREE.CylinderGeometry(0.0055, 0.0075, stemLen, 8),
@@ -1328,16 +1325,19 @@ export function Globe3D() {
           ring.scale.setScalar(node.publishedFocus ? 1.2 : 1);
           g.add(ring);
 
-          // Always-visible name + chip so users know what/why
-          const spr = makeNodeLabelSprite(
-            THREE,
-            nodeShortName(node, 18),
-            nodeMarkChip(node),
-            col,
-          );
-          spr.scale.setScalar(0.16);
-          spr.position.set(0, 0, 0.055);
-          g.add(spr);
+          // Labels: important nodes only at home zoom (EQ pins stay readable)
+          const camFar = spherical.radius > 2.4;
+          if (important || !camFar) {
+            const spr = makeNodeLabelSprite(
+              THREE,
+              nodeShortName(node, important ? 16 : 12),
+              nodeMarkChip(node),
+              col,
+            );
+            spr.scale.setScalar(important ? 0.1 : 0.075);
+            spr.position.set(0, 0, 0.04);
+            g.add(spr);
+          }
 
           pinGroup.add(g);
           pickList.push({
@@ -1541,7 +1541,6 @@ export function Globe3D() {
         );
         pickRing.position.copy(p);
         pickRing.lookAt(0, 0, 0);
-        pickRing.rotateY(Math.PI);
         quakeGroup.add(pickRing);
       }
 
@@ -1765,7 +1764,6 @@ export function Globe3D() {
             const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
             a.mesh.position.lerpVectors(a.from, a.to, e);
             a.mesh.lookAt(0, 0, 0);
-            a.mesh.rotateY(Math.PI);
             a.mesh.scale.setScalar(0.35 + 0.65 * e);
             if (a.legPos && a.legGeo) {
               a.legPos[3] = a.from.x + (a.to.x - a.from.x) * e;
