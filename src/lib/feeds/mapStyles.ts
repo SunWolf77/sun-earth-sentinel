@@ -81,7 +81,8 @@ export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   quakes: true,
   heatmap: false,
   nodes: true,
-  volcanoes: false,
+  /** Elevated world (USGS + GVP + GT Phase A) — lean cap, not Holocene catalog */
+  volcanoes: true,
   globalVolcanoes: false,
   corridors: false,
   depthColor: false,
@@ -103,7 +104,7 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     plates: false,
     depthColor: false,
     corridors: false,
-    volcanoes: false,
+    volcanoes: true,
     globalVolcanoes: false,
     heatmap: false,
     timeDecay: false,
@@ -234,7 +235,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v3";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v4";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
@@ -244,7 +245,18 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
       const parsed = JSON.parse(raw) as Partial<Record<MapOverlayId, boolean>>;
       return { ...DEFAULT_OVERLAYS, ...parsed };
     }
-    // migrate: drop old dense prefs once
+    // one-shot migrate from v3 lean (volcanoes often false) → activate elevated world
+    const legacy = localStorage.getItem("wolfwatch_overlays_v3");
+    if (legacy) {
+      try {
+        const parsed = JSON.parse(legacy) as Partial<Record<MapOverlayId, boolean>>;
+        const merged = { ...DEFAULT_OVERLAYS, ...parsed, volcanoes: true, globalVolcanoes: false };
+        localStorage.removeItem("wolfwatch_overlays_v3");
+        return merged;
+      } catch {
+        localStorage.removeItem("wolfwatch_overlays_v3");
+      }
+    }
     localStorage.removeItem("wolfwatch_overlays");
   } catch {
     /* ignore */

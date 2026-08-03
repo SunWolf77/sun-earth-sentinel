@@ -498,7 +498,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     quakes: true,
     heatmap: false,
     nodes: true,
-    volcanoes: false,
+    volcanoes: true,
     globalVolcanoes: false,
     corridors: false,
     depthColor: false,
@@ -1091,7 +1091,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let volc = force ? null : getCache<EqCollection>("volc", 300_000);
       let usgsVolcAlerts: UsgsVolcanoAlert[] | null = force
         ? null
-        : getCache<UsgsVolcanoAlert[]>("usgs_volc_alerts_v3", 300_000);
+        : getCache<UsgsVolcanoAlert[]>("usgs_volc_alerts_v4", 300_000);
 
       const tasks: Promise<void>[] = [];
       let pulse: EqCollection | null = null;
@@ -1259,7 +1259,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           withTimeout(fetchAllElevatedVolcanoes(), 22_000, "volc-alerts")
             .then((d) => {
               usgsVolcAlerts = d;
-              setCache("usgs_volc_alerts_v3", d);
+              setCache("usgs_volc_alerts_v4", d);
               stamp("volc");
             })
             .catch(() => {}),
