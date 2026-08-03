@@ -16,6 +16,7 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
   const scales = useObservatory((s) => s.scales);
   const donki = useObservatory((s) => s.donki);
   const solar = useObservatory((s) => s.solarAssessment);
+  const kp = useObservatory((s) => s.kp);
   const mode = useObservatory((s) => s.mode);
   const setTab = useObservatory((s) => s.setTab);
   const [openBt, setOpenBt] = useState(false);
@@ -27,8 +28,9 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
         seismic: resonance,
         scales,
         cmes: donki?.cmes ?? [],
+        kp,
       }),
-    [solar, resonance, scales, donki],
+    [solar, resonance, scales, donki, kp],
   );
 
   const bt = useMemo(() => (openBt ? runFullBacktest(36) : null), [openBt, mode]);
