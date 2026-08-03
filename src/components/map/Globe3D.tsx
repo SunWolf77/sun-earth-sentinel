@@ -14,6 +14,12 @@ import {
   healthColor,
   type WebGlPerfSample,
 } from "@/lib/map/webglProfiler";
+import {
+  WEBGL_CHECKLIST,
+  WEBGPU_MIGRATION,
+  checklistSummary,
+  probeWebGpuAvailable,
+} from "@/lib/map/webglOpt";
 import { agencyLinksForEvent } from "@/lib/seismology/agencyLinks";
 import {
   eventPageUrl,
@@ -99,6 +105,8 @@ export function Globe3D() {
   const [qualityLabel, setQualityLabel] = useState<string>("");
   const [perfSample, setPerfSample] = useState<WebGlPerfSample | null>(null);
   const [perfOpen, setPerfOpen] = useState(false);
+  const [optTab, setOptTab] = useState<"live" | "checklist" | "webgpu">("live");
+  const [webgpuNote, setWebgpuNote] = useState<string>("…");
   const setPerfSampleRef = useRef(setPerfSample);
   setPerfSampleRef.current = setPerfSample;
   const [bootError, setBootError] = useState<string | null>(null);
@@ -641,18 +649,72 @@ export function Globe3D() {
 
       const hexGeo = makeHexRingGeometry(THREE, 1, 0.22);
       const dummy = new THREE.Object3D();
+      // Shared pin geometries (1 draw path × N meshes, not N unique GPU buffers)
+      const geoStem = new THREE.CylinderGeometry(1, 1, 1, Math.max(5, Q.pinSeg));
+      const geoFoot = new THREE.SphereGeometry(1, 8, 8);
+      const geoHead = new THREE.SphereGeometry(1, Q.id === "mobile" ? 8 : 10, Q.id === "mobile" ? 8 : 10);
+      const geoHit = new THREE.SphereGeometry(1, 8, 8);
+      const geoBadge = new THREE.CircleGeometry(1, Q.id === "mobile" ? 14 : 20);
+      const geoBadgeRing = new THREE.RingGeometry(0.92, 1.08, Q.id === "mobile" ? 14 : 20);
+      type MatKey = string;
+      const matPool = new Map<MatKey, InstanceType<typeof THREE.MeshBasicMaterial>>();
+      const pooledMats: InstanceType<typeof THREE.MeshBasicMaterial>[] = [];
+      function pinMat(
+        key: MatKey,
+        color: number | InstanceType<typeof THREE.Color>,
+        opacity: number,
+        extra?: { doubleSide?: boolean; depthWrite?: boolean },
+      ) {
+        const colKey =
+          typeof color === "number"
+            ? color.toString(16)
+            : typeof (color as { getHex?: () => number }).getHex === "function"
+              ? (color as { getHex: () => number }).getHex().toString(16)
+              : String(color);
+        const k = `${key}|${colKey}|${opacity.toFixed(2)}|${extra?.doubleSide ? 1 : 0}`;
+        let m = matPool.get(k);
+        if (!m) {
+          m = new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            depthWrite: extra?.depthWrite ?? false,
+            side: extra?.doubleSide ? THREE.DoubleSide : THREE.FrontSide,
+          });
+          matPool.set(k, m);
+          pooledMats.push(m);
+        }
+        return m;
+      }
 
+      const sharedGeos = new Set<object>([
+        hexGeo,
+        geoStem,
+        geoFoot,
+        geoHead,
+        geoHit,
+        geoBadge,
+        geoBadgeRing,
+      ]);
       function disposeGroup(g: InstanceType<typeof THREE.Group>) {
         while (g.children.length) {
           const o = g.children[0]!;
           g.remove(o);
           o.traverse((ch) => {
             const mesh = ch as InstanceType<typeof THREE.Mesh>;
-            if (mesh.geometry && mesh.geometry !== hexGeo) mesh.geometry.dispose();
+            // Only dispose per-instance geos (spider legs, etc.)
+            if (mesh.geometry && !sharedGeos.has(mesh.geometry as object)) {
+              mesh.geometry.dispose();
+            }
             const m = mesh.material;
             if (m) {
-              if (Array.isArray(m)) m.forEach((x) => x.dispose());
-              else (m as InstanceType<typeof THREE.Material>).dispose();
+              const list = Array.isArray(m) ? m : [m];
+              for (const mat of list) {
+                // Keep pooled mats; dispose unique neon blink mats
+                if (!pooledMats.includes(mat as InstanceType<typeof THREE.MeshBasicMaterial>)) {
+                  (mat as InstanceType<typeof THREE.Material>).dispose();
+                }
+              }
             }
           });
         }
@@ -760,35 +822,24 @@ export function Globe3D() {
           g.lookAt(0, 0, 0);
           g.rotateY(Math.PI);
 
-          // --- Long pin stem (local −Z toward surface) ---
+          // --- Long pin stem (shared unit cylinder, scaled) ---
           const stemLen = pinHeight * 0.92;
           const stemR = Math.max(0.0022, size * 0.12);
-          const stemGeo = new THREE.CylinderGeometry(stemR * 0.55, stemR, stemLen, 6);
-          const stemMat = new THREE.MeshBasicMaterial({
-            color: col,
-            transparent: true,
-            opacity: opac * 0.9,
-            depthWrite: false,
-          });
-          const stem = new THREE.Mesh(stemGeo, stemMat);
-          stem.rotation.x = Math.PI / 2; // Y-up cylinder → along Z
+          const stem = new THREE.Mesh(geoStem, pinMat("stem", col, opac * 0.9));
+          stem.rotation.x = Math.PI / 2;
+          stem.scale.set(stemR * 0.55, stemLen, stemR);
           stem.position.z = -stemLen / 2;
           stem.renderOrder = 8;
           g.add(stem);
 
-          // Surface foot
-          const foot = new THREE.Mesh(
-            new THREE.SphereGeometry(stemR * 1.6, 8, 8),
-            new THREE.MeshBasicMaterial({
-              color: col,
-              transparent: true,
-              opacity: opac * 0.75,
-              depthWrite: false,
-            }),
-          );
-          foot.position.z = -stemLen;
-          foot.renderOrder = 7;
-          g.add(foot);
+          // Surface foot — skip on mobile (saves 1 draw/pin)
+          if (Q.id !== "mobile") {
+            const foot = new THREE.Mesh(geoFoot, pinMat("foot", col, opac * 0.75));
+            foot.scale.setScalar(stemR * 1.6);
+            foot.position.z = -stemLen;
+            foot.renderOrder = 7;
+            g.add(foot);
+          }
 
           // --- Pin head (hex rings + sphere) ---
           const allRings = neon
@@ -798,13 +849,18 @@ export function Globe3D() {
               : [1.0];
           const rings = allRings.slice(0, Math.max(1, Q.maxRings));
           rings.forEach((s, i) => {
-            const ringMat = new THREE.MeshBasicMaterial({
-              color: col,
-              transparent: true,
-              opacity: opac * (1 - i * 0.2) * (neon && i === 0 ? 0.95 : 0.9),
-              side: THREE.DoubleSide,
-              depthWrite: false,
-            });
+            const ro = opac * (1 - i * 0.2) * (neon && i === 0 ? 0.95 : 0.9);
+            // Neon outer ring needs unique material for blink
+            const ringMat =
+              neon && i === 0
+                ? new THREE.MeshBasicMaterial({
+                    color: col,
+                    transparent: true,
+                    opacity: ro,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                  })
+                : pinMat(`ring${i}`, col, ro, { doubleSide: true });
             if (neon && i === 0) {
               neonMats.push({ mat: ringMat, base: opac * 0.95 });
             }
@@ -813,28 +869,26 @@ export function Globe3D() {
             mesh.renderOrder = 12 + Math.floor(mag);
             g.add(mesh);
           });
+          const headR = size * 0.42;
           const head = new THREE.Mesh(
-            new THREE.SphereGeometry(size * 0.42, 10, 10),
-            new THREE.MeshBasicMaterial({
-              color: col,
-              transparent: true,
-              opacity: Math.min(1, opac + 0.08),
-              depthWrite: false,
-            }),
+            geoHead,
+            pinMat("head", col, Math.min(1, opac + 0.08)),
           );
+          head.scale.setScalar(headR);
           head.renderOrder = 14;
           g.add(head);
 
-          // Invisible larger hit sphere for easy pick / hover
-          const hit = new THREE.Mesh(
-            new THREE.SphereGeometry(Math.max(0.028, size * 1.6), 8, 8),
-            new THREE.MeshBasicMaterial({
-              transparent: true,
-              opacity: 0.001,
-              depthWrite: false,
-            }),
-          );
-          g.add(hit);
+          // Hit target: enlarge head on mobile instead of extra mesh
+          if (Q.id === "mobile") {
+            head.scale.setScalar(Math.max(headR, 0.022));
+          } else {
+            const hit = new THREE.Mesh(
+              geoHit,
+              pinMat("hit", 0x000000, 0.001),
+            );
+            hit.scale.setScalar(Math.max(0.028, size * 1.6));
+            g.add(hit);
+          }
 
           // Labels: spiderfied, strong, or when magSprites on
           const showLabel =
@@ -978,28 +1032,21 @@ export function Globe3D() {
           bg.rotateY(Math.PI);
 
           const disc = new THREE.Mesh(
-            new THREE.CircleGeometry(1, 20),
-            new THREE.MeshBasicMaterial({
-              color: col,
-              transparent: true,
-              opacity: Math.min(0.95, opac + 0.1),
-              side: THREE.DoubleSide,
-              depthWrite: false,
-            }),
+            geoBadge,
+            pinMat("badge", col, Math.min(0.95, opac + 0.1), { doubleSide: true }),
           );
           disc.scale.setScalar(badgeSize);
           disc.renderOrder = 40;
           bg.add(disc);
 
           const ring = new THREE.Mesh(
-            new THREE.RingGeometry(0.92, 1.08, 20),
-            new THREE.MeshBasicMaterial({
-              color: cl.maxMag >= 6 ? 0xfbbf24 : 0xf8fafc,
-              transparent: true,
-              opacity: 0.9,
-              side: THREE.DoubleSide,
-              depthWrite: false,
-            }),
+            geoBadgeRing,
+            pinMat(
+              "badgeRing",
+              cl.maxMag >= 6 ? 0xfbbf24 : 0xf8fafc,
+              0.9,
+              { doubleSide: true },
+            ),
           );
           ring.scale.setScalar(badgeSize);
           ring.renderOrder = 41;
@@ -1824,6 +1871,13 @@ export function Globe3D() {
           /* ignore */
         }
         try {
+          for (const m of pooledMats) m.dispose();
+          matPool.clear();
+          for (const g of [geoStem, geoFoot, geoHead, geoHit, geoBadge, geoBadgeRing, hexGeo]) {
+            try { g.dispose(); } catch { /* */ }
+          }
+        } catch { /* */ }
+        try {
           clearHoverHighlight();
           hoverTip.remove();
         } catch {
@@ -1973,15 +2027,25 @@ export function Globe3D() {
             color: perfSample ? healthColor(perfSample.health) : undefined,
           }}
           title="WebGL performance — tap for profile"
-          onClick={() => setPerfOpen((v) => !v)}
+          onClick={() => {
+            setPerfOpen((v) => {
+              const next = !v;
+              if (next) {
+                void probeWebGpuAvailable().then((r) =>
+                  setWebgpuNote(r.available ? r.detail : r.detail),
+                );
+              }
+              return next;
+            });
+          }}
           aria-expanded={perfOpen}
         >
           {formatPerfChip(perfSample, qualityLabel || "3D")}
         </button>
-        {perfOpen && perfSample && (
-          <div className="ww-gl-perf max-w-[min(92vw,16rem)] rounded-lg border border-border bg-surface/95 p-2 text-[0.6rem] text-muted shadow-lg backdrop-blur">
+        {perfOpen && (
+          <div className="ww-gl-perf max-w-[min(94vw,18rem)] rounded-lg border border-border bg-surface/95 p-2 text-[0.6rem] text-muted shadow-lg backdrop-blur">
             <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="font-bold uppercase tracking-wider text-fg">WebGL profile</span>
+              <span className="font-bold uppercase tracking-wider text-fg">WebGL</span>
               <button
                 type="button"
                 className="text-[0.55rem] text-dim hover:text-fg"
@@ -1990,36 +2054,108 @@ export function Globe3D() {
                 Close
               </button>
             </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono tabular-nums">
-              <dt className="text-dim">FPS</dt>
-              <dd className="text-fg">
-                {perfSample.fpsSmooth.toFixed(0)}/{perfSample.targetFps}{" "}
-                <span className="text-dim">(1% {perfSample.fps1pctLow.toFixed(0)})</span>
-              </dd>
-              <dt className="text-dim">Frame</dt>
-              <dd className="text-fg">{perfSample.frameMsSmooth.toFixed(1)} ms</dd>
-              <dt className="text-dim">Draws</dt>
-              <dd className="text-fg">{perfSample.drawCalls}</dd>
-              <dt className="text-dim">Tris</dt>
-              <dd className="text-fg">{perfSample.triangles.toLocaleString()}</dd>
-              <dt className="text-dim">Geom/Tex</dt>
-              <dd className="text-fg">
-                {perfSample.geometries}/{perfSample.textures}
-              </dd>
-              {perfSample.jsHeapMb != null && (
-                <>
-                  <dt className="text-dim">JS heap</dt>
-                  <dd className="text-fg">{perfSample.jsHeapMb.toFixed(1)} MB</dd>
-                </>
-              )}
-              <dt className="text-dim">Health</dt>
-              <dd style={{ color: healthColor(perfSample.health) }} className="font-semibold uppercase">
-                {perfSample.health}
-              </dd>
-            </dl>
-            <p className="mt-1.5 text-[0.55rem] leading-snug text-dim">{perfSample.tip}</p>
-            <p className="mt-1 text-[0.5rem] text-dim/80">
-              localStorage wolfwatch_gl_perf_log=1 → console every 5s
+            <div className="mb-1.5 flex flex-wrap gap-0.5">
+              {(
+                [
+                  ["live", "Live"],
+                  ["checklist", "Checklist"],
+                  ["webgpu", "WebGPU"],
+                ] as const
+              ).map(([id, lab]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`rounded px-1.5 py-0.5 text-[0.55rem] font-semibold ${
+                    optTab === id ? "bg-primary/20 text-primary" : "text-dim hover:text-fg"
+                  }`}
+                  onClick={() => setOptTab(id)}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+
+            {optTab === "live" && perfSample && (
+              <>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono tabular-nums">
+                  <dt className="text-dim">FPS</dt>
+                  <dd className="text-fg">
+                    {perfSample.fpsSmooth.toFixed(0)}/{perfSample.targetFps}{" "}
+                    <span className="text-dim">(1% {perfSample.fps1pctLow.toFixed(0)})</span>
+                  </dd>
+                  <dt className="text-dim">Work</dt>
+                  <dd className="text-fg">{perfSample.frameMsSmooth.toFixed(1)} ms</dd>
+                  <dt className="text-dim">Draws</dt>
+                  <dd className="text-fg">{perfSample.drawCalls}</dd>
+                  <dt className="text-dim">Tris</dt>
+                  <dd className="text-fg">{perfSample.triangles.toLocaleString()}</dd>
+                  <dt className="text-dim">Geom/Tex</dt>
+                  <dd className="text-fg">
+                    {perfSample.geometries}/{perfSample.textures}
+                  </dd>
+                  {perfSample.jsHeapMb != null && (
+                    <>
+                      <dt className="text-dim">JS heap</dt>
+                      <dd className="text-fg">{perfSample.jsHeapMb.toFixed(1)} MB</dd>
+                    </>
+                  )}
+                  <dt className="text-dim">Health</dt>
+                  <dd
+                    style={{ color: healthColor(perfSample.health) }}
+                    className="font-semibold uppercase"
+                  >
+                    {perfSample.health}
+                  </dd>
+                </dl>
+                <p className="mt-1.5 text-[0.55rem] leading-snug text-dim">{perfSample.tip}</p>
+              </>
+            )}
+            {optTab === "live" && !perfSample && (
+              <p className="text-[0.55rem] text-dim">Sampling…</p>
+            )}
+
+            {optTab === "checklist" && (
+              <div className="max-h-[40vh] space-y-1 overflow-y-auto overscroll-contain">
+                <p className="text-[0.5rem] text-dim">{checklistSummary()}</p>
+                {WEBGL_CHECKLIST.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded border border-border/70 bg-bg/50 px-1.5 py-1"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={
+                          item.status === "done"
+                            ? "text-ok"
+                            : item.status === "partial"
+                              ? "text-warn"
+                              : "text-dim"
+                        }
+                      >
+                        {item.status === "done" ? "✓" : item.status === "partial" ? "◐" : "○"}
+                      </span>
+                      <span className="font-semibold text-fg">{item.label}</span>
+                    </div>
+                    <p className="mt-0.5 text-[0.5rem] leading-snug text-dim">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {optTab === "webgpu" && (
+              <div className="space-y-1 text-[0.55rem] leading-snug">
+                <p className="font-semibold text-fg">{WEBGPU_MIGRATION.title}</p>
+                <p className="text-dim">Probe: {webgpuNote}</p>
+                <ol className="list-decimal space-y-0.5 pl-3.5 text-dim">
+                  {WEBGPU_MIGRATION.steps.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            <p className="mt-1.5 text-[0.5rem] text-dim/80">
+              wolfwatch_gl_perf_log=1 → console 5s
             </p>
           </div>
         )}
