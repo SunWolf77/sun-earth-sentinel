@@ -45,6 +45,13 @@ import {
   spiderPinLatLon,
   type EqPoint,
 } from "@/lib/map/eqCluster";
+import {
+  makeMagSprite,
+  makeCountSprite,
+  makeNodeLabelSprite,
+  disposeSpriteMaterial,
+  clearSpriteCaches,
+} from "@/lib/map/globeSprites";
 
 
 /**
@@ -712,10 +719,11 @@ export function Globe3D() {
             if (m) {
               const list = Array.isArray(m) ? m : [m];
               for (const mat of list) {
-                // Keep pooled mats; dispose unique neon blink mats
-                if (!pooledMats.includes(mat as InstanceType<typeof THREE.MeshBasicMaterial>)) {
-                  (mat as InstanceType<typeof THREE.Material>).dispose();
+                // Keep pooled pin mats; shared sprite maps stay in cache
+                if (pooledMats.includes(mat as InstanceType<typeof THREE.MeshBasicMaterial>)) {
+                  continue;
                 }
+                disposeSpriteMaterial(mat as InstanceType<typeof THREE.Material>);
               }
             }
           });
@@ -2384,160 +2392,6 @@ function makeHexRingGeometry(THREE: typeof import("three"), outer = 1, thick = 0
   }
   shape.holes.push(hole);
   return new THREE.ShapeGeometry(shape);
-}
-
-function makeNodeLabelSprite(
-  THREE: typeof import("three"),
-  name: string,
-  chip: string,
-  colorHex: number,
-) {
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 72;
-  const ctx = c.getContext("2d")!;
-  ctx.clearRect(0, 0, 256, 72);
-  // pill background
-  ctx.fillStyle = "rgba(15,23,42,0.88)";
-  ctx.strokeStyle = "rgba(148,163,184,0.45)";
-  ctx.lineWidth = 2;
-  const r = 10;
-  ctx.beginPath();
-  ctx.moveTo(r, 4);
-  ctx.arcTo(252, 4, 252, 68, r);
-  ctx.arcTo(252, 68, 4, 68, r);
-  ctx.arcTo(4, 68, 4, 4, r);
-  ctx.arcTo(4, 4, 252, 4, r);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  // color dot
-  const hex = `#${colorHex.toString(16).padStart(6, "0")}`;
-  ctx.fillStyle = hex;
-  ctx.beginPath();
-  ctx.arc(22, 36, 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  // Heavy weight + dark stroke so chips read on bright Earth
-  ctx.font = "800 20px system-ui,Segoe UI,sans-serif";
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(15,23,42,0.95)";
-  ctx.fillStyle = "#f8fafc";
-  ctx.strokeText(name, 38, 28);
-  ctx.fillText(name, 38, 28);
-  ctx.font = "700 13px system-ui,Segoe UI,sans-serif";
-  ctx.lineWidth = 2.5;
-  ctx.fillStyle = "#cbd5e1";
-  ctx.strokeText(chip.toUpperCase(), 38, 50);
-  ctx.fillText(chip.toUpperCase(), 38, 50);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.SpriteMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    opacity: 0.95,
-  });
-  return new THREE.Sprite(mat);
-}
-
-function makeCountSprite(
-  THREE: typeof import("three"),
-  count: number,
-  color: string,
-  opac: number,
-) {
-  const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 128;
-  const ctx = c.getContext("2d")!;
-  ctx.clearRect(0, 0, 128, 128);
-  // Crisp pill background
-  ctx.fillStyle = "rgba(15,23,42,0.92)";
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 4;
-  const r = 28;
-  const x0 = 16, y0 = 28, w = 96, h = 72;
-  ctx.beginPath();
-  ctx.moveTo(x0 + r, y0);
-  ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r);
-  ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
-  ctx.arcTo(x0, y0 + h, x0, y0, r);
-  ctx.arcTo(x0, y0, x0 + w, y0, r);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-  ctx.font = "900 48px system-ui,Segoe UI,sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const t = count > 99 ? "99+" : String(count);
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = "rgba(15,23,42,0.95)";
-  ctx.fillStyle = "#f8fafc";
-  ctx.strokeText(t, 64, 66);
-  ctx.fillText(t, 64, 66);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  const mat = new THREE.SpriteMaterial({
-    map: tex,
-    transparent: true,
-    opacity: Math.min(1, opac + 0.2),
-    depthWrite: false,
-  });
-  return new THREE.Sprite(mat);
-}
-
-function makeMagSprite(
-  THREE: typeof import("three"),
-  mag: number,
-  color: string,
-  opac: number,
-) {
-  const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 64;
-  const ctx = c.getContext("2d")!;
-  ctx.clearRect(0, 0, 128, 64);
-  ctx.fillStyle = "rgba(15,23,42,0.88)";
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
-  {
-    const r = 12, x0 = 8, y0 = 10, w = 112, h = 44;
-    ctx.beginPath();
-    ctx.moveTo(x0 + r, y0);
-    ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r);
-    ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
-    ctx.arcTo(x0, y0 + h, x0, y0, r);
-    ctx.arcTo(x0, y0, x0 + w, y0, r);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-  ctx.font = "900 34px system-ui,Segoe UI,sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const t = `M${mag.toFixed(1)}`;
-  // Dark halo then color fill — high contrast on blue ocean / clouds
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = "rgba(15,23,42,0.95)";
-  ctx.strokeText(t, 64, 34);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = color;
-  ctx.strokeText(t, 64, 34);
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillText(t, 64, 34);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  const mat = new THREE.SpriteMaterial({
-    map: tex,
-    transparent: true,
-    opacity: Math.min(1, opac + 0.25),
-    depthWrite: false,
-  });
-  return new THREE.Sprite(mat);
 }
 
 function makeProceduralEarth(THREE: typeof import("three")) {
