@@ -39,6 +39,7 @@ import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
 import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
 import { formatUtc } from "@/lib/utils";
+import { fitWorldView, WORLD_MAP_INIT } from "@/lib/map/worldView";
 import {
   agencyLinksForEvent,
   agencyLinksHtml,
@@ -216,6 +217,7 @@ export function LiveMap() {
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
   const mapView = useObservatory((s) => s.mapView);
+  const mapImmersive = useObservatory((s) => s.mapImmersive);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const exitToHomeView = useObservatory((s) => s.exitToHomeView);
@@ -250,8 +252,10 @@ export function LiveMap() {
   useEffect(() => {
     if (!mapRef.current || mapObj.current) return;
     const map = L.map(mapRef.current, {
-      center: [20, 0],
-      zoom: 2,
+      center: WORLD_MAP_INIT.center,
+      zoom: WORLD_MAP_INIT.zoom,
+      minZoom: WORLD_MAP_INIT.minZoom,
+      maxZoom: WORLD_MAP_INIT.maxZoom,
       worldCopyJump: true,
       zoomControl: false,
       attributionControl: false,
@@ -259,7 +263,6 @@ export function LiveMap() {
       fadeAnimation: false,
       markerZoomAnimation: false,
       zoomAnimation: true,
-      // Touch / interaction
       dragging: true,
       touchZoom: true,
       doubleClickZoom: true,
@@ -334,6 +337,13 @@ export function LiveMap() {
     volcLayer.current = L.layerGroup().addTo(map);
     gvpLayer.current = L.layerGroup().addTo(map);
     mapObj.current = map;
+    // Full world framing for current container (pad for mobile docks)
+    const mobilePad = window.matchMedia("(max-width: 640px)").matches;
+    requestAnimationFrame(() => {
+      map.invalidateSize(false);
+      fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
+    });
+
     setMapInstance(map);
 
     if (useObservatory.getState().overlays.plates) {
@@ -401,6 +411,20 @@ export function LiveMap() {
     clearMapFlyTo();
   }, [mapFlyTo, mapView, clearMapFlyTo]);
 
+  // 3D → 2D or resize: re-frame world if not focused on a node
+  useEffect(() => {
+    if (mapView !== "2d") return;
+    const map = mapObj.current;
+    if (!map) return;
+    if (useObservatory.getState().focusNodeId) return;
+    const mobilePad = window.matchMedia("(max-width: 640px)").matches;
+    const id = window.setTimeout(() => {
+      map.invalidateSize(false);
+      fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
+    }, 60);
+    return () => window.clearTimeout(id);
+  }, [mapView, mapImmersive]);
+
   useEffect(() => {
     plateLayer.current?.setActive(!!overlays.plates);
   }, [overlays.plates]);
@@ -411,7 +435,8 @@ export function LiveMap() {
     const node = getFocusNode(focusNodeId);
     if (!node) {
       if (focusNodeId === null) {
-        map.setView([20, 0], 2, { animate: true });
+        const mobilePad = window.matchMedia("(max-width: 640px)").matches;
+        fitWorldView(map, { animate: true, bottomPad: mobilePad ? 88 : 28 });
       }
       return;
     }
