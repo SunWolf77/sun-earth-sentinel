@@ -48,10 +48,15 @@ import {
 import {
   makeMagSprite,
   makeCountSprite,
-  makeNodeLabelSprite,
   disposeSpriteMaterial,
   clearSpriteCaches,
 } from "@/lib/map/globeSprites";
+import { CSS2DRenderer, CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import {
+  createCss2dChip,
+  css2dCap,
+  CSS2D_MAG_MIN,
+} from "@/lib/map/globeCss2d";
 
 
 /**
@@ -273,6 +278,70 @@ export function Globe3D() {
       renderer.domElement.style.width = "100%";
       renderer.domElement.style.height = "100%";
       renderer.domElement.style.touchAction = "none";
+
+      // Hybrid CSS2D — crisp DOM labels for sparse strong events / nodes
+      const labelRenderer = new CSS2DRenderer();
+      labelRenderer.setSize(w, h);
+      labelRenderer.domElement.className = "ww-globe-css2d-root";
+      container.appendChild(labelRenderer.domElement);
+      type Css2dEntry = {
+        obj: InstanceType<typeof CSS2DObject>;
+        el: HTMLElement;
+        kind: "mag" | "node" | "cluster";
+        nx: number;
+        ny: number;
+        nz: number;
+      };
+      const css2dEntries: Css2dEntry[] = [];
+      let css2dUsed = 0;
+      const CSS2D_MAX = css2dCap(Q.id === "mobile");
+      function removeCss2dEntry(e: Css2dEntry) {
+        try {
+          e.obj.parent?.remove(e.obj);
+          e.el.remove();
+        } catch {
+          /* */
+        }
+      }
+      function clearCss2d(kind?: "mag" | "node" | "cluster") {
+        if (!kind) {
+          for (const e of css2dEntries) removeCss2dEntry(e);
+          css2dEntries.length = 0;
+          css2dUsed = 0;
+          return;
+        }
+        for (let i = css2dEntries.length - 1; i >= 0; i--) {
+          const e = css2dEntries[i]!;
+          if (e.kind !== kind) continue;
+          removeCss2dEntry(e);
+          css2dEntries.splice(i, 1);
+          css2dUsed = Math.max(0, css2dUsed - 1);
+        }
+      }
+      function tryAddCss2d(
+        text: string,
+        color: string,
+        world: InstanceType<typeof THREE.Vector3>,
+        kind: "mag" | "node" | "cluster",
+        sub?: string,
+      ): boolean {
+        if (css2dUsed >= CSS2D_MAX) return false;
+        const el = createCss2dChip({ text, color, kind, sub });
+        const obj = new CSS2DObject(el);
+        obj.position.copy(world);
+        scene.add(obj);
+        const len = Math.hypot(world.x, world.y, world.z) || 1;
+        css2dEntries.push({
+          obj,
+          el,
+          kind,
+          nx: world.x / len,
+          ny: world.y / len,
+          nz: world.z / len,
+        });
+        css2dUsed++;
+        return true;
+      }
 
       // Balanced lighting: keep night side readable, day side crisp (not muddy)
       scene.add(new THREE.AmbientLight(0x8ba4c0, 0.42));
@@ -733,6 +802,8 @@ export function Globe3D() {
       function updateMarkers(features: EqFeature[], focusId: string | null) {
         lastFeatureList = features;
         lastFocusId = focusId;
+        clearCss2d("mag");
+        clearCss2d("cluster");
         disposeGroup(quakeGroup);
         pickList = [];
         neonMats = [];
@@ -898,17 +969,16 @@ export function Globe3D() {
             g.add(hit);
           }
 
-          // Mag labels: M5+ (and spiderfy) — mid size, readable at home
-          const showLabel =
-            opts?.showLabel ??
-            (Q.magSprites && (mag >= 5 || !!opts?.pinTall));
-          if (showLabel) {
+          // Hybrid: CSS2D for M5.5+ / spiderfy (crisp type); light sprite for M5–M5.4 if room
+          const wantCss = mag >= CSS2D_MAG_MIN || !!opts?.pinTall || mag >= 6;
+          if (wantCss) {
+            const headWorld = latLonToVec(dLat, dLon, elev + Math.max(0.01, headR));
+            tryAddCss2d(`M${mag.toFixed(1)}`, colHex, headWorld, "mag");
+          } else if (Q.magSprites && mag >= 5) {
             const spr = makeMagSprite(THREE, mag, colHex, Math.min(1, opac + 0.12));
-            // ~0.048 world ≈ readable chip without covering continents
-            const labW = mag >= 6 ? 0.072 : mag >= 5.5 ? 0.062 : 0.052;
-            const labH = labW * 0.48;
-            spr.scale.set(labW, labH, 1);
-            spr.position.set(0, 0, headR + labH * 0.55);
+            const labW = 0.046;
+            spr.scale.set(labW, labW * 0.48, 1);
+            spr.position.set(0, 0, headR + 0.012);
             g.add(spr);
           }
 
@@ -1226,6 +1296,7 @@ export function Globe3D() {
       rebuildAmbient();
 
       function rebuildNodePins() {
+        clearCss2d("node");
         // Remove previous node meshes + their pick entries
         pickList = pickList.filter((p) => p.meta.kind !== "node");
         while (pinGroup.children.length) {
@@ -1326,18 +1397,18 @@ export function Globe3D() {
           g.add(ring);
 
           // Name chips only when zoomed in — home view stays clean
-          // Important nodes: compact name when not fully zoomed out
+          // Important nodes — CSS2D chips when not fully zoomed out
           const camOk = spherical.radius < 2.55;
           if (camOk && important) {
-            const spr = makeNodeLabelSprite(
-              THREE,
+            const hex = "#" + (col & 0xffffff).toString(16).padStart(6, "0");
+            const tip = v.clone().normalize().multiplyScalar(elev + 0.012);
+            tryAddCss2d(
               nodeShortName(node, 14),
+              hex,
+              tip,
+              "node",
               nodeMarkChip(node),
-              col,
             );
-            spr.scale.set(0.07, 0.034, 1);
-            spr.position.set(0, 0, 0.022);
-            g.add(spr);
           }
 
           pinGroup.add(g);
@@ -1825,7 +1896,23 @@ export function Globe3D() {
         }
         needsRender = false;
 
+        // Hide CSS2D labels on the far side of Earth
+        if (css2dEntries.length) {
+          const cx = camera.position.x;
+          const cy = camera.position.y;
+          const cz = camera.position.z;
+          const clen = Math.hypot(cx, cy, cz) || 1;
+          const vx = cx / clen;
+          const vy = cy / clen;
+          const vz = cz / clen;
+          for (const e of css2dEntries) {
+            const facing = e.nx * vx + e.ny * vy + e.nz * vz;
+            e.el.classList.toggle("is-back", facing < 0.12);
+          }
+        }
+
         renderer.render(scene, camera);
+        labelRenderer.render(scene, camera);
         profiler.endFrame(renderer);
       };
       animate();
@@ -1837,6 +1924,7 @@ export function Globe3D() {
         camera.aspect = nw / nh;
         camera.updateProjectionMatrix();
         renderer.setSize(nw, nh);
+        labelRenderer.setSize(nw, nh);
         // Fullscreen / shell chrome changes aspect — keep Earth fully on-screen
         const nextHome = homeRadiusFor(nw / Math.max(1, nh));
         const wasNearHome = Math.abs(spherical.radius - HOME_RADIUS) < 0.45;
@@ -1936,6 +2024,8 @@ export function Globe3D() {
         if (renderer.domElement.parentNode) {
           renderer.domElement.parentNode.removeChild(renderer.domElement);
         }
+        clearCss2d();
+        clearSpriteCaches();
         container.innerHTML = "";
         updateRef.current = null;
         aimRef.current = null;
