@@ -834,17 +834,17 @@ export function Globe3D() {
           const id = f.id ? String(f.id) : `${lat}_${lon}_${f.properties.time ?? 0}`;
           const st = globeMagStyle(mag);
           const neon = st.neon;
-          // Balanced home-zoom pins: readable needles, not comic / not dust
-          // World units @ cam ~2.6 — heads ~screen 10–16px, stems clearly radial
-          let base = 0.018 + Math.pow(Math.max(mag, 0.5), 1.04) * 0.009;
-          if (mag >= 5) base *= 1 + (mag - 5) * 0.14;
-          if (mag >= 6) base *= 1.1;
-          const size = base * Math.max(0.95, Math.min(1.35, hexScale));
-          const lift = (Math.min(depth, 700) / 700) * Math.max(0.06, stemMul);
-          const tall = opts?.pinTall ? 1.4 : 1;
+          // Grounded needles — sit on crust (depth → slight lift only)
+          let base = 0.014 + Math.pow(Math.max(mag, 0.5), 1.02) * 0.007;
+          if (mag >= 5) base *= 1 + (mag - 5) * 0.1;
+          if (mag >= 6) base *= 1.08;
+          const size = base * Math.max(0.9, Math.min(1.2, hexScale));
+          // Depth cue is subtle — not kilometers of air
+          const lift = (Math.min(depth, 700) / 700) * Math.max(0.02, stemMul * 0.45);
+          const tall = opts?.pinTall ? 1.25 : 1;
           const pinHeight =
-            (0.07 + lift * 1.35 + size * 0.95 + (opts?.elevBoost ?? 0)) * tall;
-          const elev = 1.009 + pinHeight;
+            (0.032 + lift * 0.55 + size * 0.55 + (opts?.elevBoost ?? 0)) * tall;
+          const elev = 1.004 + pinHeight;
           const dLat = opts?.displayLat ?? lat;
           const dLon = opts?.displayLon ?? lon;
           const pos = latLonToVec(dLat, dLon, elev);
@@ -857,9 +857,9 @@ export function Globe3D() {
           // lookAt: local -Z → Earth center, +Z outward (no rotateY flip)
           g.lookAt(0, 0, 0);
 
-          // Stem: clearly visible needle without dominating
-          const stemLen = pinHeight * 0.96;
-          const stemR = Math.max(0.0026, size * 0.12);
+          // Short stem — pin head near surface
+          const stemLen = pinHeight * 0.94;
+          const stemR = Math.max(0.002, size * 0.1);
           const stem = new THREE.Mesh(
             geoStem,
             pinMat("stem", col, Math.min(1, opac * 0.96)),
@@ -881,9 +881,9 @@ export function Globe3D() {
             g.add(foot);
           }
 
-          // Pin head — balanced hex + core
+          // Compact head on crust
           const allRings =
-            neon ? [1.0, 0.72] : mag >= 5.5 ? [1.0, 0.7] : [0.96];
+            neon ? [0.92, 0.68] : mag >= 5.5 ? [0.92, 0.66] : [0.88];
           const rings = allRings.slice(0, Math.max(1, Q.maxRings));
           rings.forEach((s, i) => {
             const ro = opac * (1 - i * 0.2) * (neon && i === 0 ? 0.96 : 0.9);
@@ -922,17 +922,12 @@ export function Globe3D() {
             g.add(hit);
           }
 
-          // Hybrid: CSS2D for M5.5+ / spiderfy (crisp type); light sprite for M5–M5.4 if room
-          const wantCss = mag >= CSS2D_MAG_MIN || !!opts?.pinTall || mag >= 6;
+          // CSS2D only for strong (M6+) or spiderfy — stops "floating label cloud"
+          // Label world pos = pin head (same elev), CSS nudge handles offset
+          const wantCss = mag >= CSS2D_MAG_MIN || !!opts?.pinTall;
           if (wantCss) {
-            const headWorld = latLonToVec(dLat, dLon, elev + Math.max(0.01, headR));
+            const headWorld = latLonToVec(dLat, dLon, elev);
             tryAddCss2d(`M${mag.toFixed(1)}`, colHex, headWorld, "mag");
-          } else if (Q.magSprites && mag >= 5) {
-            const spr = makeMagSprite(THREE, mag, colHex, Math.min(1, opac + 0.12));
-            const labW = 0.046;
-            spr.scale.set(labW, labW * 0.48, 1);
-            spr.position.set(0, 0, headR + 0.012);
-            g.add(spr);
           }
 
           quakeGroup.add(g);
@@ -952,9 +947,11 @@ export function Globe3D() {
             },
           });
 
-          // World-space stem line — always (clarity at home zoom)
-          stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
-          stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
+          // Depth line only when meaningfully deep (avoids floating spokes)
+          if (depth >= 70 || pinHeight > 0.05) {
+            stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
+            stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
+          }
         };
 
         for (const cl of clusters) {
@@ -1056,9 +1053,9 @@ export function Globe3D() {
           // Cluster pin + readable count badge
           const st = globeMagStyle(cl.maxMag);
           const col = new THREE.Color(st.color);
-          const badgeSize = 0.026 + Math.min(0.022, cl.points.length * 0.0022);
-          const badgeStem = 0.055 + Math.min(0.028, cl.points.length * 0.0025);
-          const badgePos = latLonToVec(cl.lat, cl.lon, 1.009 + badgeStem);
+          const badgeSize = 0.02 + Math.min(0.016, cl.points.length * 0.0018);
+          const badgeStem = 0.028 + Math.min(0.016, cl.points.length * 0.0018);
+          const badgePos = latLonToVec(cl.lat, cl.lon, 1.005 + badgeStem);
           const bg = new THREE.Group();
           bg.position.copy(badgePos);
           bg.lookAt(0, 0, 0);
@@ -1282,8 +1279,8 @@ export function Globe3D() {
               : -175);
           // Node markers: discrete dots on short stems (labels only when close)
           const important = !!(node.publishedFocus || node.kind === "volcano" || node.watchPriority);
-          const stemLen = important ? 0.058 : 0.04;
-          const elev = 1.007 + stemLen;
+          const stemLen = important ? 0.028 : 0.018;
+          const elev = 1.004 + stemLen;
           const v = latLonToVec(clat, clon, elev);
           const col =
             node.kind === "volcano"
@@ -1354,7 +1351,7 @@ export function Globe3D() {
           const camOk = spherical.radius < 2.55;
           if (camOk && important) {
             const hex = "#" + (col & 0xffffff).toString(16).padStart(6, "0");
-            const tip = v.clone().normalize().multiplyScalar(elev + 0.012);
+            const tip = v.clone().normalize().multiplyScalar(elev + 0.004);
             tryAddCss2d(
               nodeShortName(node, 14),
               hex,

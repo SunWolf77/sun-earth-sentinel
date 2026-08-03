@@ -12,11 +12,11 @@
 import type { Object3D, Scene, Vector3 } from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
-export const CSS2D_CAP_DESKTOP = 24;
-export const CSS2D_CAP_MOBILE = 10;
+export const CSS2D_CAP_DESKTOP = 16;
+export const CSS2D_CAP_MOBILE = 8;
 
-/** Mag threshold for automatic CSS2D chips (spiderfy always eligible). */
-export const CSS2D_MAG_MIN = 5.5;
+/** Mag threshold for automatic CSS2D chips (spiderfy / focus always eligible). */
+export const CSS2D_MAG_MIN = 6.0;
 
 export type Css2dKind = "mag" | "node" | "cluster";
 

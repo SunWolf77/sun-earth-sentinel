@@ -1691,12 +1691,13 @@
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(15, 23, 42, 0.92);
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(15, 23, 42, 0.9);
   border: 1px solid color-mix(in oklab, var(--pin, #fbbf24) 65%, #e2e8f0);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
-  transform: translate(-50%, -130%);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  /* Anchor at pin head — slight lift only (was -130% → floats in space) */
+  transform: translate(-50%, -105%);
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
@@ -1715,7 +1716,7 @@
 }
 .ww-globe-css2d--mag .ww-globe-css2d__main {
   font-weight: 900;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--pin, #fbbf24);
 }
 .ww-globe-css2d--node .ww-globe-css2d__main {
