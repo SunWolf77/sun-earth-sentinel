@@ -5,6 +5,7 @@
  * Handoff contract:
  *  - Sentinel → board:  open monitorUrl (+ optional ?from=ses&sesNode=)
  *  - Board → Sentinel:  PRODUCTION_ORIGIN/?tab=live&node=<sesDragonId>
+ *  - Dense catalog:   catalogFeedUrl (GeoJSON) — replace USGS in-bounds for INGV nodes
  *  - URL aliases resolve in resolveNodeId() so deep links stay flexible.
  */
 
@@ -21,6 +22,12 @@ export type PublishedMonitor = {
   role: string;
   /** Production Vercel board */
   monitorUrl: string;
+  /**
+   * Optional authority catalog feed (GeoJSON FeatureCollection).
+   * When set, SES should prefer this over USGS inside the node bbox
+   * (Campi Flegrei / mediterranean = INGV — never dual-read).
+   */
+  catalogFeedUrl?: string;
   /** Authority label shown in UI */
   authority: string;
   /** Accepted ?node= aliases (case-insensitive) */
@@ -36,6 +43,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     shortCode: "TK",
     role: "Published focus · SES #1 · Swarm corridor",
     monitorUrl: "https://tonga-kermadec-monitor.vercel.app/",
+    catalogFeedUrl:
+      "https://tonga-kermadec-monitor.vercel.app/api/ses/catalog?window=7d&node=tonga",
     authority: "USGS FDSN / realtime",
     aliases: ["tonga", "tonga-kermadec", "tk", "kermadec"],
     focusNote:
@@ -48,10 +57,12 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     shortCode: "CF",
     role: "Published focus · SES #2 · INGV authority",
     monitorUrl: "https://campi-flegrei-monitor.vercel.app/",
+    catalogFeedUrl:
+      "https://campi-flegrei-monitor.vercel.app/api/ses/catalog?window=7d&node=mediterranean",
     authority: "INGV-OV (GOSSIP → FDSN)",
     aliases: ["mediterranean", "campi-flegrei", "campi", "cf", "flegrei"],
     focusNote:
-      "SES node #2 — Campi Flegrei caldera (Naples). Dense shallow swarm catalog is INGV-OV GOSSIP; USGS under-samples here. Open board for depth / SUPT continuum. Not a forecast.",
+      "SES node #2 — Campi Flegrei caldera (Naples). Dense shallow swarm catalog is INGV-OV GOSSIP; USGS under-samples here. Open board for depth / SUPT continuum. Merge via catalogFeedUrl — never dual-read USGS. Not a forecast.",
   },
 ];
 
@@ -101,6 +112,26 @@ export function sentinelFocusUrl(
   u.searchParams.set("tab", "live");
   u.searchParams.set("node", id);
   return u.toString();
+}
+
+/**
+ * Authority catalog feed URL (windowed). Returns null when the board has no feed.
+ * CF → INGV GOSSIP GeoJSON; use to replace USGS inside mediterranean bbox.
+ */
+export function catalogFeedUrl(
+  sesNodeId: string,
+  windowKey: string = "7d",
+): string | null {
+  const p = getPublishedMonitor(sesNodeId);
+  if (!p?.catalogFeedUrl) return null;
+  try {
+    const u = new URL(p.catalogFeedUrl);
+    u.searchParams.set("window", windowKey);
+    u.searchParams.set("node", p.sesNodeId);
+    return u.toString();
+  } catch {
+    return p.catalogFeedUrl;
+  }
 }
 
 export function listPublishedMonitors(): PublishedMonitor[] {
