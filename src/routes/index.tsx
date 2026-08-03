@@ -831,7 +831,7 @@ function ObservatoryApp() {
         >
           <TodayBriefBar dense />
           {tab === "live" && (
-            <div className="border-b border-border/60 bg-bg/80 px-2 py-1 sm:px-3">
+            <div className="mt-0.5 min-w-0">
               <CrossFeedChips />
             </div>
           )}
