@@ -193,7 +193,7 @@ export function Globe3D() {
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0b1220);
       // Slightly tighter FOV + closer default = taller pins read better
-      const camera = new THREE.PerspectiveCamera(44, w / h, 0.08, 100);
+      const camera = new THREE.PerspectiveCamera(40, w / h, 0.08, 100);
 
       let renderer: InstanceType<typeof THREE.WebGLRenderer>;
       try {
@@ -419,8 +419,11 @@ export function Globe3D() {
       let focusRing: InstanceType<typeof THREE.Line> | null = null;
       let pickRing: InstanceType<typeof THREE.Mesh> | null = null;
 
-      // Default zoomed-out framing — globe ~55–65% of short edge (not edge-to-edge)
-      const HOME_RADIUS = 3.45; // balanced: room around Earth without feeling tiny
+      // Default framing: globe ~40–50% of short edge (room around Earth).
+      // Mobile needs more distance — tall portrait otherwise looks oversized.
+      const HOME_RADIUS = Q.id === "mobile" ? 4.65 : 4.35;
+      const RADIUS_MIN = 2.55;
+      const RADIUS_MAX = 7.2;
       const FLY_TO_MIN_MS = 420;
       const FLY_TO_MAX_MS = 900;
       const FLY_TO_HOLD_MS = 450;
@@ -566,7 +569,7 @@ export function Globe3D() {
         const to = {
           theta: toTheta,
           phi: toPhi,
-          radius: Math.max(2.9, Math.min(Math.max(spherical.radius, 2.9), 4.4)),
+          radius: Math.max(HOME_RADIUS * 0.92, Math.min(Math.max(spherical.radius, HOME_RADIUS * 0.92), RADIUS_MAX * 0.85)),
         };
         aimAnim = {
           t0: performance.now(),
@@ -1552,7 +1555,7 @@ export function Globe3D() {
           const d = touchDist(e.touches[0]!, e.touches[1]!);
           if (pinchStartDist > 0) {
             const scale = pinchStartDist / Math.max(d, 1);
-            spherical.radius = Math.max(2.15, Math.min(6.5, pinchStartRadius * scale));
+            spherical.radius = Math.max(RADIUS_MIN, Math.min(RADIUS_MAX, pinchStartRadius * scale));
             applyCam();
             scheduleRecluster();
           }
@@ -1587,7 +1590,7 @@ export function Globe3D() {
 
       const wheel = (e: WheelEvent) => {
         e.preventDefault();
-        spherical.radius = Math.max(2.15, Math.min(6.5, spherical.radius + e.deltaY * 0.002));
+        spherical.radius = Math.max(RADIUS_MIN, Math.min(RADIUS_MAX, spherical.radius + e.deltaY * 0.0025));
         applyCam();
         scheduleRecluster();
       };
