@@ -81,7 +81,7 @@ export function resolveGlobeQuality(force?: GlobeQualityId): GlobeQuality {
       glow: false,
       stars: 48,
       maxMarkers: 90,
-      maxRings: 1,
+      maxRings: 2,
       magSprites: true,
       pixelRatioCap: 1.25,
       antialias: false,
@@ -110,7 +110,7 @@ export function resolveGlobeQuality(force?: GlobeQualityId): GlobeQuality {
     loadMarble: true,
     powerPreference: "high-performance",
     pinSeg: 10,
-    stemMinDepthKm: 35,
+    stemMinDepthKm: 0,
     maxFps: 60,
     nodePins: true,
   };

@@ -802,15 +802,15 @@ export function Globe3D() {
           const id = f.id ? String(f.id) : `${lat}_${lon}_${f.properties.time ?? 0}`;
           const st = globeMagStyle(mag);
           const neon = st.neon;
-          let base = 0.016 + Math.pow(Math.max(mag, 0.5), 1.05) * 0.009;
-          if (mag >= 5) base *= 1 + (mag - 5) * 0.16;
-          const size = base * hexScale;
-          const lift = (Math.min(depth, 700) / 700) * Math.max(0.04, stemMul);
-          // Significantly taller pins so they read as needles, not flat discs
-          const tall = opts?.pinTall ? 1.55 : 1;
+          let base = 0.02 + Math.pow(Math.max(mag, 0.5), 1.05) * 0.011;
+          if (mag >= 5) base *= 1 + (mag - 5) * 0.18;
+          const size = base * Math.max(0.85, hexScale);
+          // Depth + user stem scale → long needles that read at home zoom
+          const lift = (Math.min(depth, 700) / 700) * Math.max(0.08, stemMul);
+          const tall = opts?.pinTall ? 1.65 : 1;
           const pinHeight =
-            (0.055 + lift * 1.35 + size * 0.9 + (opts?.elevBoost ?? 0)) * tall;
-          const elev = 1.008 + pinHeight;
+            (0.095 + lift * 1.85 + size * 1.15 + (opts?.elevBoost ?? 0)) * tall;
+          const elev = 1.01 + pinHeight;
           const dLat = opts?.displayLat ?? lat;
           const dLon = opts?.displayLon ?? lon;
           const pos = latLonToVec(dLat, dLon, elev);
@@ -824,20 +824,26 @@ export function Globe3D() {
           g.lookAt(0, 0, 0);
           g.rotateY(Math.PI);
 
-          // --- Long pin stem (shared unit cylinder, scaled) ---
-          const stemLen = pinHeight * 0.92;
-          const stemR = Math.max(0.0022, size * 0.12);
-          const stem = new THREE.Mesh(geoStem, pinMat("stem", col, opac * 0.9));
+          // --- Long pin stem (shared unit cylinder, scaled) — thick enough to read ---
+          const stemLen = pinHeight * 0.98;
+          const stemR = Math.max(0.0045, size * 0.18);
+          const stem = new THREE.Mesh(
+            geoStem,
+            pinMat("stem", col, Math.min(1, opac * 0.98 + 0.05)),
+          );
           stem.rotation.x = Math.PI / 2;
-          stem.scale.set(stemR * 0.55, stemLen, stemR);
+          stem.scale.set(stemR * 0.7, stemLen, stemR);
           stem.position.z = -stemLen / 2;
           stem.renderOrder = 8;
           g.add(stem);
 
-          // Surface foot — skip on mobile (saves 1 draw/pin)
-          if (Q.id !== "mobile") {
-            const foot = new THREE.Mesh(geoFoot, pinMat("foot", col, opac * 0.75));
-            foot.scale.setScalar(stemR * 1.6);
+          // Surface foot on all qualities (anchor the pin)
+          {
+            const foot = new THREE.Mesh(
+              geoFoot,
+              pinMat("foot", col, Math.min(1, opac * 0.9)),
+            );
+            foot.scale.setScalar(stemR * 2.1);
             foot.position.z = -stemLen;
             foot.renderOrder = 7;
             g.add(foot);
@@ -892,13 +898,14 @@ export function Globe3D() {
             g.add(hit);
           }
 
-          // Labels: spiderfied, strong, or when magSprites on
+          // Mag labels — readable detail on pins (not only M5.5+)
           const showLabel =
-            opts?.showLabel ?? (Q.magSprites && mag >= 5.5);
+            opts?.showLabel ??
+            (Q.magSprites && (mag >= 4.5 || opts?.pinTall || mag >= 5));
           if (showLabel) {
-            const spr = makeMagSprite(THREE, mag, colHex, opac);
-            spr.scale.setScalar(size * 3.2);
-            spr.position.set(0, 0, size * 0.55);
+            const spr = makeMagSprite(THREE, mag, colHex, Math.min(1, opac + 0.15));
+            spr.scale.setScalar(Math.max(0.055, size * 3.8));
+            spr.position.set(0, 0, size * 0.75 + 0.01);
             g.add(spr);
           }
 
@@ -919,18 +926,16 @@ export function Globe3D() {
             },
           });
 
-          // World-space stem (surface → head) for depth cue when far
-          if (depth > Q.stemMinDepthKm || pinHeight > 0.04) {
-            stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
-            stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
-          }
+          // World-space stem line — always (clarity at home zoom)
+          stemPos.push(surf.x, surf.y, surf.z, pos.x, pos.y, pos.z);
+          stemCol.push(col.r, col.g, col.b, col.r, col.g, col.b);
         };
 
         for (const cl of clusters) {
           if (cl.points.length === 1) {
             const p = cl.points[0]!;
             placeEventHex(p.f, p.lat, p.lon, {
-              showLabel: Q.magSprites && p.mag >= 5.5,
+              showLabel: Q.magSprites && p.mag >= 4.5,
             });
             continue;
           }
@@ -1023,19 +1028,30 @@ export function Globe3D() {
             }
           }
 
-          // Cluster badge (always when n>1 — collapse control when expanded)
+          // Cluster badge on a short pin stem (not a floating mush disc)
           const st = globeMagStyle(cl.maxMag);
           const col = new THREE.Color(st.color);
-          const badgeSize = 0.032 + Math.min(0.04, cl.points.length * 0.003);
-          const badgePos = latLonToVec(cl.lat, cl.lon, 1.035 + badgeSize);
+          const badgeSize = 0.036 + Math.min(0.045, cl.points.length * 0.0035);
+          const badgeStem = 0.07 + Math.min(0.05, cl.points.length * 0.004);
+          const badgePos = latLonToVec(cl.lat, cl.lon, 1.012 + badgeStem);
           const bg = new THREE.Group();
           bg.position.copy(badgePos);
           bg.lookAt(0, 0, 0);
           bg.rotateY(Math.PI);
 
+          const cStem = new THREE.Mesh(
+            geoStem,
+            pinMat("cstem", col, Math.min(1, opac + 0.05)),
+          );
+          cStem.rotation.x = Math.PI / 2;
+          cStem.scale.set(0.0055, badgeStem, 0.008);
+          cStem.position.z = -badgeStem / 2;
+          cStem.renderOrder = 38;
+          bg.add(cStem);
+
           const disc = new THREE.Mesh(
             geoBadge,
-            pinMat("badge", col, Math.min(0.95, opac + 0.1), { doubleSide: true }),
+            pinMat("badge", col, Math.min(1, opac + 0.15), { doubleSide: true }),
           );
           disc.scale.setScalar(badgeSize);
           disc.renderOrder = 40;
@@ -1046,7 +1062,7 @@ export function Globe3D() {
             pinMat(
               "badgeRing",
               cl.maxMag >= 6 ? 0xfbbf24 : 0xf8fafc,
-              0.9,
+              0.95,
               { doubleSide: true },
             ),
           );
@@ -1054,10 +1070,10 @@ export function Globe3D() {
           ring.renderOrder = 41;
           bg.add(ring);
 
-          if (Q.magSprites || Q.id !== "mobile") {
-            const spr = makeCountSprite(THREE, cl.points.length, st.color, opac);
-            spr.scale.setScalar(badgeSize * 2.4);
-            spr.position.set(0, 0, badgeSize * 0.2);
+          {
+            const spr = makeCountSprite(THREE, cl.points.length, st.color, Math.min(1, opac + 0.2));
+            spr.scale.setScalar(badgeSize * 2.8);
+            spr.position.set(0, 0, badgeSize * 0.35);
             bg.add(spr);
           }
 
@@ -1089,8 +1105,9 @@ export function Globe3D() {
             new THREE.LineBasicMaterial({
               vertexColors: true,
               transparent: true,
-              opacity: Math.max(0.45, opac * 0.72),
+              opacity: Math.max(0.75, Math.min(1, opac * 0.95)),
               depthWrite: false,
+              linewidth: 2,
             }),
           );
           quakeGroup.add(stems);
@@ -1238,8 +1255,9 @@ export function Globe3D() {
             (node.bounds[0][1] <= node.bounds[1][1]
               ? (node.bounds[0][1] + node.bounds[1][1]) / 2
               : -175);
-          // Tall node pin (same language as EQ pins)
-          const elev = 1.055;
+          // Tall node pin — long stem + crisp label (not floating chips)
+          const stemLen = node.publishedFocus || node.kind === "volcano" ? 0.12 : 0.095;
+          const elev = 1.014 + stemLen;
           const v = latLonToVec(clat, clon, elev);
           const col =
             node.kind === "volcano"
@@ -1252,19 +1270,24 @@ export function Globe3D() {
           g.lookAt(0, 0, 0);
           g.rotateY(Math.PI);
 
-          const stemLen = 0.048;
           const stem = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.003, 0.0045, stemLen, 6),
+            new THREE.CylinderGeometry(0.0055, 0.0075, stemLen, 8),
             new THREE.MeshBasicMaterial({
               color: col,
               transparent: true,
-              opacity: 0.9,
+              opacity: 0.98,
               depthWrite: false,
             }),
           );
           stem.rotation.x = Math.PI / 2;
           stem.position.z = -stemLen / 2;
           g.add(stem);
+          const nFoot = new THREE.Mesh(
+            new THREE.SphereGeometry(0.009, 8, 8),
+            new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9 }),
+          );
+          nFoot.position.z = -stemLen;
+          g.add(nFoot);
 
           const hitR = node.publishedFocus || node.kind === "volcano" ? 0.045 : 0.036;
           const hit = new THREE.Mesh(
@@ -1312,8 +1335,8 @@ export function Globe3D() {
             nodeMarkChip(node),
             col,
           );
-          spr.scale.setScalar(0.14);
-          spr.position.set(0, 0, 0.04);
+          spr.scale.setScalar(0.16);
+          spr.position.set(0, 0, 0.055);
           g.add(spr);
 
           pinGroup.add(g);
@@ -2422,32 +2445,38 @@ function makeNodeLabelSprite(
 }
 
 function makeCountSprite(
-
   THREE: typeof import("three"),
   count: number,
   color: string,
   opac: number,
 ) {
   const c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 64;
+  c.width = 128;
+  c.height = 128;
   const ctx = c.getContext("2d")!;
-  ctx.clearRect(0, 0, 64, 64);
-  ctx.font = "bold 28px system-ui,sans-serif";
+  ctx.clearRect(0, 0, 128, 128);
+  // Crisp pill background
+  ctx.fillStyle = "rgba(15,23,42,0.92)";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
+  const r = 28;
+  ctx.beginPath();
+  ctx.roundRect(16, 28, 96, 72, r);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = "bold 44px system-ui,sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = "rgba(15,23,42,0.9)";
-  ctx.fillStyle = "#0f172a";
+  ctx.fillStyle = "#f8fafc";
   const t = count > 99 ? "99+" : String(count);
-  ctx.strokeText(t, 32, 34);
-  ctx.fillText(t, 32, 34);
+  ctx.fillText(t, 64, 64);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
   const mat = new THREE.SpriteMaterial({
     map: tex,
     transparent: true,
-    opacity: Math.min(1, opac + 0.15),
+    opacity: Math.min(1, opac + 0.2),
     depthWrite: false,
   });
   return new THREE.Sprite(mat);
@@ -2460,25 +2489,30 @@ function makeMagSprite(
   opac: number,
 ) {
   const c = document.createElement("canvas");
-  c.width = 64;
-  c.height = 32;
+  c.width = 128;
+  c.height = 64;
   const ctx = c.getContext("2d")!;
-  ctx.clearRect(0, 0, 64, 32);
-  ctx.font = "bold 20px system-ui,sans-serif";
+  ctx.clearRect(0, 0, 128, 64);
+  ctx.fillStyle = "rgba(15,23,42,0.88)";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(8, 10, 112, 44, 12);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = "bold 32px system-ui,sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(0,0,0,0.75)";
   ctx.fillStyle = color;
-  const t = mag.toFixed(1);
-  ctx.strokeText(t, 32, 16);
-  ctx.fillText(t, 32, 16);
+  const t = `M${mag.toFixed(1)}`;
+  ctx.fillText(t, 64, 34);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
   const mat = new THREE.SpriteMaterial({
     map: tex,
     transparent: true,
-    opacity: Math.min(1, opac + 0.2),
+    opacity: Math.min(1, opac + 0.25),
     depthWrite: false,
   });
   return new THREE.Sprite(mat);

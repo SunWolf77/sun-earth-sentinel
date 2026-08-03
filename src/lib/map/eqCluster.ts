@@ -200,6 +200,7 @@ export function clusterEqPointsByKm(points: EqPoint[], radiusKm: number): EqClus
 
 /** Camera radius → cluster radius (km). Farther camera = larger merge. */
 export function globeClusterRadiusKm(cameraRadius: number): number {
-  // default cam ~2.85 → ~360km; zoomed ~1.5 → ~90km; far ~5 → ~750km
-  return Math.max(55, Math.min(850, (cameraRadius - 1.15) * 210));
+  // Tighter merge so more individual long pins remain visible at home zoom
+  // default cam ~2.85 → ~240km; zoomed ~1.5 → ~70km; far ~5 → ~520km
+  return Math.max(45, Math.min(520, (cameraRadius - 1.15) * 145));
 }
