@@ -79,7 +79,7 @@ export const BASEMAP_STYLES: Record<BasemapStyleId, MapStyleConfig> = {
  */
 export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   quakes: true,
-  heatmap: false,
+  heatmap: false,  // density — opt-in only
   nodes: true,
   /** Elevated world (USGS + GVP + GT Phase A) — lean cap, not Holocene catalog */
   volcanoes: true,
@@ -106,7 +106,7 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     corridors: false,
     volcanoes: true,
     globalVolcanoes: false,
-    heatmap: false,
+    heatmap: false,  // density — opt-in only
     timeDecay: false,
     mmiContours: true,
     nodes: true,
@@ -235,7 +235,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v4";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v5";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
@@ -245,19 +245,27 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
       const parsed = JSON.parse(raw) as Partial<Record<MapOverlayId, boolean>>;
       return { ...DEFAULT_OVERLAYS, ...parsed };
     }
-    // one-shot migrate from v3 lean (volcanoes often false) → activate elevated world
-    const legacy = localStorage.getItem("wolfwatch_overlays_v3");
-    if (legacy) {
+    // Migrate older prefs → single-world calm defaults (no ISS / aurora / heat)
+    for (const k of ["wolfwatch_overlays_v4", "wolfwatch_overlays_v3", "wolfwatch_overlays"]) {
+      const legacy = localStorage.getItem(k);
+      if (!legacy) continue;
       try {
         const parsed = JSON.parse(legacy) as Partial<Record<MapOverlayId, boolean>>;
-        const merged = { ...DEFAULT_OVERLAYS, ...parsed, volcanoes: true, globalVolcanoes: false };
-        localStorage.removeItem("wolfwatch_overlays_v3");
+        const merged: Record<MapOverlayId, boolean> = {
+          ...DEFAULT_OVERLAYS,
+          ...parsed,
+          volcanoes: parsed.volcanoes ?? true,
+          globalVolcanoes: false,
+          iss: false,
+          aurora: false,
+          heatmap: false,
+        };
+        localStorage.removeItem(k);
         return merged;
       } catch {
-        localStorage.removeItem("wolfwatch_overlays_v3");
+        localStorage.removeItem(k);
       }
     }
-    localStorage.removeItem("wolfwatch_overlays");
   } catch {
     /* ignore */
   }

@@ -69,8 +69,10 @@ function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
     className: "ww-basemap",
     updateWhenIdle: true,
     updateWhenZooming: false,
-    keepBuffer: 2,
+    keepBuffer: 1,
     crossOrigin: true,
+    noWrap: true,
+    bounds: L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180)),
   };
   if (style.subdomains) opts.subdomains = style.subdomains;
   return L.tileLayer(style.url, opts);
@@ -263,7 +265,9 @@ export function LiveMap() {
       zoom: WORLD_MAP_INIT.zoom,
       minZoom: WORLD_MAP_INIT.minZoom,
       maxZoom: WORLD_MAP_INIT.maxZoom,
-      worldCopyJump: true,
+      maxBounds: L.latLngBounds(L.latLng(-85.5, -180), L.latLng(85.5, 180)),
+      maxBoundsViscosity: 1.0,
+      worldCopyJump: false,
       zoomControl: false,
       attributionControl: false,
       preferCanvas: false,
@@ -276,7 +280,7 @@ export function LiveMap() {
       scrollWheelZoom: true,
       boxZoom: true,
       keyboard: true,
-      bounceAtZoomLimits: false,
+      bounceAtZoomLimits: true,
     });
 
     // Top-right zoom — clear of legend (top-left) and layer bar (bottom)

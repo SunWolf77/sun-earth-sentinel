@@ -51,7 +51,7 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
     void useObservatory.getState().ensureAmbientLayers(true);
   }, []);
 
-  const chips = useMemo(() => {
+  const chipsRaw = useMemo(() => {
     const feats = filteredEq(eq?.features, minMag, maxMag);
     let maxM: number | null = null;
     for (const f of feats) {
@@ -74,8 +74,8 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
 
   const onChip = (id: string) => {
     if (id === "iss") {
-      setOverlay("iss", true);
-      setTab("live");
+      // ISS removed from product map
+      return;
     } else if (id === "fire") {
       setOverlay("wildfires", true);
       setTab("live");
@@ -110,7 +110,7 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
         <Radio className="h-3 w-3 text-primary" />
         Feed
       </span>
-      {chips.map((c) => {
+      {chips.filter((c) => c.id !== "iss" && c.id !== "aurora").map((c) => {
         const short =
           c.id === "eq-strong" && c.label.match(/M[\d.]+/)
             ? c.label.replace("Strong quake ", "")

@@ -43,8 +43,6 @@ export const DESKTOP_QUICK_LAYERS = [
   "quakes",
   "heatmap",
   "significant",
-  "iss",
-  "aurora",
   "nodes",
   "volcanoes",
 ] as const;
@@ -66,8 +64,8 @@ export const LAYER_GROUPS: {
   },
   {
     id: "space",
-    label: "Space & sky",
-    ids: ["iss", "aurora", "neos"],
+    label: "Space (opt-in)",
+    ids: ["neos"], // ISS + aurora removed from product default chrome
   },
   {
     id: "ambient",

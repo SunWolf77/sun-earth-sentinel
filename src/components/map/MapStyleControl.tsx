@@ -70,7 +70,11 @@ export function MapStyleControl() {
   const mobileSheet = useObservatory((s) => s.mobileSheet);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
 
-  const quickIds = mobile ? MOBILE_QUICK_LAYERS : DESKTOP_QUICK_LAYERS;
+  const HIDDEN_OVERLAYS = new Set<MapOverlayId>(["iss", "aurora"]);
+  const quickIds = (mobile ? MOBILE_QUICK_LAYERS : DESKTOP_QUICK_LAYERS).filter(
+    (id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId),
+  );
+
 
   const onCount = useMemo(
     () => OVERLAY_META.filter(({ id }) => overlays[id]).length,
@@ -85,6 +89,13 @@ export function MapStyleControl() {
       return v;
     });
   };
+
+  // Product: ISS + aurora off the map (user request — calm basemap)
+  useEffect(() => {
+    if (overlays.iss) setOverlay("iss", false);
+    if (overlays.aurora) setOverlay("aurora", false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     return onMapChrome((msg) => {
@@ -204,7 +215,7 @@ export function MapStyleControl() {
               <div key={g.id} className="mt-3">
                 <div className="ww-style-panel__label">{g.label}</div>
                 <ul className="space-y-1">
-                  {g.ids.map((id) => {
+                  {g.ids.filter((id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId)).map((id) => {
                     const meta = OVERLAY_META.find((m) => m.id === id);
                     if (!meta) return null;
                     const Icon = OVERLAY_ICONS[id as MapOverlayId];
