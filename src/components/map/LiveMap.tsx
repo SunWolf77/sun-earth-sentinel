@@ -28,6 +28,7 @@ import { createPlateLayer, type PlateLayerHandle } from "@/components/map/PlateL
 import { attachMapTouchGestures, type MapTouchHandle } from "@/lib/map/touchGestures";
 import { NodeFocusBanner } from "@/components/nodes/NodeFocusPanel";
 import { MapStyleControl } from "@/components/map/MapStyleControl";
+import { AuroraOfficialPanel } from "@/components/map/AuroraOfficialPanel";
 import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
@@ -1005,6 +1006,9 @@ export function LiveMap() {
     >
       <div ref={mapRef} className="ww-map h-full min-h-0 w-full" />
       <NodeFocusBanner />
+      <div className="pointer-events-none absolute right-2 top-14 z-[440] sm:top-16 sm:right-3">
+        <AuroraOfficialPanel />
+      </div>
       <MmiFocusBanner />
       {mapView === "2d" && (
         <>

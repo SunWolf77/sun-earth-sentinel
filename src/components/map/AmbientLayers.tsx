@@ -16,6 +16,7 @@ export function useAmbientMapLayers(map: L.Map | null) {
   const wildfires = useObservatory((s) => s.wildfires);
   const neos = useObservatory((s) => s.neos);
   const kp = useObservatory((s) => s.kp);
+  const auroraOfficial = useObservatory((s) => s.auroraOfficial);
   const pulseIss = useObservatory((s) => s.pulseIss);
   const ensureAmbient = useObservatory((s) => s.ensureAmbientLayers);
 
@@ -51,7 +52,7 @@ export function useAmbientMapLayers(map: L.Map | null) {
     if (!map || !g) return;
     g.clearLayers();
 
-    if (overlays.aurora) {
+    if (overlays.aurora && !auroraOfficial) {
       const oval = buildAuroraOval(latestKp(kp));
       const color =
         oval.level === "storm" ? "#34d399" : oval.level === "elevated" ? "#6ee7b7" : "#2dd4bf";
@@ -115,5 +116,5 @@ export function useAmbientMapLayers(map: L.Map | null) {
       // Show closest as popup-only control via circleMarker at equator sample is misleading.
       // Use a non-geo note marker is wrong. Skip map pin; NEO is Solar list. Optional: badge only.
     }
-  }, [map, overlays.aurora, overlays.iss, overlays.wildfires, overlays.neos, iss, wildfires, neos, kp]);
+  }, [map, overlays.aurora, auroraOfficial, overlays.iss, overlays.wildfires, overlays.neos, iss, wildfires, neos, kp]);
 }

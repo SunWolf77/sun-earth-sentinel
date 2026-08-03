@@ -60,6 +60,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const forecast = useObservatory((s) => s.forecast);
   const enlil = useObservatory((s) => s.enlil);
   const ovation = useObservatory((s) => s.ovation);
+  const ovationBundle = useObservatory((s) => s.ovationBundle);
   const donki = useObservatory((s) => s.donki);
   const protons = useObservatory((s) => s.protons);
   const solarAssessment = useObservatory((s) => s.solarAssessment);
@@ -756,35 +757,54 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
                   {enlil?.timeHint ? ` · model ${enlil.timeHint}` : ""}. Latest frame only (~100 KB).
                 </p>
               </div>
-              {mode === "full" && (
-                <div className="rounded-lg border border-border bg-panel p-2">
-                  <div className="mb-1 text-[0.68rem] font-medium text-fg">
-                    OVATION aurora (north)
-                  </div>
-                  {ovation?.url ? (
-                    <img
-                      src={ovation.url}
-                      alt="OVATION north"
-                      className="w-full rounded-md border border-border"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <p className="py-8 text-center text-xs text-dim">Aurora model loading…</p>
-                  )}
-                  <p className="mt-1 text-[0.62rem] text-dim">
-                    Short-term aurora oval estimate
-                    {ovation?.time_tag
-                      ? ` · ${new Date(ovation.time_tag).toUTCString().replace("GMT", "UTC")}`
-                      : ""}
-                  </p>
+              <div className="rounded-lg border border-border bg-panel p-2 sm:col-span-2">
+                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1">
+                  <div className="text-[0.68rem] font-medium text-fg">OVATION aurora · N + S</div>
+                  <a
+                    href="https://www.swpc.noaa.gov/products/aurora-30-minute-forecast"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[0.58rem] text-primary hover:underline"
+                  >
+                    SWPC forecast
+                  </a>
                 </div>
-              )}
-              {mode !== "full" && (
-                <div className="flex items-center rounded-lg border border-dashed border-border p-4 text-xs text-dim">
-                  Switch to <strong className="mx-1 text-fg">Full</strong> mode for OVATION aurora
-                  frames + proton time series.
+                <div className="grid grid-cols-2 gap-2">
+                  <figure>
+                    <div className="mb-0.5 text-[0.58rem] font-medium text-muted">North</div>
+                    {(ovationBundle?.north?.url || ovation?.url) ? (
+                      <img
+                        src={ovationBundle?.north?.url || ovation?.url || ""}
+                        alt="OVATION north"
+                        className="w-full rounded-md border border-border"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <p className="py-8 text-center text-xs text-dim">Loading…</p>
+                    )}
+                  </figure>
+                  <figure>
+                    <div className="mb-0.5 text-[0.58rem] font-medium text-muted">South</div>
+                    {ovationBundle?.south?.url ? (
+                      <img
+                        src={ovationBundle.south.url}
+                        alt="OVATION south"
+                        className="w-full rounded-md border border-border"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <p className="py-8 text-center text-xs text-dim">Loading…</p>
+                    )}
+                  </figure>
                 </div>
-              )}
+                <p className="mt-1 text-[0.58rem] text-dim">
+                  Short-term oval (SWPC OVATION)
+                  {ovationBundle?.north?.time_tag || ovation?.time_tag
+                    ? ` · ${new Date(ovationBundle?.north?.time_tag || ovation?.time_tag || "").toUTCString().replace("GMT", "UTC")}`
+                    : ""}
+                  {mode !== "full" ? " · protons stay in Full" : ""}
+                </p>
+              </div>
             </div>
           )}
         </section>

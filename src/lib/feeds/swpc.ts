@@ -75,6 +75,12 @@ export type EnlilFrame = {
 export type OvationFrame = {
   url: string;
   time_tag: string | null;
+  hemi: "north" | "south";
+};
+
+export type OvationBundle = {
+  north: OvationFrame | null;
+  south: OvationFrame | null;
 };
 
 const SWPC = "https://services.swpc.noaa.gov";
@@ -258,17 +264,48 @@ export async function fetchEnlilLatest(): Promise<EnlilFrame | null> {
 }
 
 export async function fetchOvationLatest(): Promise<OvationFrame | null> {
+  const b = await fetchOvationBundle();
+  return b.north;
+}
+
+async function fetchOvationHemi(hemi: "north" | "south"): Promise<OvationFrame | null> {
   try {
-    const res = await fetch(`${SWPC}/products/animations/ovation_north_24h.json`);
-    if (!res.ok) return null;
+    const res = await fetch(`${SWPC}/products/animations/ovation_${hemi}_24h.json`);
+    if (!res.ok) {
+      // Static latest stills always available
+      return {
+        hemi,
+        url: `${SWPC}/images/animations/ovation/${hemi}/latest.jpg`,
+        time_tag: null,
+      };
+    }
     const frames = (await res.json()) as { url: string; time_tag?: string }[];
-    if (!Array.isArray(frames) || !frames.length) return null;
+    if (!Array.isArray(frames) || !frames.length) {
+      return {
+        hemi,
+        url: `${SWPC}/images/animations/ovation/${hemi}/latest.jpg`,
+        time_tag: null,
+      };
+    }
     const last = frames[frames.length - 1]!;
     const path = last.url.startsWith("http") ? last.url : `${SWPC}${last.url}`;
-    return { url: path, time_tag: last.time_tag ?? null };
+    return { hemi, url: path, time_tag: last.time_tag ?? null };
   } catch {
-    return null;
+    return {
+      hemi,
+      url: `${SWPC}/images/animations/ovation/${hemi}/latest.jpg`,
+      time_tag: null,
+    };
   }
+}
+
+/** North + South OVATION short-term forecast stills (SWPC). */
+export async function fetchOvationBundle(): Promise<OvationBundle> {
+  const [north, south] = await Promise.all([
+    fetchOvationHemi("north"),
+    fetchOvationHemi("south"),
+  ]);
+  return { north, south };
 }
 
 /** NOAA Kp observed + forecast series (3h steps). */

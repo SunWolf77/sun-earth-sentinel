@@ -31,6 +31,7 @@ import {
   type ForecastBundle,
   type EnlilFrame,
   type OvationFrame,
+  type OvationBundle,
   type KpForecastPoint,
 } from "@/lib/feeds/swpc";
 import type { DonkiBundle } from "@/lib/feeds/donki";
@@ -285,6 +286,9 @@ type ObservatoryState = {
   forecast: ForecastBundle | null;
   enlil: EnlilFrame | null;
   ovation: OvationFrame | null;
+  ovationBundle: OvationBundle | null;
+  /** When true + aurora layer: SWPC stills instead of Kp oval */
+  auroraOfficial: boolean;
   issPosition: IssPosition | null;
   wildfires: WildfireEvent[];
   neos: NeoItem[];
@@ -314,6 +318,7 @@ type ObservatoryState = {
   focusGvpVolcano: (v: GvpVolcano) => void;
   setBasemapStyle: (id: BasemapStyleId) => void;
   setOverlay: (id: MapOverlayId, on: boolean) => void;
+  setAuroraOfficial: (v: boolean) => void;
   setOverlaysBulk: (next: Record<MapOverlayId, boolean>) => void;
   pinVolcWatch: (key: string) => void;
   unpinVolcWatch: (key: string) => void;
@@ -543,6 +548,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   forecast: null,
   enlil: null,
   ovation: null,
+  ovationBundle: null,
+  auroraOfficial: false,
   issPosition: null,
   wildfires: [],
   neos: [],
@@ -694,6 +701,12 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   },
   clearGlobeAntipode: () => set({ globeAntipode: null }),
   pickEvent: (ev) => set({ pickedEvent: ev }),
+  setAuroraOfficial: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_aurora_official", v ? "1" : "0");
+    } catch { /* */ }
+    set({ auroraOfficial: v });
+  },
   setBasemapStyle: (id) => {
     try {
       localStorage.setItem("wolfwatch_basemap", id);
@@ -715,6 +728,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }
     if (on && (id === "iss" || id === "wildfires" || id === "neos" || id === "aurora")) {
       void get().ensureAmbientLayers(id === "iss" || id === "wildfires" || id === "neos");
+      if (id === "aurora" && !get().ovationBundle) {
+        void get().refresh(false);
+      }
     }
     if (id === "globalVolcanoes" && !on) {
       const focus = get().focusNodeId;
@@ -1068,6 +1084,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let forecast = force ? null : getCache<ForecastBundle>("forecast", 600_000);
       let enlil = force ? null : getCache<EnlilFrame>("enlil", 600_000);
       let ovation = force ? null : getCache<OvationFrame>("ovation", 300_000);
+      let ovationBundle = force ? null : getCache<OvationBundle>("ovationBundle", 300_000);
+      if (ovationBundle) set({ ovationBundle });
       let donki = force ? null : getCache<DonkiBundle>("donki", 600_000);
       let kpForecast = force ? null : getCache<KpForecastPoint[]>("kp_fc", 600_000);
       let volc = force ? null : getCache<EqCollection>("volc", 300_000);
@@ -1152,6 +1170,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               forecast = d.forecast;
               enlil = d.enlil;
               ovation = d.ovation;
+              if (d.ovationBundle) { ovationBundle = d.ovationBundle; set({ ovationBundle }); }
               protons = d.protons;
               kpForecast = d.kpForecast;
               setCache("kp", d.kp);
@@ -1163,6 +1182,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               setCache("forecast", d.forecast);
               if (d.enlil) setCache("enlil", d.enlil);
               if (d.ovation) setCache("ovation", d.ovation);
+              if (d.ovationBundle) setCache("ovationBundle", d.ovationBundle);
               if (d.protons.length) setCache("protons", d.protons);
               if (d.kpForecast?.length) setCache("kp_fc", d.kpForecast);
               stamp("solar");
@@ -1394,6 +1414,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         forecast: forecast ?? get().forecast,
         enlil: enlilFinal,
         ovation: ovation ?? get().ovation,
+        ovationBundle: ovationBundle ?? get().ovationBundle,
         donki: donkiFinal,
         kpForecast: kpForecast ?? get().kpForecast,
         solarAssessment,
@@ -1431,6 +1452,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       const patch: Partial<ObservatoryState> = {
         basemapStyle: loadBasemapStyle(),
         overlays: loadOverlays(),
+        auroraOfficial: loadBool("wolfwatch_aurora_official", false),
         useGeofon: loadBool("wolfwatch_geofon", false),
         audioAlerts: loadBool("wolfwatch_audio", false),
         globeAutoSpin: loadBool("wolfwatch_globe_spin", true),

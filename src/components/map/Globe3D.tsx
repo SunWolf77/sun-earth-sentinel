@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildAuroraOval, latestKp } from "@/lib/feeds/auroraOval";
+import { AuroraOfficialPanel } from "@/components/map/AuroraOfficialPanel";
 import { issTrailPoints } from "@/lib/feeds/iss";
 import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes, type PickedEvent } from "@/store/observatory";
 import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
@@ -74,6 +75,7 @@ export function Globe3D() {
   const replayActive = useObservatory((s) => s.replayActive);
   const replayCursorMs = useObservatory((s) => s.replayCursorMs);
   const overlays = useObservatory((s) => s.overlays);
+  const auroraOfficial = useObservatory((s) => s.auroraOfficial);
   const issPosition = useObservatory((s) => s.issPosition);
   const wildfires = useObservatory((s) => s.wildfires);
   const kp = useObservatory((s) => s.kp);
@@ -137,7 +139,7 @@ export function Globe3D() {
   useEffect(() => {
     if (mapView !== "3d") return;
     ambientUpdateRef.current?.();
-  }, [mapView, overlays.iss, overlays.aurora, overlays.wildfires, issPosition, wildfires, kp]);
+  }, [mapView, overlays.iss, overlays.aurora, overlays.wildfires, issPosition, wildfires, kp, auroraOfficial]);
 
   useEffect(() => {
     if (mapView !== "3d" || !overlays.iss) return;
@@ -1083,7 +1085,7 @@ export function Globe3D() {
         }
         const ov = overlaysRef.current;
         const st = useObservatory.getState();
-        if (ov.aurora) {
+        if (ov.aurora && !st.auroraOfficial) {
           const oval = buildAuroraOval(latestKp(st.kp));
           const col =
             oval.level === "storm" ? 0x34d399 : oval.level === "elevated" ? 0x6ee7b7 : 0x2dd4bf;
@@ -1912,6 +1914,9 @@ export function Globe3D() {
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border bg-[#0b1220] sm:min-h-[280px]">
       <div ref={containerRef} className="h-full min-h-0 w-full" />
+      <div className="pointer-events-none absolute right-2 top-12 z-20 sm:top-14">
+        <AuroraOfficialPanel />
+      </div>
 
       <div className="pointer-events-auto absolute left-2 top-2 z-20 flex flex-col items-start gap-1">
         <button

@@ -206,7 +206,7 @@ export const OVERLAY_META: {
     id: "aurora",
     label: "Aurora oval (Kp)",
     short: "Aurora",
-    hint: "Kp oval · SWPC",
+    hint: "Kp oval or Official OVATION stills",
   },
   {
     id: "wildfires",

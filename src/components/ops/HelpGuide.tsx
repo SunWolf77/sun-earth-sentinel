@@ -81,7 +81,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     title: "Layers: ISS · Aurora · Fires",
     body: [
       "ISS: live station position + short track (opt-in).",
-      "Aurora: approximate oval from planetary Kp — SWPC is authoritative.",
+      "Aurora: Kp oval (approx) or Official SWPC N/S OVATION stills — toggle on layer chip.",
       "Fires: NASA EONET open wildfires (opt-in ambient).",
       "NEOs: Solar tab list of today’s approaches (NASA NeoWs).",
       "Cross-feed chips: rule-based multi-domain pulse (not AI).",

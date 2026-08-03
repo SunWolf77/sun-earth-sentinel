@@ -8,6 +8,7 @@ import type {
   KpPoint,
   NoaaScales,
   OvationFrame,
+  OvationBundle,
   ProtonPoint,
   SolarWind,
   XrayPoint,
@@ -21,6 +22,7 @@ import {
   fetchKp,
   fetchNoaaScales,
   fetchOvationLatest,
+  fetchOvationBundle,
   fetchProtons,
   fetchSolarWind,
   fetchXrays,
@@ -82,6 +84,7 @@ export type SolarCoreBundle = {
   forecast: ForecastBundle;
   enlil: EnlilFrame | null;
   ovation: OvationFrame | null;
+  ovationBundle: OvationBundle | null;
   protons: ProtonPoint[];
   kpForecast: KpForecastPoint[];
 };
@@ -109,12 +112,13 @@ export const fetchSolarCore = createServerFn({ method: "POST" })
       fetch10cmFlux(),
       fetchForecastBundle(),
       heavy ? fetchEnlilLatest() : Promise.resolve(null),
-      heavy ? fetchOvationLatest() : Promise.resolve(null),
+      fetchOvationBundle().catch(() => ({ north: null, south: null }) as OvationBundle),
       heavy ? fetchProtons().catch(() => [] as ProtonPoint[]) : Promise.resolve([] as ProtonPoint[]),
       fetchKpForecast().catch(() => [] as KpForecastPoint[]),
     ]);
-    const [kp, xray, solarWind, scales, alerts, flux10cm, forecast, enlil, ovation, protons, kpForecast] =
+    const [kp, xray, solarWind, scales, alerts, flux10cm, forecast, enlil, ovationBundle, protons, kpForecast] =
       base;
+    const ovation = ovationBundle?.north ?? null;
     return {
       kp,
       xray,
@@ -125,6 +129,7 @@ export const fetchSolarCore = createServerFn({ method: "POST" })
       forecast,
       enlil,
       ovation,
+      ovationBundle,
       protons,
       kpForecast,
     };
