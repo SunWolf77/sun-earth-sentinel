@@ -837,10 +837,15 @@ function ObservatoryApp() {
               <CrossFeedChips />
             </div>
           )}
-          {isMobile && tab !== "live" && (
-            <div className="mt-1 px-0.5">
-              <FeedHealthStrip compact />
-            </div>
+          {isMobile && (
+            <details className="ww-feed-details mt-0.5">
+              <summary className="cursor-pointer select-none px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
+                Feed ages
+              </summary>
+              <div className="mt-0.5 px-0.5 pb-0.5">
+                <FeedHealthStrip compact />
+              </div>
+            </details>
           )}
         </div>
       )}

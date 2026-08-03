@@ -4,11 +4,11 @@ import { buildTodayBrief } from "@/lib/ops/todayBrief";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { ChevronDown, ChevronUp, Sun } from "lucide-react";
 
-const BRIEF_OPEN_KEY = "wolfwatch_today_brief_open_v2";
+const BRIEF_OPEN_KEY = "wolfwatch_today_brief_open_v3";
 
 /**
- * Collapsible “Today” space-weather chip — lives in page chrome (not over map).
- * Always available; user can hide body but chip stays.
+ * Collapsible space-weather chip in page chrome.
+ * Mobile: always starts collapsed; expanded body is one short block.
  */
 export function TodayBriefBar({
   dense = false,
@@ -23,20 +23,28 @@ export function TodayBriefBar({
   const kp = useObservatory((s) => s.kp);
   const solar = useObservatory((s) => s.solarAssessment);
   const lastUpdate = useObservatory((s) => s.lastUpdate);
+  const tab = useObservatory((s) => s.tab);
   const setTab = useObservatory((s) => s.setTab);
   const mobile = useIsMobile();
-  // Default collapsed on all viewports — less chrome; expand for detail
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // Mobile never auto-expands (screen real estate)
+    if (mobile) {
+      setOpen(false);
+      return;
+    }
     try {
-      const v = localStorage.getItem(BRIEF_OPEN_KEY);
-      if (v === "1") setOpen(true);
-      if (v === "0") setOpen(false);
+      if (localStorage.getItem(BRIEF_OPEN_KEY) === "1") setOpen(true);
     } catch {
       /* */
     }
-  }, []);
+  }, [mobile]);
+
+  // Collapse when switching tabs on phone
+  useEffect(() => {
+    if (mobile) setOpen(false);
+  }, [tab, mobile]);
 
   const brief = useMemo(
     () =>
@@ -68,16 +76,18 @@ export function TodayBriefBar({
   const toggle = () => {
     setOpen((v) => {
       const next = !v;
-      try {
-        localStorage.setItem(BRIEF_OPEN_KEY, next ? "1" : "0");
-      } catch {
-        /* */
+      if (!mobile) {
+        try {
+          localStorage.setItem(BRIEF_OPEN_KEY, next ? "1" : "0");
+        } catch {
+          /* */
+        }
       }
       return next;
     });
   };
 
-  // Collapsed: one compact always-visible row (not dismissible)
+  // Collapsed chip — always on screen, one line
   if (!open) {
     return (
       <button
@@ -87,7 +97,7 @@ export function TodayBriefBar({
           dense || mobile ? "text-[0.6rem]" : "text-[0.65rem]"
         }`}
         aria-expanded={false}
-        aria-label="Show today brief"
+        aria-label="Show space weather brief"
         title={brief.headline}
       >
         <Sun className="h-3 w-3 shrink-0 opacity-90" />
@@ -103,9 +113,54 @@ export function TodayBriefBar({
     );
   }
 
+  // Expanded — mobile keeps it short (no multi-paragraph dump)
+  if (mobile) {
+    return (
+      <div
+        className={`rounded-md border px-2 py-1.5 text-[0.6rem] ${tone}`}
+        role="status"
+        aria-label="Space weather brief"
+      >
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            className="inline-flex min-w-0 flex-1 items-center gap-1 text-left font-semibold uppercase tracking-wide"
+            onClick={toggle}
+            aria-expanded
+            aria-label="Hide space weather brief"
+          >
+            <Sun className="h-3 w-3 shrink-0" />
+            <span className="shrink-0">SW</span>
+            <span className="min-w-0 flex-1 truncate font-medium normal-case tracking-normal text-fg">
+              {brief.scales}
+              {brief.cmeEta ? ` · CME ${brief.cmeEta.slice(5, 16)}` : ""}
+            </span>
+            <ChevronUp className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          </button>
+        </div>
+        {showRecLink && topRec && (
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-fg/90">
+              <strong className="font-semibold">{topRec.title}</strong>
+            </span>
+            {topRec.tab && (
+              <button
+                type="button"
+                className="ww-btn min-h-7 shrink-0 px-2 text-[0.55rem]"
+                onClick={() => setTab(topRec.tab!)}
+              >
+                Go
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`rounded-md border px-2 py-1.5 ${tone} ${dense || mobile ? "text-[0.62rem]" : "text-[0.7rem]"}`}
+      className={`rounded-md border px-2 py-1.5 ${tone} ${dense ? "text-[0.62rem]" : "text-[0.7rem]"}`}
       role="status"
       aria-label="Today brief"
     >
