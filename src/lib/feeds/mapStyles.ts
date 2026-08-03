@@ -180,15 +180,15 @@ export const OVERLAY_META: {
   },
   {
     id: "volcanoes",
-    label: "USGS elevated volcanoes",
-    short: "USGS Volc",
-    hint: "USGS elevated",
+    label: "Elevated volcanoes (world)",
+    short: "Volc",
+    hint: "USGS + GVP weekly/recent + INGV · capped",
   },
   {
     id: "globalVolcanoes",
-    label: "Global volcanoes (GVP)",
-    short: "GVP World",
-    hint: "GVP vents",
+    label: "GVP Holocene catalog",
+    short: "GVP+",
+    hint: "Dense catalog ≥2010 · opt-in only",
   },
   {
     id: "corridors",

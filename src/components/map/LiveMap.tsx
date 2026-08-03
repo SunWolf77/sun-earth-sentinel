@@ -941,7 +941,7 @@ export function LiveMap() {
       volcLayer.current.addLayer(marker);
     }
 
-    // USGS HANS elevated volcanoes (alert level / aviation color)
+    // World elevated: USGS HANS + GVP weekly/recent + INGV (deduped, capped)
     for (const v of usgsVolcAlerts) {
       if (v.lat == null || v.lon == null) continue;
       if (focus) {

@@ -171,7 +171,10 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
   const gvpCount = useObservatory((s) => s.gvpVolcanoes.length);
   const gvpLoading = useObservatory((s) => s.gvpVolcanoesLoading);
   const memoryPins = pins.filter((k) => !alerts.some((a) => alertKey(a) === k));
-  const focusedElevated = focusNodeId?.startsWith("usgs-volc-") || focusNodeId?.startsWith("gvp-");
+  const focusedElevated =
+    focusNodeId?.startsWith("usgs-volc-") ||
+    focusNodeId?.startsWith("gvp-") ||
+    focusNodeId?.includes("volc");
 
   if (!alerts.length && !pins.length && !loading) {
     if (compact) {
@@ -179,7 +182,7 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
         <div className="rounded-lg border border-border/80 bg-panel/60 px-2.5 py-2 text-[0.68rem] text-dim">
           <div className="flex flex-wrap items-center justify-between gap-1">
             <span className="inline-flex items-center gap-1 font-semibold text-muted">
-              <Mountain className="h-3.5 w-3.5" /> USGS elevated · none
+              <Mountain className="h-3.5 w-3.5" /> World elevated · none
             </span>
             <button
               type="button"
@@ -190,7 +193,7 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
               }`}
               onClick={() => setOverlay("globalVolcanoes", !globalOn)}
             >
-              {gvpLoading ? "GVP…" : globalOn ? `GVP world · ${gvpCount || "…"}` : "Opt-in GVP world"}
+              {gvpLoading ? "GVP…" : globalOn ? `GVP catalog · ${gvpCount || "…"}` : "Opt-in GVP catalog"}
             </button>
           </div>
         </div>
@@ -202,8 +205,9 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
           <Mountain className="h-3.5 w-3.5" /> Official volcano alerts
         </span>
         <p className="mt-0.5">
-          All baseline (NORMAL / GREEN). Enable <strong className="text-fg">GVP world</strong> in
-          layers for global Holocene vents (Smithsonian).
+          No elevated / weekly-report vents right now. Turn on{" "}
+          <strong className="text-fg">Volc</strong> after refresh, or opt-in{" "}
+          <strong className="text-fg">GVP catalog</strong> for dense Holocene vents.
         </p>
       </div>
     );
@@ -220,7 +224,7 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
       <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
         <span className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-orange-300">
           <Mountain className="h-3.5 w-3.5" />
-          USGS elevated ({alerts.length})
+          Elevated world ({alerts.length})
           {pins.length > 0 && (
             <span className="font-normal text-dim">· {pins.length} pinned</span>
           )}
@@ -248,9 +252,9 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
                 : "border-border text-muted hover:text-fg"
             }`}
             onClick={() => setOverlay("globalVolcanoes", !globalOn)}
-            title="Opt-in Smithsonian GVP Holocene (eruption ≥ 2010)"
+            title="Dense GVP Holocene catalog (opt-in · not the lean activity layer)"
           >
-            {gvpLoading ? "GVP…" : globalOn ? `GVP · ${gvpCount || "…"}` : "GVP world"}
+            {gvpLoading ? "GVP…" : globalOn ? `GVP · ${gvpCount || "…"}` : "GVP catalog"}
           </button>
           <a
             href="https://www.usgs.gov/programs/VHP"

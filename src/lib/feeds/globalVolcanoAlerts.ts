@@ -9,8 +9,9 @@ import {
 } from "@/lib/feeds/usgsVolcanoAlerts";
 import { fetchIngvItalyElevated } from "@/lib/feeds/ingvVolcanoAlerts";
 import { VOLCANO_WATCHES } from "@/lib/feeds/volcanoWatches";
+import { fetchGvpInternationalAlerts } from "@/lib/feeds/gvpActivity";
 
-export type VolcAlertSource = "usgs" | "ingv" | "kvert" | "official" | string;
+export type VolcAlertSource = "usgs" | "ingv" | "kvert" | "gvp" | "official" | string;
 
 /** Extended fields on alerts (optional on USGS raw). */
 export type GlobalVolcAlert = UsgsVolcanoAlert & {
@@ -38,16 +39,18 @@ function rankColor(c: string): number {
 }
 
 function rankSource(s?: string): number {
-  // Local authority preferred when co-located
+  // Local / national authority preferred over global summaries
   switch (s) {
     case "ingv":
-      return 4;
+      return 5;
     case "kvert":
+      return 4;
+    case "usgs":
       return 3;
     case "official":
       return 2;
-    case "usgs":
-      return 1;
+    case "gvp":
+      return 1; // weekly / VOTW fill — yield to USGS/INGV on same vent
     default:
       return 0;
   }
@@ -153,17 +156,20 @@ export function dedupeVolcanoAlerts(alerts: GlobalVolcAlert[]): GlobalVolcAlert[
 
 /** Fetch all sources in parallel and merge (no overlapping pins). */
 export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
-  const [usgs, ingv, curated] = await Promise.all([
+  const [usgs, ingv, gvp, curated] = await Promise.all([
     fetchUsgsElevatedVolcanoes().catch(() => [] as UsgsVolcanoAlert[]),
     fetchIngvItalyElevated().catch(() => [] as UsgsVolcanoAlert[]),
+    fetchGvpInternationalAlerts().catch(() => [] as UsgsVolcanoAlert[]),
     Promise.resolve(curatedElevated()),
   ]);
 
+  // Prefer local agencies over GVP when same vent; hard cap keeps mobile light
   const merged = dedupeVolcanoAlerts([
     ...tagUsgs(usgs),
     ...tagUsgs(ingv),
     ...curated,
-  ]);
+    ...tagUsgs(gvp),
+  ]).slice(0, 100);
 
   return merged;
 }
@@ -178,6 +184,10 @@ export function alertSourceLabel(v: GlobalVolcAlert): string {
       return "KVERT";
     case "usgs":
       return `USGS HANS · ${v.obsAbbr || "USGS"}`;
+    case "gvp":
+      return v.obsName?.includes("Weekly")
+        ? "GVP · Weekly activity"
+        : v.obsName || "GVP · Recent eruption";
     case "official":
       return v.obsName || "Official";
     default:
