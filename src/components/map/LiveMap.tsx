@@ -40,6 +40,7 @@ import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
 import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
 import { formatUtc } from "@/lib/utils";
 import { fitWorldView, WORLD_MAP_INIT } from "@/lib/map/worldView";
+import { flyToEased, cancelFlyToEased, easeOutCubic } from "@/lib/map/flyToEased";
 import {
   agencyLinksForEvent,
   agencyLinksHtml,
@@ -443,12 +444,13 @@ export function LiveMap() {
   useEffect(() => {
     const map = mapObj.current;
     if (!map || !mapFlyTo || mapView !== "2d") return;
-    map.flyTo([mapFlyTo.lat, mapFlyTo.lon], mapFlyTo.zoom ?? 6, {
-      animate: true,
+    // Custom easeOutCubic flight (same curve as 3D globe aim)
+    flyToEased(map, [mapFlyTo.lat, mapFlyTo.lon], mapFlyTo.zoom ?? 6, {
       duration: 0.85,
-      easeLinearity: 0.25, // current preset — soft default Leaflet curve
+      ease: easeOutCubic,
     });
     clearMapFlyTo();
+    return () => cancelFlyToEased();
   }, [mapFlyTo, mapView, clearMapFlyTo]);
 
   // 3D → 2D or resize: re-frame world if not focused on a node
