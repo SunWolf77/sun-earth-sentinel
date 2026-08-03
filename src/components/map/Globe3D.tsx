@@ -2417,12 +2417,19 @@ function makeNodeLabelSprite(
   ctx.beginPath();
   ctx.arc(22, 36, 8, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#f8fafc";
-  ctx.font = "bold 18px system-ui,sans-serif";
   ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  // Heavy weight + dark stroke so chips read on bright Earth
+  ctx.font = "800 20px system-ui,Segoe UI,sans-serif";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(15,23,42,0.95)";
+  ctx.fillStyle = "#f8fafc";
+  ctx.strokeText(name, 38, 28);
   ctx.fillText(name, 38, 28);
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "600 12px system-ui,sans-serif";
+  ctx.font = "700 13px system-ui,Segoe UI,sans-serif";
+  ctx.lineWidth = 2.5;
+  ctx.fillStyle = "#cbd5e1";
+  ctx.strokeText(chip.toUpperCase(), 38, 50);
   ctx.fillText(chip.toUpperCase(), 38, 50);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -2461,12 +2468,15 @@ function makeCountSprite(
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  ctx.font = "bold 44px system-ui,sans-serif";
+  ctx.font = "900 48px system-ui,Segoe UI,sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "#f8fafc";
   const t = count > 99 ? "99+" : String(count);
-  ctx.fillText(t, 64, 64);
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(15,23,42,0.95)";
+  ctx.fillStyle = "#f8fafc";
+  ctx.strokeText(t, 64, 66);
+  ctx.fillText(t, 64, 66);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -2505,11 +2515,18 @@ function makeMagSprite(
     ctx.fill();
     ctx.stroke();
   }
-  ctx.font = "bold 32px system-ui,sans-serif";
+  ctx.font = "900 34px system-ui,Segoe UI,sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = color;
   const t = `M${mag.toFixed(1)}`;
+  // Dark halo then color fill — high contrast on blue ocean / clouds
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(15,23,42,0.95)";
+  ctx.strokeText(t, 64, 34);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  ctx.strokeText(t, 64, 34);
+  ctx.fillStyle = "#f8fafc";
   ctx.fillText(t, 64, 34);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
