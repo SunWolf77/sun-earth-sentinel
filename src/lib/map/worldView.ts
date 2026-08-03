@@ -25,6 +25,13 @@ export function fitWorldView(
     bottomPad?: number;
   },
 ): void {
+  try {
+    const el = map.getContainer?.();
+    if (!el || el.offsetWidth < 2 || el.offsetHeight < 2) return;
+    if (!map.getPane("mapPane")) return;
+  } catch {
+    return;
+  }
   const animate = opts?.animate ?? false;
   const bottom = opts?.bottomPad ?? 24;
   const top = 10;

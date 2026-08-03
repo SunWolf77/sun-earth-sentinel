@@ -193,6 +193,19 @@ function makeClusterIcon(count: number, maxMag: number, fill: string): L.DivIcon
 export function LiveMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapObj = useRef<L.Map | null>(null);
+  const mapAlive = () => {
+    const m = mapObj.current;
+    if (!m) return null;
+    try {
+      // display:none while 3D — skip pane math that throws _leaflet_pos
+      const el = m.getContainer?.();
+      if (!el || el.offsetParent === null && el.style.display === "none") return null;
+      if (!m.getPane("mapPane")) return null;
+      return m;
+    } catch {
+      return null;
+    }
+  };
   const baseLayer = useRef<L.TileLayer | null>(null);
   /** SVG for interactive markers — full-map canvas steals clicks from EQ popups. */
   const vectorRenderer = useRef<L.SVG | null>(null);
@@ -415,9 +428,16 @@ export function LiveMap() {
   }, [basemapStyle, overlays.heatmap]);
 
   useEffect(() => {
-    if (mapView === "2d" && mapObj.current) {
-      setTimeout(() => mapObj.current?.invalidateSize(), 80);
-    }
+    if (mapView !== "2d" || !mapObj.current) return;
+    const id = window.setTimeout(() => {
+      try {
+        const m = mapObj.current;
+        if (m && m.getContainer().offsetWidth > 2) m.invalidateSize(false);
+      } catch {
+        /* ignore */
+      }
+    }, 80);
+    return () => window.clearTimeout(id);
   }, [mapView]);
 
   useEffect(() => {
@@ -449,8 +469,14 @@ export function LiveMap() {
   }, [overlays.plates]);
 
   useEffect(() => {
+    if (mapView !== "2d") return;
     const map = mapObj.current;
     if (!map) return;
+    try {
+      if (!map.getPane("mapPane") || map.getContainer().offsetWidth < 2) return;
+    } catch {
+      return;
+    }
     const node = getFocusNode(focusNodeId);
     if (!node) {
       if (focusNodeId === null) {
@@ -481,7 +507,7 @@ export function LiveMap() {
         { padding: [40, 40], maxZoom: 5, animate: true },
       );
     }
-  }, [focusNodeId]);
+  }, [focusNodeId, mapView]);
 
   useEffect(() => {
     const layer = mmiLayer.current;
@@ -1073,7 +1099,7 @@ export function LiveMap() {
     }
   };
 
-  useAmbientMapLayers(mapInstance);
+  useAmbientMapLayers(mapView === "2d" ? mapInstance : null);
 
   return (
     <div

@@ -498,6 +498,8 @@ export function Globe3D() {
         resumeSpin?: boolean;
         holdMs?: number;
       } | null = null;
+      /** Must be declared before applyCam (called during setup). */
+      let needsRender = true;
 
       function applyCam() {
         needsRender = true;
@@ -1715,7 +1717,6 @@ export function Globe3D() {
       };
       el.addEventListener("webglcontextlost", onContextLost, false);
       let lastFrameT = 0;
-      let needsRender = true;
       const minFrameMs = 1000 / Math.max(15, Q.maxFps);
       const animate = (now = performance.now()) => {
         if (!active) return;

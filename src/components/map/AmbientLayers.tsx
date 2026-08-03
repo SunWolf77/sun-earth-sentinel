@@ -22,6 +22,11 @@ export function useAmbientMapLayers(map: L.Map | null) {
 
   useEffect(() => {
     if (!map) return;
+    try {
+      if (!map.getPane("mapPane") || map.getContainer().offsetWidth < 2) return;
+    } catch {
+      return;
+    }
     if (!groupRef.current) {
       groupRef.current = L.layerGroup().addTo(map);
     }
@@ -50,6 +55,11 @@ export function useAmbientMapLayers(map: L.Map | null) {
   useEffect(() => {
     const g = groupRef.current;
     if (!map || !g) return;
+    try {
+      if (!map.getPane("mapPane") || map.getContainer().offsetWidth < 2) return;
+    } catch {
+      return;
+    }
     g.clearLayers();
 
     if (overlays.aurora && !auroraOfficial) {
