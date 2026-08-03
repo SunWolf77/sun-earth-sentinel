@@ -3,12 +3,19 @@
  *
  * IMPORTANT: Twitterbot does NOT run JS. SSR head tags must use the public
  * production origin. Bump ogImageVersion when branding or image changes.
+ * Bump APP_VERSION on each intentional production ship (Vercel).
  *
  * Public host: https://sun-earth-sentinel.vercel.app
  */
 
 /** Live production origin (no trailing slash). Canonical for share cards. */
 export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
+
+/**
+ * Public product version — bump on ship so About / cache-bust links show the release.
+ * 2026-08-03: multi-source volcano alerts, plain-first timing UX, lunar sky context.
+ */
+export const APP_VERSION = "1.10.0";
 
 function normalizeOrigin(raw: string): string {
   let s = (raw || "").trim();
@@ -45,12 +52,12 @@ export const SITE = {
   name: "Sun Earth Sentinel",
   shortName: "Sun Earth Sentinel",
   description:
-    "Free Sun Earth observatory: live earthquakes, plate boundaries, volcano watches, space weather and SUPT continuum. By SunWolf (@Sunwolf77).",
+    "Free Sun Earth observatory: live earthquakes, volcano watches, space weather, timing patterns, and sky context. By SunWolf (@Sunwolf77).",
   twitter: "@Sunwolf77",
   twitterCreator: "@Sunwolf77",
   ogImagePath: "/og.png",
   /** Bump when og.png or branding changes — forces X image CDN re-fetch */
-  ogImageVersion: "9",
+  ogImageVersion: "10",
   sharePath: "/share.html",
   themeColor: "#070b12",
   slug: "sun-earth-sentinel",
@@ -108,18 +115,16 @@ export function shareCardUrl(origin = getSiteOrigin()): string {
 export function xCardDebugReport(origin = getSiteOrigin()) {
   return {
     origin,
-    pageUrl: absoluteUrl("/", origin),
+    pageUrl: absoluteUrl(`/?v=${SITE.ogImageVersion}`, origin),
     shareUrl: shareCardUrl(origin),
     imageUrl: ogImageUrl(origin),
     card: "summary_large_image",
     notes: [
       "X caches cards per exact URL — old tweets keep old scrapes forever.",
-      "Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=9 to force re-scrape.",
+      `Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=${SITE.ogImageVersion} to force re-scrape.`,
       "SSR head tags use PRODUCTION_ORIGIN so Twitterbot sees the right host (no JS).",
       "og.png must be image/png on this host — not HTML.",
       "Always share https:// links.",
     ],
   };
 }
-
-

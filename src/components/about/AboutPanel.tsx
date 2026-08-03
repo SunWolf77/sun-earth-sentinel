@@ -17,7 +17,7 @@ import {
   listKnownPoles,
   tongaPacificDemo,
 } from "@/lib/tectonics/morvel";
-import { SITE, ogImageUrl, shareCardUrl, absoluteUrl, xCardDebugReport } from "@/lib/site";
+import { SITE, APP_VERSION, ogImageUrl, shareCardUrl, absoluteUrl, xCardDebugReport } from "@/lib/site";
 import { XHandle, XPerson, XProfileChips } from "@/components/ui/XProfileLink";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
 import { CacheAndSwpcDocs } from "@/components/about/CacheAndSwpcDocs";
@@ -46,6 +46,9 @@ export function AboutPanel() {
 
       <header>
         <h2 className="text-xl font-semibold text-gold">Sun-Earth Sentinel</h2>
+        <p className="mt-1 text-[0.65rem] font-mono text-dim">
+          Release v{APP_VERSION} · production ship
+        </p>
         <p className="mt-2">
           Free Sun-Earth observatory by{" "}
           <XPerson profile="sunwolf" /> — live seismic map, volcano watches, space weather, and
@@ -177,7 +180,7 @@ export function AboutPanel() {
           </a>
           <a
             href={`https://x.com/intent/tweet?text=${encodeURIComponent(
-              `${SITE.name}\n${absoluteUrl("/?v=5")}`,
+              `${SITE.name}\n${absoluteUrl(`/?v=${SITE.ogImageVersion}`)}`,
             )}`}
             target="_blank"
             rel="noopener noreferrer"
