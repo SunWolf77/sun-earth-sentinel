@@ -72,6 +72,8 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
     });
   }, [scales, kp, resonance, eq, minMag, maxMag, volcAlerts, iss, wildfires, neos]);
 
+  const chips = chipsRaw.filter((c) => c.id !== "iss" && c.id !== "aurora");
+
   const onChip = (id: string) => {
     if (id === "iss") {
       // ISS removed from product map
@@ -110,7 +112,7 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
         <Radio className="h-3 w-3 text-primary" />
         Feed
       </span>
-      {chips.filter((c) => c.id !== "iss" && c.id !== "aurora").map((c) => {
+      {chips.map((c) => {
         const short =
           c.id === "eq-strong" && c.label.match(/M[\d.]+/)
             ? c.label.replace("Strong quake ", "")
