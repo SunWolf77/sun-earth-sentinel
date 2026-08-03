@@ -94,6 +94,10 @@ import {
 } from "@/lib/seismology/shakemap";
 import { pointInBounds } from "@/lib/geo/bounds";
 import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
+import {
+  mergePublishedNodeFeeds,
+  mergePublishedNodeFeedsFromCache,
+} from "@/lib/feeds/nodeCatalogFeed";
 
 type AlertItem = { message?: string; issue_datetime?: string };
 
@@ -1310,6 +1314,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
                 : 30 * 86_400_000;
         eqFinal = mergeJmaIntoCollection(eqFinal, jma, { maxAgeMs: age });
       }
+      // Authority boards (CF / INGV): strip bbox USGS → inject catalogFeedUrl
+      // Never dual-read — see src/lib/feeds/nodeCatalogFeed.ts
+      try {
+        const merged = await mergePublishedNodeFeeds(eqFinal, {
+          timeWindow,
+          force,
+        });
+        eqFinal = merged.collection;
+      } catch {
+        /* keep USGS path if board feed path throws */
+      }
       // Hard clip: GEOFON week / pulse / stale cache cannot outrun the time control
       eqFinal = clipCollectionToWindow(eqFinal, timeWindow) ?? eqFinal;
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
@@ -1524,6 +1539,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         const g = getCache<EqCollection>("geofon", 600_000);
         if (g) eqFinal = mergeEqCollections(eqFinal, g);
       }
+      // Re-apply authority feeds from cache (no network on pulse tick)
+      eqFinal = mergePublishedNodeFeedsFromCache(eqFinal, get().timeWindow);
       eqFinal = clipCollectionToWindow(eqFinal, get().timeWindow) ?? eqFinal;
       const cfg = MODES[get().mode];
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
