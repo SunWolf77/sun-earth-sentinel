@@ -1,11 +1,11 @@
 /**
- * SWPC OVATION N/S stills — shown when aurora layer is on + official map mode.
- * Not georeferenced polar plates (would misalign on equirectangular map);
- * compact chrome card instead of Kp oval.
+ * SWPC OVATION N/S stills — compact on mobile (chip → expand).
  */
 
+import { useState } from "react";
 import { useObservatory } from "@/store/observatory";
 import { ExternalLink, Sparkles } from "lucide-react";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 const SWPC_AURORA =
   "https://www.swpc.noaa.gov/products/aurora-30-minute-forecast";
@@ -16,6 +16,8 @@ export function AuroraOfficialPanel({ className = "" }: { className?: string }) 
   const bundle = useObservatory((s) => s.ovationBundle);
   const setAuroraOfficial = useObservatory((s) => s.setAuroraOfficial);
   const setOverlay = useObservatory((s) => s.setOverlay);
+  const mobile = useIsMobile();
+  const [open, setOpen] = useState(false);
 
   if (!overlays.aurora) return null;
 
@@ -23,9 +25,24 @@ export function AuroraOfficialPanel({ className = "" }: { className?: string }) 
   const south = bundle?.south;
   const stamp = north?.time_tag || south?.time_tag;
 
+  // Mobile collapsed: one chip
+  if (mobile && !open) {
+    return (
+      <button
+        type="button"
+        className={`pointer-events-auto inline-flex max-w-[11rem] items-center gap-1 rounded-full border border-emerald-500/35 bg-bg/92 px-2 py-1 text-[0.55rem] font-semibold text-emerald-300 shadow backdrop-blur ${className}`}
+        onClick={() => setOpen(true)}
+        title="Aurora layer options"
+      >
+        <Sparkles className="h-3 w-3" />
+        Aurora · {official ? "Official" : "Kp"}
+      </button>
+    );
+  }
+
   return (
     <div
-      className={`pointer-events-auto max-w-[min(96vw,18rem)] rounded-lg border border-emerald-500/30 bg-bg/92 p-1.5 shadow-lg backdrop-blur ${className}`}
+      className={`pointer-events-auto max-w-[min(92vw,16rem)] rounded-lg border border-emerald-500/30 bg-bg/92 p-1.5 shadow-lg backdrop-blur ${className}`}
     >
       <div className="mb-1 flex flex-wrap items-center gap-1 px-0.5">
         <Sparkles className="h-3 w-3 text-emerald-400" />
@@ -41,9 +58,8 @@ export function AuroraOfficialPanel({ className = "" }: { className?: string }) 
                 : "text-dim hover:text-fg"
             }`}
             onClick={() => setAuroraOfficial(false)}
-            title="Kp approximate oval on map"
           >
-            Kp oval
+            Kp
           </button>
           <button
             type="button"
@@ -53,10 +69,19 @@ export function AuroraOfficialPanel({ className = "" }: { className?: string }) 
                 : "text-dim hover:text-fg"
             }`}
             onClick={() => setAuroraOfficial(true)}
-            title="SWPC OVATION stills (official)"
           >
             Official
           </button>
+          {mobile && (
+            <button
+              type="button"
+              className="rounded px-1 text-[0.55rem] text-dim hover:text-fg"
+              onClick={() => setOpen(false)}
+              aria-label="Collapse aurora panel"
+            >
+              −
+            </button>
+          )}
           <button
             type="button"
             className="rounded px-1 text-[0.55rem] text-dim hover:text-fg"
@@ -102,7 +127,7 @@ export function AuroraOfficialPanel({ className = "" }: { className?: string }) 
           </figure>
           <p className="col-span-2 flex items-center justify-between gap-1 px-0.5 text-[0.5rem] text-dim">
             <span>
-              SWPC OVATION
+              SWPC
               {stamp
                 ? ` · ${new Date(stamp).toISOString().slice(0, 16).replace("T", " ")}Z`
                 : ""}
@@ -113,14 +138,14 @@ export function AuroraOfficialPanel({ className = "" }: { className?: string }) 
               rel="noopener noreferrer"
               className="inline-flex items-center gap-0.5 text-primary hover:underline"
             >
-              SWPC
+              Open
               <ExternalLink className="h-2.5 w-2.5" />
             </a>
           </p>
         </div>
       ) : (
         <p className="px-0.5 text-[0.55rem] leading-snug text-dim">
-          Kp oval on map (approx). Switch to Official for SWPC N/S forecast stills.
+          Kp oval (approx). Official = SWPC N/S stills.
         </p>
       )}
     </div>

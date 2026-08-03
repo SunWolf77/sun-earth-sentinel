@@ -205,6 +205,7 @@ export function LiveMap() {
   const touchHandle = useRef<MapTouchHandle | null>(null);
 
   const [pressLabel, setPressLabel] = useState<string | null>(null);
+  const [zoomTick, setZoomTick] = useState(0);
   const isMobileMap = useIsMobile();
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [showGestureTip, setShowGestureTip] = useState(false);
@@ -241,6 +242,12 @@ export function LiveMap() {
     } catch {
       /* ignore */
     }
+  }, []);
+
+  useEffect(() => {
+    const onZ = () => setZoomTick((n) => n + 1);
+    window.addEventListener("ww-nodes-zoom", onZ);
+    return () => window.removeEventListener("ww-nodes-zoom", onZ);
   }, []);
 
   useEffect(() => {
@@ -337,6 +344,14 @@ export function LiveMap() {
     volcLayer.current = L.layerGroup().addTo(map);
     gvpLayer.current = L.layerGroup().addTo(map);
     mapObj.current = map;
+    map.on("zoomend", () => {
+      try {
+        if (useObservatory.getState().overlays.nodes) {
+          window.dispatchEvent(new CustomEvent("ww-nodes-zoom"));
+        }
+      } catch { /* */ }
+    });
+
     // Full world framing for current container (pad for mobile docks)
     const mobilePad = window.matchMedia("(max-width: 640px)").matches;
     requestAnimationFrame(() => {
@@ -722,21 +737,51 @@ export function LiveMap() {
 
       if (overlays.nodes) {
         const chip = nodeMarkChip(node);
-        const short = nodeShortName(node, 20);
-        // Named pin + caption so users always know what the mark is
+        const short = nodeShortName(node, 16);
+        const z = mapObj.current?.getZoom() ?? 2;
+        const showCaption =
+          isFocus ||
+          (isVolc &&
+            (node.aviationCode === "orange" ||
+              node.aviationCode === "red" ||
+              st === "watch")) ||
+          z >= 4;
+        const compact = !showCaption;
+        const innerCls = [
+          "ww-node-marker__inner",
+          compact ? "ww-node-marker__inner--dot" : "",
+          isFocus ? "ww-node-marker__inner--focus" : "",
+          isPublished ? "ww-node-marker__inner--ses" : "",
+          isVolc ? "ww-node-marker__inner--volc" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        const textHtml = compact
+          ? ""
+          : '<span class="ww-node-marker__text"><span class="ww-node-marker__name">' +
+            short +
+            '</span><span class="ww-node-marker__chip">' +
+            chip +
+            "</span></span>";
+        const nodeHtml =
+          '<div class="' +
+          innerCls +
+          '" style="--node-c:' +
+          color +
+          '"><span class="ww-node-marker__dot" style="background:' +
+          color +
+          ";border-color:" +
+          (sat ? "#fff" : color) +
+          '"></span>' +
+          textHtml +
+          "</div>";
         const label = L.marker([clat, clon], {
           icon: L.divIcon({
-            className: "ww-node-marker",
-            html: `<div class="ww-node-marker__inner${isFocus ? " ww-node-marker__inner--focus" : ""}${isPublished ? " ww-node-marker__inner--ses" : ""}${isVolc ? " ww-node-marker__inner--volc" : ""}" style="--node-c:${color}">
-              <span class="ww-node-marker__dot" style="background:${color};border-color:${sat ? "#fff" : color}"></span>
-              <span class="ww-node-marker__text">
-                <span class="ww-node-marker__name">${short}</span>
-                <span class="ww-node-marker__chip">${chip}</span>
-              </span>
-            </div>`,
-            iconSize: [128, 36],
-            iconAnchor: [14, 18],
-            popupAnchor: [40, -12],
+            className: compact ? "ww-node-marker ww-node-marker--dot" : "ww-node-marker",
+            html: nodeHtml,
+            iconSize: compact ? [18, 18] : [108, 32],
+            iconAnchor: compact ? [9, 9] : [12, 16],
+            popupAnchor: compact ? [0, -8] : [36, -10],
           }),
           keyboard: true,
           riseOnHover: true,

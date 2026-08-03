@@ -1635,3 +1635,44 @@
     display: none;
   }
 }
+
+/* Compact node dots (mobile world view) */
+.ww-node-marker--dot,
+.ww-node-marker__inner--dot {
+  width: 14px !important;
+  height: 14px !important;
+}
+.ww-node-marker__inner--dot {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.ww-node-marker__inner--dot .ww-node-marker__dot {
+  width: 11px;
+  height: 11px;
+  border-width: 2px;
+}
+.ww-node-marker__inner--dot .ww-node-marker__text {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  .ww-node-marker__name {
+    max-width: 5.5rem;
+    font-size: 0.58rem;
+  }
+  .ww-node-marker__chip {
+    font-size: 0.48rem;
+  }
+  /* Hide leaflet attribution text partially when crowded */
+  .leaflet-control-attribution {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.55rem !important;
+  }
+}

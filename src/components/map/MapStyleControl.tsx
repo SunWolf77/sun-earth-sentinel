@@ -129,6 +129,19 @@ export function MapStyleControl() {
       ref={panelRef}
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] flex flex-col items-stretch gap-1 p-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] sm:items-end sm:gap-2 sm:p-3 sm:pb-3"
     >
+      {mobile && onCount >= 7 && !open && (
+        <div className="pointer-events-auto mx-auto mb-1 flex max-w-[min(100%,20rem)] items-center gap-1.5 rounded-full border border-warn/40 bg-bg/95 px-2.5 py-1 text-[0.58rem] shadow-lg backdrop-blur">
+          <span className="font-semibold text-warn">{onCount} layers</span>
+          <span className="text-dim">busy map</span>
+          <button
+            type="button"
+            className="ww-minimal-chip rounded-full bg-primary/20 px-2 py-0.5 font-semibold text-primary"
+            onClick={applySimpleMap}
+          >
+            Minimal
+          </button>
+        </div>
+      )}
       {open && (
         <div
           id="map-style-layers"

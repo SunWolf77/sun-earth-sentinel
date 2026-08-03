@@ -93,8 +93,14 @@ export function createPlateLayer(map: L.Map): PlateLayerHandle {
     } as L.GeoJSONOptions);
     lineGroup.addLayer(geo);
 
-    const arrows = sampleMotionArrows(collection, { step: 5, minSpeed: 5 });
-    const maxArrows = 280;
+    const mobile =
+      typeof window !== "undefined" &&
+      !!window.matchMedia?.("(max-width: 767px)").matches;
+    const arrows = sampleMotionArrows(collection, {
+      step: mobile ? 8 : 5,
+      minSpeed: mobile ? 8 : 5,
+    });
+    const maxArrows = mobile ? 72 : 220;
     const step = Math.max(1, Math.ceil(arrows.length / maxArrows));
     for (let i = 0; i < arrows.length; i += step) {
       const a = arrows[i]!;
