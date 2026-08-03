@@ -42,7 +42,8 @@ export function MapLegend() {
       return;
     }
     if (!mobile) {
-      setOpen(true);
+      // Collapsed by default — less map chrome
+      setOpen(false);
       setSection(null);
       return;
     }
@@ -107,12 +108,12 @@ export function MapLegend() {
     }
   }
 
-  if (mobile && !open) {
+  if (!open) {
     return (
       <div className={`pointer-events-auto absolute left-2 z-[450] ${topClass}`}>
         <button
           type="button"
-          className="inline-flex min-h-9 max-w-[11rem] items-center gap-1.5 rounded-full border border-border bg-bg/92 px-2.5 py-1.5 text-[0.65rem] font-semibold text-muted shadow-md backdrop-blur hover:text-fg"
+          className="inline-flex min-h-8 max-w-[8rem] items-center gap-1 rounded-full border border-border bg-bg/90 px-2 py-1 text-[0.6rem] font-semibold text-muted shadow backdrop-blur hover:text-fg"
           onClick={toggle}
           aria-expanded={false}
           aria-label="Show map legend"
@@ -173,22 +174,20 @@ export function MapLegend() {
 
   return (
     <div
-      className={`ww-map-legend absolute left-2 z-[450] max-w-[11.5rem] space-y-1.5 sm:left-3 ${topClass} ${
+      className={`ww-map-legend absolute left-2 z-[450] max-w-[9.5rem] space-y-1.5 sm:left-3 ${topClass} ${
         mobile ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
-      {mobile && (
-        <button
-          type="button"
-          className="pointer-events-auto mb-0.5 inline-flex min-h-8 w-full items-center justify-between gap-1 rounded-lg border border-border bg-bg/95 px-2 py-1 text-[0.62rem] font-semibold uppercase tracking-wider text-dim shadow-md backdrop-blur"
-          onClick={toggle}
-          aria-expanded
-          aria-label="Hide map legend"
-        >
-          Map key
-          <ChevronUp className="h-3.5 w-3.5" aria-hidden />
-        </button>
-      )}
+      <button
+        type="button"
+        className="pointer-events-auto mb-0.5 inline-flex min-h-7 w-full items-center justify-between gap-1 rounded-md border border-border bg-bg/95 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim shadow backdrop-blur"
+        onClick={toggle}
+        aria-expanded
+        aria-label="Hide map legend"
+      >
+        Key
+        <ChevronUp className="h-3 w-3" aria-hidden />
+      </button>
 
       {showPlates && (
         <div className="rounded-lg border border-border bg-bg/92 px-2 py-1.5 shadow-md backdrop-blur">

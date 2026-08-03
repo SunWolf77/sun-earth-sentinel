@@ -31,6 +31,7 @@ import { NodeFocusPanel } from "@/components/nodes/NodeFocusPanel";
 import { FocusedNodeCard } from "@/components/nodes/FocusedNodeCard";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
+import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
@@ -829,6 +830,11 @@ function ObservatoryApp() {
           }`}
         >
           <TodayBriefBar dense />
+          {tab === "live" && (
+            <div className="border-b border-border/60 bg-bg/80 px-2 py-1 sm:px-3">
+              <CrossFeedChips />
+            </div>
+          )}
           {/* Desktop: feeds live under title. Mobile map: optional one-line strip, landscape-hidden via CSS */}
           {isMobile && tab !== "live" && (
             <div className="mt-1 px-0.5">

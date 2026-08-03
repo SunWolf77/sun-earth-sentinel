@@ -29,7 +29,6 @@ import { attachMapTouchGestures, type MapTouchHandle } from "@/lib/map/touchGest
 import { NodeFocusBanner } from "@/components/nodes/NodeFocusPanel";
 import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
-import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
@@ -1006,9 +1005,6 @@ export function LiveMap() {
     >
       <div ref={mapRef} className="ww-map h-full min-h-0 w-full" />
       <NodeFocusBanner />
-      <div className="pointer-events-none absolute left-2 top-14 z-[450] sm:top-16">
-        <CrossFeedChips />
-      </div>
       <MmiFocusBanner />
       {mapView === "2d" && (
         <>
@@ -1025,13 +1021,11 @@ export function LiveMap() {
       )}
 
       {showGestureTip && mapView === "2d" && (
-        <div className="absolute bottom-[4.6rem] left-1/2 z-[510] w-[min(92%,20rem)] -translate-x-1/2 rounded-xl border border-border bg-bg/95 p-3 text-xs text-muted shadow-xl backdrop-blur sm:bottom-20">
-          <div className="mb-1 font-semibold text-fg">Touch map</div>
-          <ul className="mb-2 space-y-0.5 text-[0.7rem] leading-snug text-dim">
-            <li>Drag to pan · pinch to zoom</li>
-            <li>Double-tap to zoom in</li>
-            <li>Long-press for coordinates</li>
-            <li>Swipe tabs left/right between views</li>
+        <div className="absolute bottom-[4.6rem] left-1/2 z-[510] w-[min(92%,16rem)] -translate-x-1/2 rounded-lg border border-border bg-bg/95 p-2 text-[0.65rem] text-muted shadow-xl backdrop-blur sm:bottom-20">
+          <div className="mb-0.5 font-semibold text-fg">Touch</div>
+          <ul className="mb-1.5 space-y-0.5 text-[0.62rem] leading-snug text-dim">
+            <li>Drag · pinch · double-tap zoom</li>
+            <li>Long-press coords</li>
           </ul>
           <button type="button" className="ww-btn w-full text-[0.7rem]" onClick={dismissTip}>
             Got it

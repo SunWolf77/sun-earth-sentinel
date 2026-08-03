@@ -12,7 +12,26 @@ const TONE: Record<string, string> = {
   alert: "border-danger/40 bg-danger/10 text-danger",
 };
 
-/** Rule-based multi-domain pulse (Map / Live). */
+/** Short labels for chrome (not map overlay). */
+const SHORT: Record<string, string> = {
+  "geo-storm": "G-storm",
+  "geo-watch": "G-watch",
+  radio: "R",
+  radiation: "S",
+  "eq-strong": "M6+",
+  "eq-busy": "Busy EQ",
+  timing: "Timing",
+  volc: "Volc",
+  lunar: "Moon",
+  iss: "ISS",
+  fire: "Fires",
+  neo: "NEO",
+  quiet: "Quiet",
+};
+
+/**
+ * Rule-based multi-domain pulse — lives in page chrome, never over the map/globe.
+ */
 export function CrossFeedChips({ className = "" }: { className?: string }) {
   const scales = useObservatory((s) => s.scales);
   const kp = useObservatory((s) => s.kp);
@@ -29,7 +48,6 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    // Warm NEO/ISS lightly for chips
     void useObservatory.getState().ensureAmbientLayers(true);
   }, []);
 
@@ -62,55 +80,65 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
       setOverlay("wildfires", true);
       setTab("live");
     } else if (id === "neo") setTab("solar");
-    else if (id === "timing") setTab("resonance");
+    else if (id === "timing" || id === "lunar") setTab("resonance");
     else if (id === "volc" || id === "eq-strong" || id === "eq-busy") setTab("live");
     else if (id.startsWith("geo") || id === "radio" || id === "radiation") setTab("solar");
-    else if (id === "lunar") setTab("resonance");
   };
 
   if (!open) {
     return (
       <button
         type="button"
-        className={`pointer-events-auto inline-flex items-center gap-1 rounded-full border border-border bg-bg/90 px-2 py-1 text-[0.6rem] font-medium text-muted shadow backdrop-blur ${className}`}
+        className={`inline-flex items-center gap-1 rounded-md border border-border bg-panel px-2 py-1 text-[0.6rem] font-medium text-muted hover:text-fg ${className}`}
         onClick={() => setOpen(true)}
+        title="Show cross-feed"
       >
         <Radio className="h-3 w-3 text-primary" />
-        Cross-feed
+        Feed
+        <span className="tabular-nums text-dim">{chips.length}</span>
       </button>
     );
   }
 
   return (
     <div
-      className={`pointer-events-auto max-w-[min(100vw-1rem,28rem)] rounded-lg border border-border/80 bg-bg/90 p-1.5 shadow-lg backdrop-blur ${className}`}
+      className={`flex min-w-0 flex-wrap items-center gap-1 ${className}`}
+      role="status"
+      aria-label="Cross-feed"
     >
-      <div className="mb-1 flex items-center justify-between gap-2 px-0.5">
-        <span className="inline-flex items-center gap-1 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
-          <Radio className="h-3 w-3 text-primary" />
-          Cross-feed
-        </span>
-        <button
-          type="button"
-          className="text-[0.58rem] text-dim hover:text-fg"
-          onClick={() => setOpen(false)}
-        >
-          Hide
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {chips.map((c) => (
+      <span className="inline-flex items-center gap-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-dim">
+        <Radio className="h-3 w-3 text-primary" />
+        Feed
+      </span>
+      {chips.map((c) => {
+        const short =
+          c.id === "eq-strong" && c.label.match(/M[\d.]+/)
+            ? c.label.replace("Strong quake ", "")
+            : c.id === "volc" && c.label.match(/\d+/)
+              ? c.label.replace(" volcano alerts", " volc").replace(" volcano alert", " volc")
+              : c.id === "fire" && c.label.match(/\d+/)
+                ? c.label.replace(" open wildfires", " fires")
+                : SHORT[c.id] || c.label;
+        return (
           <button
             key={c.id}
             type="button"
             title={c.detail}
             onClick={() => onChip(c.id)}
-            className={`rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] font-medium ${TONE[c.tone]}`}
+            className={`rounded border px-1.5 py-0.5 text-[0.6rem] font-medium leading-tight ${TONE[c.tone]}`}
           >
-            {c.label}
+            {short}
           </button>
-        ))}
-      </div>
+        );
+      })}
+      <button
+        type="button"
+        className="text-[0.55rem] text-dim hover:text-fg"
+        onClick={() => setOpen(false)}
+        aria-label="Hide cross-feed"
+      >
+        ×
+      </button>
     </div>
   );
 }

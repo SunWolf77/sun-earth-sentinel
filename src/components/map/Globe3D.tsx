@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildAuroraOval, latestKp } from "@/lib/feeds/auroraOval";
-import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { issTrailPoints } from "@/lib/feeds/iss";
 import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes, type PickedEvent } from "@/store/observatory";
 import { magColor, globeMagStyle, eqDepthKm, DRAGON_NODES } from "@/lib/feeds/usgs";
@@ -1291,17 +1290,17 @@ export function Globe3D() {
             <div class="ww-hover-tip__title">${meta.place}</div>
             <div class="ww-hover-tip__chip">${meta.chip || "Focus zone"}</div>
             <div class="ww-hover-tip__role">${meta.role || ""}</div>
-            <div class="ww-hover-tip__hint">Click · detail · switch anytime</div>`;
+            <div class="ww-hover-tip__hint">Tap</div>`;
         } else if (meta.kind === "cluster") {
           hoverTip.innerHTML = `<div class="ww-hover-tip__kind">CLUSTER</div>
             <div class="ww-hover-tip__title">${meta.count ?? "?"} nearby EQs</div>
             <div class="ww-hover-tip__chip">max M${meta.mag.toFixed(1)}</div>
-            <div class="ww-hover-tip__hint">Click · long spider pins</div>`;
+            <div class="ww-hover-tip__hint">Tap · expand</div>`;
         } else {
           hoverTip.innerHTML = `<div class="ww-hover-tip__kind">EARTHQUAKE</div>
             <div class="ww-hover-tip__title">M${meta.mag.toFixed(1)} · ${meta.place}</div>
             <div class="ww-hover-tip__role">${meta.depth.toFixed(0)} km · ${meta.lat.toFixed(2)}°, ${meta.lon.toFixed(2)}°</div>
-            <div class="ww-hover-tip__hint">Click · assessment · no close needed</div>`;
+            <div class="ww-hover-tip__hint">Tap</div>`;
         }
         hoverTip.style.display = "block";
         const pad = 12;
@@ -1742,9 +1741,9 @@ export function Globe3D() {
 
       const legend = document.createElement("div");
       legend.className =
-        "ww-globe-legend pointer-events-none absolute bottom-3 left-2 z-10 hidden max-w-[min(42vw,11rem)] rounded-md border border-border bg-surface/85 px-1.5 py-0.5 text-[0.55rem] text-muted backdrop-blur sm:left-3 sm:block sm:max-w-[min(70vw,16rem)] sm:px-2 sm:py-1 sm:text-[0.6rem]";
+        "ww-globe-legend pointer-events-none absolute bottom-2 left-2 z-10 hidden rounded border border-border/80 bg-surface/80 px-1.5 py-0.5 text-[0.5rem] text-muted backdrop-blur sm:block sm:text-[0.55rem]";
       legend.innerHTML =
-        '<span style="color:#ff8c00">📍</span> long EQ pin &nbsp; <span style="opacity:.85">n</span> cluster &nbsp; <span style="color:#fbbf24">●</span> SES &nbsp; <span style="color:#fb923c">●</span> volcano &nbsp; <span style="opacity:.7">hover · tap switch</span>';
+        '<span style="color:#ff8c00">●</span> EQ &nbsp; <span style="opacity:.85">n</span> cluster &nbsp; <span style="color:#fbbf24">●</span> node &nbsp; <span style="color:#fb923c">●</span> volc';
       container.appendChild(legend);
 
       cleanupRef.current = () => {
@@ -1913,9 +1912,6 @@ export function Globe3D() {
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border bg-[#0b1220] sm:min-h-[280px]">
       <div ref={containerRef} className="h-full min-h-0 w-full" />
-      <div className="pointer-events-none absolute bottom-14 left-2 z-20 sm:bottom-16">
-        <CrossFeedChips />
-      </div>
 
       <div className="pointer-events-auto absolute left-2 top-2 z-20 flex flex-col items-start gap-1">
         <button
