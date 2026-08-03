@@ -52,6 +52,7 @@ export function Globe3D() {
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
   const mapView = useObservatory((s) => s.mapView);
+  const mapImmersive = useObservatory((s) => s.mapImmersive);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const globeAutoSpin = useObservatory((s) => s.globeAutoSpin);
   const globeSpinEpoch = useObservatory((s) => s.globeSpinEpoch);
@@ -136,6 +137,15 @@ export function Globe3D() {
     overlaysRef.current = overlays;
   }, [overlays]);
 
+  // Fullscreen: recompute camera distance so Earth fits the taller viewport
+  useEffect(() => {
+    if (mapView !== "3d") return;
+    const id = window.setTimeout(() => {
+      recenterRef.current?.();
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [mapImmersive, mapView]);
+
   useEffect(() => {
     if (mapView !== "3d") return;
     ambientUpdateRef.current?.();
@@ -192,8 +202,9 @@ export function Globe3D() {
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0b1220);
-      // Slightly tighter FOV + closer default = taller pins read better
-      const camera = new THREE.PerspectiveCamera(40, w / h, 0.08, 100);
+      // Vertical FOV; home distance is aspect-aware (portrait needs more radius)
+      const V_FOV = 38;
+      const camera = new THREE.PerspectiveCamera(V_FOV, w / h, 0.08, 100);
 
       let renderer: InstanceType<typeof THREE.WebGLRenderer>;
       try {
@@ -419,11 +430,18 @@ export function Globe3D() {
       let focusRing: InstanceType<typeof THREE.Line> | null = null;
       let pickRing: InstanceType<typeof THREE.Mesh> | null = null;
 
-      // Default framing: globe ~40–50% of short edge (room around Earth).
-      // Mobile needs more distance — tall portrait otherwise looks oversized.
-      const HOME_RADIUS = Q.id === "mobile" ? 4.65 : 4.35;
-      const RADIUS_MIN = 2.55;
-      const RADIUS_MAX = 7.2;
+      // Fit unit Earth in BOTH axes (Three FOV is vertical — tall portrait needs more distance).
+      const RADIUS_MIN = 2.6;
+      const RADIUS_MAX = 9.5;
+      const FRAME_MARGIN = Q.id === "mobile" ? 1.42 : 1.3;
+      function homeRadiusFor(aspect: number, vFovDeg = V_FOV, margin = FRAME_MARGIN): number {
+        const v = (vFovDeg * Math.PI) / 180;
+        const hFov = 2 * Math.atan(Math.tan(v / 2) * Math.max(0.2, aspect));
+        const dV = margin / Math.tan(v / 2);
+        const dH = margin / Math.tan(hFov / 2);
+        return Math.min(RADIUS_MAX, Math.max(3.8, Math.max(dV, dH)));
+      }
+      let HOME_RADIUS = homeRadiusFor(w / Math.max(1, h));
       const FLY_TO_MIN_MS = 420;
       const FLY_TO_MAX_MS = 900;
       const FLY_TO_HOLD_MS = 450;
@@ -1731,6 +1749,14 @@ export function Globe3D() {
         camera.aspect = nw / nh;
         camera.updateProjectionMatrix();
         renderer.setSize(nw, nh);
+        // Fullscreen / shell chrome changes aspect — keep Earth fully on-screen
+        const nextHome = homeRadiusFor(nw / Math.max(1, nh));
+        const wasNearHome = Math.abs(spherical.radius - HOME_RADIUS) < 0.45;
+        HOME_RADIUS = nextHome;
+        if (wasNearHome || spherical.radius < nextHome * 0.92) {
+          spherical.radius = nextHome;
+          applyCam();
+        }
       };
       window.addEventListener("resize", onResize);
       const ro =
