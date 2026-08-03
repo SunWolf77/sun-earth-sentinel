@@ -1,6 +1,6 @@
 /**
  * Multi-source elevated volcano alerts — merge without overlapping pins.
- * Sources: USGS HANS · INGV/PC Italy · curated official watches (e.g. KVERT).
+ * Sources: USGS HANS · INGV · GVP world · Guatemala Phase A (GVP-cited) · curated.
  */
 
 import {
@@ -9,9 +9,17 @@ import {
 } from "@/lib/feeds/usgsVolcanoAlerts";
 import { fetchIngvItalyElevated } from "@/lib/feeds/ingvVolcanoAlerts";
 import { VOLCANO_WATCHES } from "@/lib/feeds/volcanoWatches";
-import { fetchGvpInternationalAlerts } from "@/lib/feeds/gvpActivity";
+import { fetchGvpWeeklyAndErupting } from "@/lib/feeds/gvpActivity";
+import { buildGuatemalaFromGvp } from "@/lib/feeds/guatemalaVolcanoes";
 
-export type VolcAlertSource = "usgs" | "ingv" | "kvert" | "gvp" | "official" | string;
+export type VolcAlertSource =
+  | "usgs"
+  | "ingv"
+  | "kvert"
+  | "gvp"
+  | "gvp-gt"
+  | "official"
+  | string;
 
 /** Extended fields on alerts (optional on USGS raw). */
 export type GlobalVolcAlert = UsgsVolcanoAlert & {
@@ -47,10 +55,12 @@ function rankSource(s?: string): number {
       return 4;
     case "usgs":
       return 3;
+    case "gvp-gt":
+      return 2; // Guatemala pack — above plain GVP, honest GVP-cited label
     case "official":
       return 2;
     case "gvp":
-      return 1; // weekly / VOTW fill — yield to USGS/INGV on same vent
+      return 1; // weekly / VOTW fill — yield to USGS/INGV/GT on same vent
     default:
       return 0;
   }
@@ -156,18 +166,28 @@ export function dedupeVolcanoAlerts(alerts: GlobalVolcAlert[]): GlobalVolcAlert[
 
 /** Fetch all sources in parallel and merge (no overlapping pins). */
 export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
-  const [usgs, ingv, gvp, curated] = await Promise.all([
+  const [usgs, ingv, gvpParts, curated] = await Promise.all([
     fetchUsgsElevatedVolcanoes().catch(() => [] as UsgsVolcanoAlert[]),
     fetchIngvItalyElevated().catch(() => [] as UsgsVolcanoAlert[]),
-    fetchGvpInternationalAlerts().catch(() => [] as UsgsVolcanoAlert[]),
+    fetchGvpWeeklyAndErupting().catch(() => ({
+      weekly: [] as UsgsVolcanoAlert[],
+      erupting: [] as UsgsVolcanoAlert[],
+    })),
     Promise.resolve(curatedElevated()),
   ]);
 
-  // Prefer local agencies over GVP when same vent; hard cap keeps mobile light
+  const weekly = gvpParts.weekly;
+  const erupting = gvpParts.erupting;
+  const gvp = [...weekly, ...erupting];
+  // Phase A: same GVP payloads → Guatemala focus tags (Fuego etc.), no extra network
+  const gt = buildGuatemalaFromGvp(weekly, erupting);
+
+  // GT before plain GVP so de-dupe keeps enriched metadata when ranks equal-ish
   const merged = dedupeVolcanoAlerts([
     ...tagUsgs(usgs),
     ...tagUsgs(ingv),
     ...curated,
+    ...tagUsgs(gt),
     ...tagUsgs(gvp),
   ]).slice(0, 100);
 
@@ -184,6 +204,8 @@ export function alertSourceLabel(v: GlobalVolcAlert): string {
       return "KVERT";
     case "usgs":
       return `USGS HANS · ${v.obsAbbr || "USGS"}`;
+    case "gvp-gt":
+      return v.obsName || "GVP · Guatemala (INSIVUMEH authority)";
     case "gvp":
       return v.obsName?.includes("Weekly")
         ? "GVP · Weekly activity"

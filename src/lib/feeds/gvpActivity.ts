@@ -204,14 +204,23 @@ export async function fetchGvpRecentlyEruptingAlerts(
   }
 }
 
-/** Parallel weekly + recently erupting; caller de-dupes with USGS/INGV. */
-export async function fetchGvpInternationalAlerts(
-  signal?: AbortSignal,
-): Promise<UsgsVolcanoAlert[]> {
+/** One network pair — shared by world GVP + Guatemala Phase A. */
+export async function fetchGvpWeeklyAndErupting(signal?: AbortSignal): Promise<{
+  weekly: UsgsVolcanoAlert[];
+  erupting: UsgsVolcanoAlert[];
+}> {
   const [weekly, erupting] = await Promise.all([
     fetchGvpWeeklyAlerts(signal),
     fetchGvpRecentlyEruptingAlerts(signal),
   ]);
+  return { weekly, erupting };
+}
+
+/** Parallel weekly + recently erupting; caller de-dupes with USGS/INGV. */
+export async function fetchGvpInternationalAlerts(
+  signal?: AbortSignal,
+): Promise<UsgsVolcanoAlert[]> {
+  const { weekly, erupting } = await fetchGvpWeeklyAndErupting(signal);
   // Weekly first so de-dupe keeps report links when same vent
   return [...weekly, ...erupting];
 }
