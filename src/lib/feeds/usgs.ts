@@ -458,13 +458,37 @@ export const DRAGON_NODES: DragonNode[] = [
   },
   {
     id: "japan",
-    name: "Japan–Kuril–Kamchatka",
-    role: "Transmitter Node · Tension–Oscillator",
+    name: "Japan Arc",
+    role: "Published focus · SES #3 · JMA + tsunami",
     kind: "seismic",
     bounds: [
-      [30, 130],
-      [55, 165],
+      [24, 122],
+      [46.5, 154],
     ],
+    center: [36.5, 138.0],
+    monitorUrl: "https://japan-kamchatka-monitor.vercel.app/",
+    publishedFocus: true,
+    watchPriority: true,
+    focusNote:
+      "SES node #3 — Japan archipelago (JMA Bosai authority). Tsunami watch first-class on the Japan board. Open full board for Kamchatka companion, volcano watch, SUPT continuum. Not a forecast.",
+    aliases: ["jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
+  },
+  {
+    id: "kamchatka",
+    name: "Kamchatka–Kurils",
+    role: "Published focus · SES #3 companion · USGS",
+    kind: "seismic",
+    bounds: [
+      [42, 145],
+      [62, 175],
+    ],
+    center: [53.0, 158.5],
+    monitorUrl: "https://japan-kamchatka-monitor.vercel.app/?node=kamchatka",
+    publishedFocus: true,
+    watchPriority: true,
+    focusNote:
+      "SES node #3 companion — Kamchatka / Kurils (USGS authority, KVERT volcano links). High tsunami source potential. Hosted on Japan–Kamchatka board. Not a forecast.",
+    aliases: ["km", "kuril", "kurils", "kvert", "okhotsk"],
   },
   {
     id: "cascadia",

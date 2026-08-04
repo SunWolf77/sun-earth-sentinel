@@ -64,6 +64,34 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     focusNote:
       "SES node #2 — Campi Flegrei caldera (Naples). Dense shallow swarm catalog is INGV-OV GOSSIP; USGS under-samples here. Open board for depth / SUPT continuum. Merge via catalogFeedUrl — never dual-read USGS. Not a forecast.",
   },
+  {
+    sesNodeId: "japan",
+    name: "Japan Arc",
+    networkOrder: 3,
+    shortCode: "JP",
+    role: "Published focus · SES #3 · JMA + tsunami",
+    monitorUrl: "https://japan-kamchatka-monitor.vercel.app/",
+    catalogFeedUrl:
+      "https://japan-kamchatka-monitor.vercel.app/api/ses/catalog?window=7d&node=japan",
+    authority: "JMA Bosai (→ USGS fill)",
+    aliases: ["japan", "jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
+    focusNote:
+      "SES node #3 — Japan archipelago + Nansei / Tokara. JMA Bosai is exclusive domestic authority (Mj + shindo); tsunami watch first-class. Open board for Kamchatka companion. Not a forecast.",
+  },
+  {
+    sesNodeId: "kamchatka",
+    name: "Kamchatka–Kurils",
+    networkOrder: 3,
+    shortCode: "KM",
+    role: "Published focus · SES #3 companion · USGS",
+    monitorUrl: "https://japan-kamchatka-monitor.vercel.app/?node=kamchatka",
+    catalogFeedUrl:
+      "https://japan-kamchatka-monitor.vercel.app/api/ses/catalog?window=7d&node=kamchatka",
+    authority: "USGS FDSN / realtime",
+    aliases: ["kamchatka", "km", "kuril", "kurils", "kvert", "okhotsk"],
+    focusNote:
+      "SES node #3 companion on Japan board — Kamchatka Peninsula / Kurils. USGS exclusive; KVERT for volcano status links. High tsunami source potential. Not a forecast.",
+  },
 ];
 
 const ALIAS_TO_SES = (() => {
