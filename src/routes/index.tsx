@@ -694,11 +694,6 @@ function ObservatoryApp() {
                 </>
               )}
             </p>
-            {!isMobile && (
-              <div className="mt-0.5 hidden sm:block">
-                <FeedHealthStrip compact />
-              </div>
-            )}
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
             <span className={isMobile && tab === "live" ? "hidden" : undefined}>
@@ -839,16 +834,10 @@ function ObservatoryApp() {
               <CrossFeedChips />
             </div>
           )}
-          {isMobile && tab !== "live" && (
-            <details className="ww-feed-details mt-0.5">
-              <summary className="cursor-pointer select-none px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
-                Feed ages
-              </summary>
-              <div className="mt-0.5 px-0.5 pb-0.5">
-                <FeedHealthStrip compact />
-              </div>
-            </details>
-          )}
+          {/* Per-source health: always available; compact on mobile (toggle expands chips) */}
+          <div className={`mt-0.5 min-w-0 ${isMobile && tab === "live" ? "px-0.5" : ""}`}>
+            <FeedHealthStrip compact />
+          </div>
         </div>
       )}
 

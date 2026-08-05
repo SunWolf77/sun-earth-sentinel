@@ -117,6 +117,8 @@ export type FeedTimestamps = {
   pulse: number | null;
   donki: number | null;
   gvp: number | null;
+  /** Last successful authority-board catalog merge (any node injected). */
+  boards: number | null;
 };
 
 export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
@@ -129,6 +131,34 @@ export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
   pulse: null,
   donki: null,
   gvp: null,
+  boards: null,
+};
+
+/** Per-source last error (cleared on success). */
+export type FeedSourceErrors = {
+  eq: string | null;
+  jma: string | null;
+  geofon: string | null;
+  solar: string | null;
+  volc: string | null;
+  boards: string | null;
+  pulse: string | null;
+  donki: string | null;
+  gvp: string | null;
+  pull: string | null;
+};
+
+export const EMPTY_FEED_ERRORS: FeedSourceErrors = {
+  eq: null,
+  jma: null,
+  geofon: null,
+  solar: null,
+  volc: null,
+  boards: null,
+  pulse: null,
+  donki: null,
+  gvp: null,
+  pull: null,
 };
 
 export type DijHistoryPoint = {
@@ -256,6 +286,8 @@ type ObservatoryState = {
 
   /** Per-domain last successful fetch (honest layer health). */
   feedTimestamps: FeedTimestamps;
+  /** Per-source last error message (null = clear). */
+  feedErrors: FeedSourceErrors;
 
   /** Event replay: only show quakes with time <= cursor (educational). */
   replayActive: boolean;
@@ -525,6 +557,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   globeSpinSpeed: 1,
   globeMarkerOpacity: 0.95,
   feedTimestamps: { ...EMPTY_FEED_TIMESTAMPS },
+  feedErrors: { ...EMPTY_FEED_ERRORS },
   replayActive: false,
   replayCursorMs: null,
   replayPlaying: false,
@@ -1113,8 +1146,15 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let geofon: EqCollection | null = null;
       let jma: EqCollection | null = null;
       const stamps: Partial<FeedTimestamps> = {};
+      const errs: Partial<FeedSourceErrors> = {};
       const stamp = (k: keyof FeedTimestamps) => {
         stamps[k] = Date.now();
+        if (k in EMPTY_FEED_ERRORS) {
+          (errs as Record<string, string | null>)[k as string] = null;
+        }
+      };
+      const fail = (k: keyof FeedSourceErrors, msg: string) => {
+        errs[k] = msg;
       };
 
       if (!eq) {
@@ -1125,7 +1165,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               setCache(eqCacheKey, d);
               stamp("eq");
             })
-            .catch(() => {}),
+            .catch((e) => {
+              fail("eq", e instanceof Error ? e.message : "USGS failed");
+            }),
         );
       } else if (!get().feedTimestamps.eq) {
         stamps.eq = Date.now();
@@ -1138,8 +1180,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             stamp("pulse");
             stamp("eq");
           })
-          .catch(() => {
+          .catch((e) => {
             pulse = getCache<EqCollection>("eq_pulse", 120_000);
+            if (!pulse) fail("pulse", e instanceof Error ? e.message : "Pulse failed");
           }),
       );
       if (useGeofon) {
@@ -1150,8 +1193,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               setCache("geofon", d);
               stamp("geofon");
             })
-            .catch(() => {
+            .catch((e) => {
               geofon = getCache<EqCollection>("geofon", 300_000);
+              if (!geofon) fail("geofon", e instanceof Error ? e.message : "GEOFON failed");
             }),
         );
       }
@@ -1163,8 +1207,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             setCache("jma", d);
             stamp("jma");
           })
-          .catch(() => {
+          .catch((e) => {
             jma = getCache<EqCollection>("jma", 300_000);
+            if (!jma) fail("jma", e instanceof Error ? e.message : "JMA failed");
           }),
       );
       // Solar stack via server proxy (CORS-safe) + DONKI
@@ -1202,8 +1247,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               if (d.kpForecast?.length) setCache("kp_fc", d.kpForecast);
               stamp("solar");
             })
-            .catch(() => {
-              /* keep cached */
+            .catch((e) => {
+              fail("solar", e instanceof Error ? e.message : "SWPC failed");
             }),
         );
       } else {
@@ -1322,8 +1367,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           force,
         });
         eqFinal = merged.collection;
-      } catch {
-        /* keep USGS path if board feed path throws */
+        const anyInjected = merged.meta.nodes.some((n) => n.injected > 0);
+        const anyAttempt = merged.meta.nodes.length > 0;
+        if (anyInjected) {
+          stamp("boards");
+        } else if (anyAttempt) {
+          // Boards configured but all empty/offline this cycle
+          const prev = get().feedTimestamps.boards;
+          if (!prev) fail("boards", "Node catalogs offline or empty");
+        }
+      } catch (e) {
+        fail("boards", e instanceof Error ? e.message : "Board merge failed");
       }
       // Hard clip: GEOFON week / pulse / stale cache cannot outrun the time control
       eqFinal = clipCollectionToWindow(eqFinal, timeWindow) ?? eqFinal;
@@ -1453,6 +1507,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         newestEventAgeMs,
         livePulseAt: pulse ? Date.now() : get().livePulseAt,
         feedTimestamps: { ...get().feedTimestamps, ...stamps },
+        feedErrors: { ...get().feedErrors, ...errs },
         error: null,
       });
 
@@ -1465,6 +1520,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       set({
         loading: false,
         error: e instanceof Error ? e.message : "Refresh failed",
+        feedErrors: {
+          ...get().feedErrors,
+          pull: e instanceof Error ? e.message : "Refresh failed",
+        },
       });
     } finally {
       // Never leave the shell stuck on "updated —" if a path forgot loading:false

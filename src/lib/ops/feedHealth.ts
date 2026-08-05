@@ -22,36 +22,84 @@ export function formatEventAgeMs(ageMs: number | null | undefined): string {
   return `${Math.round(h / 24)}d`;
 }
 
+export type FeedHealthStatus =
+  | "ok"
+  | "waiting"
+  | "loading"
+  | "stale"
+  | "error"
+  | "off";
+
 export type FeedHealth = {
   id: string;
   label: string;
-  status: "ok" | "waiting" | "loading" | "stale" | "error";
+  status: FeedHealthStatus;
   detail: string;
+  /** Optional longer tooltip */
+  hint?: string;
 };
 
+/** Per-source last success (ms). */
 export type FeedTimestampInput = {
   eq: number | null;
   solar: number | null;
   volc: number | null;
-  pulse: number | null;
   geofon?: number | null;
+  jma?: number | null;
   global?: number | null;
+  pulse?: number | null;
+  donki?: number | null;
+  gvp?: number | null;
+  boards?: number | null;
 };
+
+/** Last error message per source id (null = clear). */
+export type FeedSourceErrors = Partial<
+  Record<
+    | "eq"
+    | "jma"
+    | "geofon"
+    | "solar"
+    | "volc"
+    | "boards"
+    | "pulse"
+    | "donki"
+    | "gvp"
+    | "pull",
+    string | null
+  >
+>;
 
 function layerStatus(
   ts: number | null | undefined,
-  opts: { loading: boolean; hasData: boolean; error: string | null; now: number; staleMs?: number },
+  opts: {
+    loading: boolean;
+    hasData: boolean;
+    error: string | null | undefined;
+    now: number;
+    staleMs?: number;
+    off?: boolean;
+  },
 ): Pick<FeedHealth, "status" | "detail"> {
+  if (opts.off) return { status: "off", detail: "off" };
   const age = formatAgeMs(ts, opts.now);
   const staleMs = opts.staleMs ?? 15 * 60_000;
-  if (opts.loading && !opts.hasData) return { status: "loading", detail: "loading" };
-  if (opts.error && !opts.hasData && !ts) return { status: "error", detail: "error" };
-  if (!opts.hasData && !ts) return { status: "waiting", detail: "waiting" };
+  if (opts.loading && !opts.hasData && !ts) return { status: "loading", detail: "…" };
+  // Error only when we have no successful stamp / data — stale success stays ok/stale
+  if (opts.error && !opts.hasData && !ts) return { status: "error", detail: "err" };
+  if (opts.error && ts != null && opts.now - ts > staleMs) {
+    return { status: "error", detail: age };
+  }
+  if (!opts.hasData && !ts) return { status: "waiting", detail: "—" };
   if (ts != null && opts.now - ts > staleMs) return { status: "stale", detail: age };
   if (opts.hasData || ts) return { status: "ok", detail: age };
-  return { status: "waiting", detail: "waiting" };
+  return { status: "waiting", detail: "—" };
 }
 
+/**
+ * Per-source health chips for the chrome strip.
+ * Prefer true layer stamps + per-source errors over a single global "lastUpdate".
+ */
 export function buildFeedHealth(opts: {
   loading: boolean;
   lastUpdate: number | null;
@@ -59,56 +107,137 @@ export function buildFeedHealth(opts: {
   hasEq: boolean;
   hasScales: boolean;
   hasVolc: boolean;
+  hasJma?: boolean;
+  hasGeofon?: boolean;
+  hasBoards?: boolean;
+  useGeofon?: boolean;
   error: string | null;
-  /** Prefer true per-layer stamps when available. */
   feedTimestamps?: FeedTimestampInput | null;
+  feedErrors?: FeedSourceErrors | null;
   now?: number;
 }): FeedHealth[] {
   const now = opts.now ?? Date.now();
   const ft = opts.feedTimestamps;
-  const pullAge = formatAgeMs(opts.lastUpdate, now);
-  const pullStale =
-    opts.lastUpdate != null && now - opts.lastUpdate > 15 * 60_000;
+  const err = opts.feedErrors ?? {};
 
-  const eqTs = ft?.eq ?? opts.lastUpdate;
-  const solarTs = ft?.solar ?? opts.lastUpdate;
-  const volcTs = ft?.volc ?? opts.lastUpdate;
+  const eqTs = ft?.eq ?? null;
+  const jmaTs = ft?.jma ?? null;
+  const geoTs = ft?.geofon ?? null;
+  const solarTs = ft?.solar ?? null;
+  const volcTs = ft?.volc ?? null;
+  const boardsTs = ft?.boards ?? null;
   const pulseTs = ft?.pulse ?? opts.livePulseAt;
 
-  const eq = layerStatus(eqTs, {
+  const pullAge = formatAgeMs(opts.lastUpdate, now);
+  const pullStale = opts.lastUpdate != null && now - opts.lastUpdate > 15 * 60_000;
+
+  const usgs = layerStatus(eqTs, {
     loading: opts.loading,
     hasData: opts.hasEq,
-    error: opts.error,
+    error: err.eq ?? (opts.error && !eqTs ? opts.error : null),
     now,
+  });
+  const jma = layerStatus(jmaTs, {
+    loading: opts.loading,
+    hasData: !!opts.hasJma || !!jmaTs,
+    error: err.jma,
+    now,
+    staleMs: 20 * 60_000,
+  });
+  const geofon = layerStatus(geoTs, {
+    loading: opts.loading && !!opts.useGeofon,
+    hasData: !!opts.hasGeofon || !!geoTs,
+    error: err.geofon,
+    now,
+    off: !opts.useGeofon,
+    staleMs: 20 * 60_000,
   });
   const solar = layerStatus(solarTs, {
     loading: opts.loading,
     hasData: opts.hasScales,
-    error: opts.error,
+    error: err.solar,
     now,
+  });
+  const boards = layerStatus(boardsTs, {
+    loading: opts.loading,
+    hasData: !!opts.hasBoards || !!boardsTs,
+    error: err.boards,
+    now,
+    staleMs: 12 * 60_000,
   });
   const volc = layerStatus(volcTs, {
     loading: opts.loading,
     hasData: opts.hasVolc,
-    error: opts.error,
+    error: err.volc,
     now,
     staleMs: 30 * 60_000,
   });
   const pulse = layerStatus(pulseTs, {
     loading: false,
     hasData: !!pulseTs,
-    error: null,
+    error: err.pulse,
     now,
     staleMs: 5 * 60_000,
   });
 
   return [
     {
+      id: "usgs",
+      label: "USGS",
+      status: usgs.status,
+      detail: usgs.detail,
+      hint: "USGS ComCat earthquakes",
+    },
+    {
+      id: "jma",
+      label: "JMA",
+      status: jma.status,
+      detail: jma.detail,
+      hint: "Japan Meteorological Agency quakes",
+    },
+    {
+      id: "geofon",
+      label: "GEOFON",
+      status: geofon.status,
+      detail: geofon.detail,
+      hint: opts.useGeofon
+        ? "GFZ GEOFON (enabled)"
+        : "GFZ GEOFON (toggle off in filters)",
+    },
+    {
+      id: "swpc",
+      label: "SWPC",
+      status: solar.status,
+      detail: solar.detail,
+      hint: "NOAA SWPC solar / scales / wind",
+    },
+    {
+      id: "boards",
+      label: "Nodes",
+      status: boards.status,
+      detail: boards.detail,
+      hint: "Published boards: Tonga · Campi · Japan · Kamchatka",
+    },
+    {
+      id: "volc",
+      label: "Volc",
+      status: volc.status,
+      detail: volc.detail,
+      hint: "Elevated volcano alerts (USGS HANS + partners)",
+    },
+    {
+      id: "pulse",
+      label: "Pulse",
+      status: pulseTs ? pulse.status : "waiting",
+      detail: pulseTs ? pulse.detail : "idle",
+      hint: "Realtime USGS hour pulse",
+    },
+    {
       id: "pull",
       label: "Pull",
       status: opts.loading
         ? "loading"
-        : opts.error && !opts.lastUpdate
+        : err.pull || (opts.error && !opts.lastUpdate)
           ? "error"
           : opts.lastUpdate
             ? pullStale
@@ -116,34 +245,28 @@ export function buildFeedHealth(opts: {
               : "ok"
             : "waiting",
       detail: opts.loading
-        ? "loading"
-        : opts.error && !opts.lastUpdate
-          ? "error"
+        ? "…"
+        : err.pull || (opts.error && !opts.lastUpdate)
+          ? "err"
           : pullAge,
-    },
-    {
-      id: "eq",
-      label: "Quakes",
-      status: eq.status,
-      detail: eq.detail,
-    },
-    {
-      id: "solar",
-      label: "Solar",
-      status: solar.status,
-      detail: solar.detail,
-    },
-    {
-      id: "volc",
-      label: "Volc",
-      status: volc.status,
-      detail: volc.detail,
-    },
-    {
-      id: "pulse",
-      label: "Pulse",
-      status: pulseTs ? pulse.status : "waiting",
-      detail: pulseTs ? pulse.detail : "idle",
+      hint: "Last full catalog refresh",
     },
   ];
+}
+
+export function healthToneClass(status: FeedHealthStatus): string {
+  switch (status) {
+    case "ok":
+      return "border-ok/30 bg-ok/10 text-ok";
+    case "loading":
+      return "border-primary/30 bg-primary/10 text-primary";
+    case "stale":
+      return "border-warn/30 bg-warn/10 text-warn";
+    case "error":
+      return "border-danger/30 bg-danger/10 text-danger";
+    case "off":
+      return "border-border/50 bg-panel/50 text-dim opacity-70";
+    default:
+      return "border-border bg-panel text-dim";
+  }
 }
