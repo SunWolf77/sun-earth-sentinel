@@ -267,7 +267,8 @@ export function Globe3D() {
           (renderer as { toneMapping: number }).toneMapping = THREE_TM.ACESFilmicToneMapping;
         }
         if ("toneMappingExposure" in renderer) {
-          (renderer as { toneMappingExposure: number }).toneMappingExposure = 1.12;
+          // Lift midtones so land never reads as permanent night
+          (renderer as { toneMappingExposure: number }).toneMappingExposure = 1.45;
         }
       } catch {
         /* ignore */
@@ -296,29 +297,37 @@ export function Globe3D() {
         sub?: string,
       ) => css2d.tryAdd(text, color, world, kind, sub);
 
-      // Balanced lighting: keep night side readable, day side crisp (not muddy)
-      scene.add(new THREE.AmbientLight(0x8ba4c0, 0.42));
-      scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0b1a2e, 0.55));
-      const sun = new THREE.DirectionalLight(0xfff4e5, 1.85);
-      sun.position.set(5.2, 2.8, 3.2);
+      // Daylight map profile — land/ocean always readable (no perma-eclipse)
+      // High ambient + soft hemi so terminator never blacks out continents
+      scene.add(new THREE.AmbientLight(0xc8d8ea, 0.95));
+      scene.add(new THREE.HemisphereLight(0xf0f7ff, 0x3d5a78, 0.85));
+      const sun = new THREE.DirectionalLight(0xfff6e8, 1.15);
+      sun.position.set(4.5, 2.2, 3.5);
       scene.add(sun);
-      const fill = new THREE.DirectionalLight(0x6ec8ff, 0.55);
-      fill.position.set(-4.2, -0.6, -2.4);
+      const fill = new THREE.DirectionalLight(0xb8d4f0, 0.75);
+      fill.position.set(-3.5, 0.4, -2.0);
       scene.add(fill);
-      const rim = new THREE.DirectionalLight(0x93c5fd, 0.35);
-      rim.position.set(0.5, 3.5, -2.5);
+      const rim = new THREE.DirectionalLight(0xa5c8e8, 0.45);
+      rim.position.set(0.2, 3.2, -2.2);
       scene.add(rim);
+      // Extra bounce so southern continents stay lit at home angles
+      const bounce = new THREE.DirectionalLight(0xe8f0f8, 0.4);
+      bounce.position.set(-1.5, -2.8, 1.2);
+      scene.add(bounce);
 
       // Sketch continents until blue-marble loads (not the final look)
       const baseTex = makeProceduralEarth(THREE);
       const geo = new THREE.SphereGeometry(1, Q.sphereSeg, Q.sphereSeg);
+      // Soft Phong: low specular so land texture is the star, not the highlight
       const mat = new THREE.MeshPhongMaterial({
         map: baseTex,
         color: 0xffffff,
-        shininess: Q.id === "mobile" ? 22 : 32,
-        specular: 0x4a6278,
-        emissive: 0x061018,
-        emissiveIntensity: 0.22,
+        shininess: Q.id === "mobile" ? 8 : 12,
+        specular: 0x2a3544,
+        // Self-glow from the albedo so night limb still shows geography
+        emissive: 0xffffff,
+        emissiveMap: baseTex,
+        emissiveIntensity: 0.38,
       });
       const earth = new THREE.Mesh(geo, mat);
       scene.add(earth);
@@ -352,7 +361,10 @@ export function Globe3D() {
               tex.magFilter = THREE.LinearFilter;
               const old = mat.map;
               mat.map = tex;
-              mat.emissiveIntensity = 0.12;
+              mat.emissiveMap = tex;
+              mat.emissive = new THREE.Color(0xffffff);
+              // Keep land visible on the dark limb — not full unlit, just lifted
+              mat.emissiveIntensity = 0.42;
               mat.needsUpdate = true;
               if (old && old !== tex) {
                 try {
