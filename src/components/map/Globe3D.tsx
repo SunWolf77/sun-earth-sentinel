@@ -39,12 +39,10 @@ import {
 import type { DragonNode } from "@/lib/feeds/usgs";
 
 import {
-  clusterEqPointsByKm,
-  globeClusterRadiusKm,
   spiderfyOffsets,
   spiderPinLatLon,
-  type EqPoint,
 } from "@/lib/map/eqCluster";
+import { clusterEqForGlobePrototype } from "@/lib/map/superclusterIndex";
 import {
   makeMagSprite,
   makeCountSprite,
@@ -791,7 +789,8 @@ export function Globe3D() {
         const hexScale = hexRef.current;
         const opac = opacRef.current;
 
-        // Same mag floor as 2D — never show events outside the control-panel filters
+        // Mag floor + optional node focus, then Supercluster prototype:
+        // fair geographic sample → hierarchical zoom clusters (maxMag reduce)
         let list = features.filter((f) => {
           const m = f.properties.mag ?? 0;
           return m >= minMag && m <= maxMag;
@@ -802,22 +801,13 @@ export function Globe3D() {
             return pointInBounds(lat, lon, focus.bounds);
           });
         }
-        list = [...list].sort(
-          (a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0),
+        const clusters = clusterEqForGlobePrototype(
+          list,
+          spherical.radius,
+          Q.maxMarkers,
+          minMag,
+          maxMag,
         );
-        if (list.length > Q.maxMarkers) {
-          const strong = list.filter((f) => (f.properties.mag ?? 0) >= 5.5);
-          const rest = list.filter((f) => (f.properties.mag ?? 0) < 5.5);
-          const room = Math.max(0, Q.maxMarkers - strong.length);
-          list = [...strong, ...rest.slice(0, room)].slice(0, Q.maxMarkers);
-        }
-
-        const points: EqPoint[] = list.map((f) => {
-          const [lon, lat] = f.geometry.coordinates;
-          return { f, lat, lon, mag: f.properties.mag ?? 0 };
-        });
-        const radiusKm = globeClusterRadiusKm(spherical.radius);
-        const clusters = clusterEqPointsByKm(points, radiusKm);
         // Drop expanded keys that no longer exist
         const liveKeys = new Set(clusters.map((c) => c.key));
         for (const k of [...expandedGlobe]) {
