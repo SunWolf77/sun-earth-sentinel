@@ -1,22 +1,28 @@
 import type { Map as LeafletMap } from "leaflet";
 import L from "leaflet";
 
-/** Mercator-safe world (avoid ±90 pole singularity). Single copy only. */
+/**
+ * Pacific-centered activity belt.
+ * Latitude tightened so Antarctica no longer dominates the frame.
+ * Longitude kept full-range for safe noWrap + marker placement.
+ */
 export const WORLD_BOUNDS = L.latLngBounds(
-  L.latLng(-85, -180),
-  L.latLng(85, 180),
+  L.latLng(-55, -180),
+  L.latLng(70, 180),
 );
 
-/** Slightly padded maxBounds so drag doesn\'t bounce awkwardly at edges. */
+/** Slightly padded maxBounds so drag doesn't bounce awkwardly at edges. */
 export const WORLD_MAX_BOUNDS = L.latLngBounds(
-  L.latLng(-85.5, -180),
-  L.latLng(85.5, 180),
+  L.latLng(-58, -180),
+  L.latLng(73, 180),
 );
 
-export const WORLD_CENTER: [number, number] = [12, 5];
+/** Default center — western Pacific so Ring of Fire sits in the middle. */
+export const WORLD_CENTER: [number, number] = [8, 165];
 
 /**
- * Full world framing — one Earth in view (no side-by-side wrap copies).
+ * Frame the Pacific activity belt (one Earth, no side-by-side wrap copies).
+ * Antarctica is largely cropped; Alaska ↔ Kamchatka stay continuous.
  */
 export function fitWorldView(
   map: LeafletMap,
@@ -38,33 +44,33 @@ export function fitWorldView(
   const side = 14;
   try {
     map.setMaxBounds(WORLD_MAX_BOUNDS);
-    let floor = 1;
+    let floor = 1.4;
     try {
       const z = map.getBoundsZoom(WORLD_BOUNDS, false);
       if (Number.isFinite(z) && z > 0) {
-        // Stay just zoomed-in enough that only one world fits
-        floor = Math.min(2.5, Math.max(1, z - 0.15));
+        // Keep the belt comfortably framed (not fully zoomed-out)
+        floor = Math.min(2.8, Math.max(1.4, z - 0.1));
       }
     } catch {
-      floor = 1;
+      floor = 1.4;
     }
     map.setMinZoom(floor);
     map.fitBounds(WORLD_BOUNDS, {
       animate,
       paddingTopLeft: L.point(side, top),
       paddingBottomRight: L.point(side, bottom),
-      maxZoom: Math.max(floor + 0.5, 2.2),
+      maxZoom: Math.max(floor + 0.4, 2.4),
     });
   } catch {
-    map.setMinZoom(1);
-    map.setView(WORLD_CENTER, 1.5, { animate });
+    map.setMinZoom(1.4);
+    map.setView(WORLD_CENTER, 2, { animate });
   }
 }
 
 /** Default options when creating the map (before first fit). */
 export const WORLD_MAP_INIT = {
   center: WORLD_CENTER as [number, number],
-  zoom: 1.5,
-  minZoom: 1,
+  zoom: 2,
+  minZoom: 1.4,
   maxZoom: 18,
 } as const;
