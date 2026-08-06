@@ -1,12 +1,12 @@
 /**
- * Supercluster prototype for SES — hierarchical zoom clustering with max-mag reduce.
+ * Supercluster for SES — hierarchical zoom clustering with max-mag reduce.
  *
- * Use for:
- *  - 2D: bbox + Leaflet zoom → getClusters
- *  - 3D: camera radius → synthetic zoom → getClusters(world bbox)
- *  - Fair pre-sample: geographic grid quota before load (empty-continent fix)
- *
- * Converts Supercluster GeoJSON output into EqCluster used by Globe3D spiderfy/badges.
+ * Caching strategy:
+ *  - Catalog signature (count + id/mag/time fingerprint + sample caps)
+ *  - Index entry holds: fair-sampled points + built Supercluster
+ *  - Camera zoom only re-queries getClusters (cheap) — no rebuild on recluster
+ *  - Small LRU (3 entries) for focus-node / mag-filter switches
+ *  - Invalidate when fingerprint changes (new pulse / window / filters)
  */
 
 import Supercluster from "supercluster";
@@ -48,6 +48,171 @@ const DEFAULT_OPTS: Required<SuperclusterBuildOpts> = {
   minPoints: 2,
 };
 
+const GLOBE_BUILD_OPTS: Required<SuperclusterBuildOpts> = {
+  radius: 52,
+  maxZoom: 16,
+  minZoom: 0,
+  minPoints: 2,
+};
+
+// ─── Cache ───────────────────────────────────────────────────────────────────
+
+export type SuperclusterCacheStats = {
+  hits: number;
+  misses: number;
+  rebuilds: number;
+  queries: number;
+  entries: number;
+  lastSig: string | null;
+  lastBuildMs: number | null;
+};
+
+type IndexEntry = {
+  sig: string;
+  optsKey: string;
+  points: EqPoint[];
+  index: Supercluster<SesClusterProps, SesClusterProps>;
+  builtAt: number;
+  buildMs: number;
+  hits: number;
+};
+
+const MAX_ENTRIES = 3;
+const cacheOrder: string[] = [];
+const cacheMap = new Map<string, IndexEntry>();
+
+const stats: SuperclusterCacheStats = {
+  hits: 0,
+  misses: 0,
+  rebuilds: 0,
+  queries: 0,
+  entries: 0,
+  lastSig: null,
+  lastBuildMs: null,
+};
+
+function optsKey(opts: Required<SuperclusterBuildOpts>): string {
+  return `${opts.radius}|${opts.maxZoom}|${opts.minZoom}|${opts.minPoints}`;
+}
+
+/**
+ * Fast catalog fingerprint — not cryptographic.
+ * Mixes count, id samples, mag/time sums so pulses change the sig.
+ */
+export function catalogFingerprint(
+  points: EqPoint[],
+  maxMarkers: number,
+): string {
+  const n = points.length;
+  if (n === 0) return `0|${maxMarkers}`;
+  let magSum = 0;
+  let timeXor = 0;
+  let idHash = 0;
+  // Sample ends + stride through middle (O(1)–O(n/stride))
+  const stride = Math.max(1, Math.floor(n / 48));
+  for (let i = 0; i < n; i += stride) {
+    const p = points[i]!;
+    magSum += p.mag;
+    const t = p.f.properties.time ?? 0;
+    timeXor ^= t >>> 0;
+    const id = String(p.f.id ?? "");
+    for (let k = 0; k < id.length; k++) idHash = (idHash * 31 + id.charCodeAt(k)) | 0;
+  }
+  // Always include newest + strongest for pulse sensitivity
+  let newest = 0;
+  let maxMag = -Infinity;
+  for (const p of points) {
+    const t = p.f.properties.time ?? 0;
+    if (t > newest) newest = t;
+    if (p.mag > maxMag) maxMag = p.mag;
+  }
+  return [
+    n,
+    maxMarkers,
+    magSum.toFixed(2),
+    timeXor >>> 0,
+    idHash >>> 0,
+    newest,
+    maxMag.toFixed(2),
+  ].join("|");
+}
+
+function cacheKey(sig: string, oKey: string): string {
+  return `${sig}::${oKey}`;
+}
+
+function touch(key: string) {
+  const i = cacheOrder.indexOf(key);
+  if (i >= 0) cacheOrder.splice(i, 1);
+  cacheOrder.push(key);
+  while (cacheOrder.length > MAX_ENTRIES) {
+    const evict = cacheOrder.shift();
+    if (evict) cacheMap.delete(evict);
+  }
+  stats.entries = cacheMap.size;
+}
+
+/**
+ * Get or build Supercluster index for a point set.
+ * Rebuilds only when catalog fingerprint or build opts change.
+ */
+export function getOrBuildSesSupercluster(
+  points: EqPoint[],
+  opts: SuperclusterBuildOpts = {},
+  /** Precomputed fingerprint of the *pre-sample* set when available */
+  fingerprint?: string,
+): { index: Supercluster<SesClusterProps, SesClusterProps>; points: EqPoint[]; fromCache: boolean } {
+  const o = { ...DEFAULT_OPTS, ...opts };
+  const oKey = optsKey(o);
+  const sig = fingerprint ?? catalogFingerprint(points, points.length);
+  const key = cacheKey(sig, oKey);
+  const hit = cacheMap.get(key);
+  if (hit) {
+    stats.hits++;
+    hit.hits++;
+    touch(key);
+    stats.lastSig = sig;
+    return { index: hit.index, points: hit.points, fromCache: true };
+  }
+
+  stats.misses++;
+  stats.rebuilds++;
+  const t0 =
+    typeof performance !== "undefined" ? performance.now() : Date.now();
+  const index = buildSesSuperclusterUncached(points, o);
+  const buildMs =
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+  stats.lastBuildMs = buildMs;
+  stats.lastSig = sig;
+
+  const entry: IndexEntry = {
+    sig,
+    optsKey: oKey,
+    points,
+    index,
+    builtAt: Date.now(),
+    buildMs,
+    hits: 0,
+  };
+  cacheMap.set(key, entry);
+  touch(key);
+  return { index, points, fromCache: false };
+}
+
+export function getSuperclusterCacheStats(): SuperclusterCacheStats {
+  return { ...stats, entries: cacheMap.size };
+}
+
+export function clearSuperclusterCache(): void {
+  cacheMap.clear();
+  cacheOrder.length = 0;
+  stats.entries = 0;
+  stats.lastSig = null;
+  stats.lastBuildMs = null;
+}
+
+// ─── Build / query ───────────────────────────────────────────────────────────
+
 function toPointFeature(p: EqPoint, index: number): SesClusterFeature {
   const t = p.f.properties.time ?? 0;
   const id = String(p.f.id ?? `${p.lat},${p.lon},${t}`);
@@ -64,15 +229,10 @@ function toPointFeature(p: EqPoint, index: number): SesClusterFeature {
   };
 }
 
-/**
- * Build a Supercluster index from EQ points (already mag-filtered).
- * map/reduce keep maxMag + newest for badge coloring without scanning leaves.
- */
-export function buildSesSupercluster(
+function buildSesSuperclusterUncached(
   points: EqPoint[],
-  opts: SuperclusterBuildOpts = {},
+  o: Required<SuperclusterBuildOpts>,
 ): Supercluster<SesClusterProps, SesClusterProps> {
-  const o = { ...DEFAULT_OPTS, ...opts };
   const index = new Supercluster<SesClusterProps, SesClusterProps>({
     radius: o.radius,
     maxZoom: o.maxZoom,
@@ -88,7 +248,6 @@ export function buildSesSupercluster(
     reduce: (acc, props) => {
       acc.maxMag = Math.max(acc.maxMag ?? 0, props.maxMag ?? props.mag ?? 0);
       acc.newest = Math.max(acc.newest ?? 0, props.newest ?? 0);
-      // keep first index/id for singleton path; clusters use cluster_id
       if (acc.index == null) acc.index = props.index;
       if (!acc.id) acc.id = props.id;
     },
@@ -99,12 +258,21 @@ export function buildSesSupercluster(
 }
 
 /**
+ * Build a Supercluster index (uncached — prefer getOrBuildSesSupercluster).
+ */
+export function buildSesSupercluster(
+  points: EqPoint[],
+  opts: SuperclusterBuildOpts = {},
+): Supercluster<SesClusterProps, SesClusterProps> {
+  return getOrBuildSesSupercluster(points, opts).index;
+}
+
+/**
  * Map 3D camera radius → Supercluster zoom (inverse of “farther = bigger merge”).
  * cam ~1.5 (close) → z~12; cam ~2.85 (home) → z~5; cam ~5 (far) → z~2
  */
 export function cameraRadiusToClusterZoom(cameraRadius: number): number {
   const r = Math.max(1.2, Math.min(6, cameraRadius));
-  // Linear-ish map: closer camera → higher zoom (less clustering)
   const z = Math.round(18 - r * 4.2);
   return Math.max(0, Math.min(16, z));
 }
@@ -114,7 +282,6 @@ export const WORLD_BBOX: [number, number, number, number] = [-180, -85, 180, 85]
 
 /**
  * Convert Supercluster getClusters result → EqCluster[] for existing SES draw path.
- * Singletons (n=1) and multi-member clusters both supported; spiderfy uses points[].
  */
 export function superclusterToEqClusters(
   index: Supercluster<SesClusterProps, SesClusterProps>,
@@ -122,6 +289,7 @@ export function superclusterToEqClusters(
   bbox: [number, number, number, number],
   zoom: number,
 ): EqCluster[] {
+  stats.queries++;
   const z = Math.max(0, Math.min(16, Math.floor(zoom)));
   const raw = index.getClusters(bbox, z) as SesClusterFeature[];
   const out: EqCluster[] = [];
@@ -130,7 +298,6 @@ export function superclusterToEqClusters(
     const [lon, lat] = f.geometry.coordinates;
     const props = f.properties;
     if (props.cluster && props.cluster_id != null) {
-      // Pull leaves (cap for perf — spiderfy already limits usefulness past ~40)
       const leaves = index.getLeaves(props.cluster_id, 80, 0) as SesClusterFeature[];
       const members: EqPoint[] = [];
       for (const leaf of leaves) {
@@ -167,17 +334,18 @@ export function superclusterToEqClusters(
 }
 
 /**
- * One-shot 3D path: points + camera radius → EqCluster[] via Supercluster hierarchy.
+ * One-shot 3D path: points + camera radius → EqCluster[] (index cached by fingerprint).
  */
 export function clusterEqPointsSupercluster(
   points: EqPoint[],
   cameraRadius: number,
   opts?: SuperclusterBuildOpts,
+  fingerprint?: string,
 ): EqCluster[] {
   if (!points.length) return [];
-  const index = buildSesSupercluster(points, opts);
+  const { index, points: pts } = getOrBuildSesSupercluster(points, opts, fingerprint);
   const zoom = cameraRadiusToClusterZoom(cameraRadius);
-  return superclusterToEqClusters(index, points, WORLD_BBOX, zoom);
+  return superclusterToEqClusters(index, pts, WORLD_BBOX, zoom);
 }
 
 /**
@@ -210,7 +378,6 @@ export function fairSampleEqPoints(
   const picked: EqPoint[] = [];
   for (const arr of cells.values()) {
     arr.sort((a, b) => {
-      // Prefer strong, then recent
       const dm = b.mag - a.mag;
       if (Math.abs(dm) > 0.05) return dm;
       return (b.f.properties.time ?? 0) - (a.f.properties.time ?? 0);
@@ -218,7 +385,6 @@ export function fairSampleEqPoints(
     picked.push(...arr.slice(0, perCell));
   }
 
-  // Global fill: remaining strongest not yet picked
   if (picked.length < maxTotal) {
     const seen = new Set(picked.map((p) => p.f.id ?? `${p.lat},${p.lon}`));
     const rest = points
@@ -230,7 +396,6 @@ export function fairSampleEqPoints(
     }
   }
 
-  // If still over (dense cell count), trim by mag then time
   if (picked.length > maxTotal) {
     picked.sort((a, b) => {
       const dm = b.mag - a.mag;
@@ -243,8 +408,11 @@ export function fairSampleEqPoints(
 }
 
 /**
- * Full prototype pipeline for 3D:
- * fair sample → Supercluster → EqCluster[]
+ * Full 3D pipeline with caching:
+ * filter → fingerprint raw set → fair sample → getOrBuild index → query at zoom
+ *
+ * Camera recluster: same fingerprint → **cache hit**, only getClusters runs.
+ * New pulse / mag / window: fingerprint changes → rebuild once.
  */
 export function clusterEqForGlobePrototype(
   features: EqFeature[],
@@ -253,23 +421,66 @@ export function clusterEqForGlobePrototype(
   minMag: number,
   maxMag: number,
 ): EqCluster[] {
-  let points: EqPoint[] = [];
+  const raw: EqPoint[] = [];
   for (const f of features) {
     const mag = f.properties.mag ?? 0;
     if (mag < minMag || mag > maxMag) continue;
     const [lon, lat] = f.geometry.coordinates;
     if (lat == null || lon == null) continue;
-    points.push({ f, lat, lon, mag });
+    raw.push({ f, lat, lon, mag });
   }
-  // Fair geographic sample before hierarchical cluster
-  points = fairSampleEqPoints(points, maxMarkers);
-  return clusterEqPointsSupercluster(points, cameraRadius, {
-    radius: 52,
-    minPoints: 2,
+  if (!raw.length) return [];
+
+  // Fingerprint raw filtered catalog + caps (before sample) so sample is deterministic per catalog
+  const preSig = [
+    catalogFingerprint(raw, maxMarkers),
+    minMag,
+    maxMag,
+    maxMarkers,
+  ].join("#");
+
+  // Include fair-sample params in cache key via opts + preSig
+  // Sample is pure given raw+maxMarkers — cache stores post-sample points
+  const oKey = optsKey(GLOBE_BUILD_OPTS);
+  const key = cacheKey(preSig, oKey);
+  const hit = cacheMap.get(key);
+  if (hit) {
+    stats.hits++;
+    hit.hits++;
+    touch(key);
+    stats.lastSig = preSig;
+    const zoom = cameraRadiusToClusterZoom(cameraRadius);
+    return superclusterToEqClusters(hit.index, hit.points, WORLD_BBOX, zoom);
+  }
+
+  const sampled = fairSampleEqPoints(raw, maxMarkers);
+  // Build under preSig so next camera pass hits
+  stats.misses++;
+  stats.rebuilds++;
+  const t0 =
+    typeof performance !== "undefined" ? performance.now() : Date.now();
+  const index = buildSesSuperclusterUncached(sampled, GLOBE_BUILD_OPTS);
+  const buildMs =
+    (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+  stats.lastBuildMs = buildMs;
+  stats.lastSig = preSig;
+
+  cacheMap.set(key, {
+    sig: preSig,
+    optsKey: oKey,
+    points: sampled,
+    index,
+    builtAt: Date.now(),
+    buildMs,
+    hits: 0,
   });
+  touch(key);
+
+  const zoom = cameraRadiusToClusterZoom(cameraRadius);
+  return superclusterToEqClusters(index, sampled, WORLD_BBOX, zoom);
 }
 
-/** Debug snapshot of index stats at a zoom. */
+/** Debug snapshot of index stats at a zoom (uses cache when possible). */
 export function superclusterDebugSummary(
   points: EqPoint[],
   cameraRadius: number,
@@ -279,9 +490,10 @@ export function superclusterDebugSummary(
   nClusters: number;
   nSingles: number;
   maxCount: number;
+  cache: SuperclusterCacheStats;
   sample: Array<{ n: number; maxMag: number; lat: number; lon: number }>;
 } {
-  const index = buildSesSupercluster(points);
+  const { index } = getOrBuildSesSupercluster(points);
   const zoom = cameraRadiusToClusterZoom(cameraRadius);
   const raw = index.getClusters(WORLD_BBOX, zoom) as SesClusterFeature[];
   let nClusters = 0;
@@ -303,5 +515,13 @@ export function superclusterDebugSummary(
       });
     }
   }
-  return { nPoints: points.length, zoom, nClusters, nSingles, maxCount, sample };
+  return {
+    nPoints: points.length,
+    zoom,
+    nClusters,
+    nSingles,
+    maxCount,
+    cache: getSuperclusterCacheStats(),
+    sample,
+  };
 }

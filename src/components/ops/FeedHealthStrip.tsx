@@ -7,6 +7,7 @@ import {
   healthToneClass,
   type FeedHealthSnapshot,
 } from "@/lib/ops/feedHealth";
+import { getSuperclusterCacheStats } from "@/lib/map/superclusterIndex";
 
 type SesFeedsApi = {
   (): FeedHealthSnapshot;
@@ -118,10 +119,15 @@ export function FeedHealthStrip({
       fn.text = () => JSON.stringify(getSnapshot(), null, 2);
       return fn;
     })();
-    (window as unknown as { __SES_FEEDS?: SesFeedsApi }).__SES_FEEDS = api;
+    const w = window as unknown as {
+      __SES_FEEDS?: SesFeedsApi;
+      __SES_SC_CACHE?: typeof getSuperclusterCacheStats;
+    };
+    w.__SES_FEEDS = api;
+    w.__SES_SC_CACHE = getSuperclusterCacheStats;
     return () => {
-      const w = window as unknown as { __SES_FEEDS?: SesFeedsApi };
       if (w.__SES_FEEDS === api) delete w.__SES_FEEDS;
+      if (w.__SES_SC_CACHE === getSuperclusterCacheStats) delete w.__SES_SC_CACHE;
     };
   }, [getSnapshot, copySnapshot]);
 

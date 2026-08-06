@@ -99,3 +99,34 @@ console.log("--- Supercluster newest-only sample (old bias) ---");
 console.log(runSc(newestCap, 2.85));
 
 console.log("ok");
+
+// --- cache strategy self-check (inline mirror of getOrBuild semantics) ---
+const cache = new Map();
+let rebuilds = 0;
+let hits = 0;
+function getOrBuild(sig, points) {
+  if (cache.has(sig)) { hits++; return cache.get(sig); }
+  rebuilds++;
+  const index = new Supercluster({
+    radius: 52, maxZoom: 16, minPoints: 2,
+    map: (p) => ({ maxMag: p.mag }),
+    reduce: (a, p) => { a.maxMag = Math.max(a.maxMag, p.maxMag); },
+  });
+  index.load(points.map((p, i) => ({
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [p.lon, p.lat] },
+    properties: { mag: p.mag, maxMag: p.mag, index: i },
+  })));
+  cache.set(sig, index);
+  return index;
+}
+const sig = `fair-${fair.length}-${fair[0]?.id}`;
+getOrBuild(sig, fair);
+getOrBuild(sig, fair); // hit
+getOrBuild(sig, fair); // hit
+// zoom-only queries
+const idx = cache.get(sig);
+idx.getClusters([-180, -85, 180, 85], 6);
+idx.getClusters([-180, -85, 180, 85], 3);
+console.log("--- cache ---", { rebuilds, hits, expect: { rebuilds: 1, hits: 2 } });
+if (rebuilds !== 1 || hits !== 2) process.exitCode = 1;
