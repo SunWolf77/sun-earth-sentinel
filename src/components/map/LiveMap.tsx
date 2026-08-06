@@ -180,11 +180,12 @@ function makeEqPinIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
 }
 
 function makeClusterIcon(count: number, maxMag: number, fill: string): L.DivIcon {
-  const hot = maxMag >= 6 || count >= 8;
-  const size = hot ? 32 : 28;
+  // Compact stack badge — used only for near-coincident events, not regions
+  const hot = maxMag >= 6 || count >= 6;
+  const size = count >= 10 ? 30 : count >= 5 ? 26 : 22;
   return L.divIcon({
     className: "ww-eq-cluster",
-    html: `<div class="ww-eq-cluster__badge${hot ? " ww-eq-cluster__badge--hot" : ""}" style="background:${fill}" title="${count} events · max M${maxMag.toFixed(1)} — click to expand pins">${count}</div>`,
+    html: `<div class="ww-eq-cluster__badge${hot ? " ww-eq-cluster__badge--hot" : ""}" style="background:${fill}" title="${count} stacked events · max M${maxMag.toFixed(1)} — click to spiderfy pins">${count}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
@@ -327,23 +328,34 @@ export function LiveMap() {
     heatLayer.current.setActive(false);
     mmiLayer.current = createMmiContourLayer() as MmiContourLayer;
     mmiLayer.current.addTo(map);
+    // Pin-first EQ mapping: only merge near-coincident stacks (not continent bubbles).
+    // World view must still read as a seismic map — trench lines of individual pins.
     eqLayer.current = L.markerClusterGroup({
       showCoverageOnHover: false,
-      zoomToBoundsOnClick: true,
       spiderfyOnMaxZoom: true,
-      spiderfyDistanceMultiplier: 2.45,
-      /** Snappy spider legs — CSS transition below controls perceived speed */
+      spiderfyDistanceMultiplier: 2.6,
       spiderLegPolylineOptions: {
         weight: 1.5,
         color: "#94a3b8",
         opacity: 0.7,
       },
-      maxClusterRadius: 44,
-      disableClusteringAtZoom: 13,
-      animate: true,
+      // Pixel radius by zoom — tiny at world scale so M pins stay on the map
+      maxClusterRadius: (zoom: number) => {
+        if (zoom <= 2) return 10; // ~co-located only
+        if (zoom <= 3) return 14;
+        if (zoom <= 4) return 20;
+        if (zoom <= 5) return 26;
+        if (zoom <= 7) return 34;
+        return 40;
+      },
+      // From regional zoom upward: always individual pins
+      disableClusteringAtZoom: 6,
+      animate: false,
       animateAddingMarkers: false,
       chunkedLoading: true,
       removeOutsideVisibleBounds: true,
+      // Only spiderfy true stacks — don't zoom-to-bounds into empty ocean
+      zoomToBoundsOnClick: false,
       iconCreateFunction: (cluster) => {
         const children = cluster.getAllChildMarkers() as Array<
           L.Marker & { __eqMag?: number }
@@ -354,9 +366,21 @@ export function LiveMap() {
           if (mag > maxMag) maxMag = mag;
         }
         const n = cluster.getChildCount();
+        // Small stack chips only (true co-location) — not mega regional counts
         return makeClusterIcon(n, maxMag, magColor(maxMag));
       },
     }).addTo(map);
+    // Click stack chip → spiderfy pins in place (keep map framing)
+    eqLayer.current.on("clusterclick", (e: L.LeafletEvent) => {
+      const ev = e as L.LeafletEvent & {
+        layer?: { spiderfy?: () => void; getChildCount?: () => number };
+      };
+      try {
+        ev.layer?.spiderfy?.();
+      } catch {
+        /* ignore */
+      }
+    });
     eqContextLayer.current = L.layerGroup().addTo(map);
     nodeLayer.current = L.layerGroup().addTo(map);
     volcLayer.current = L.layerGroup().addTo(map);
