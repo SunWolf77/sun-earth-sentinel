@@ -66,3 +66,25 @@ export function boundsToLeafletRects(
     ],
   ];
 }
+
+/**
+ * Pacific-centered display longitude.
+ * Leaflet’s native range is −180…180, which pins the Kermadec / Aleutian
+ * swarm to the far western edge of a Pacific home view.
+ * Shift western-hemisphere longitudes into (0…360) so the Ring of Fire is
+ * continuous: Japan → Kamchatka → Aleutians → Kermadec without a seam.
+ */
+export function toPacificLon(lon: number): number {
+  if (!Number.isFinite(lon)) return lon;
+  // Already on the eastern side of the Pacific continuum
+  if (lon >= 0) return lon;
+  return lon + 360;
+}
+
+/** Inverse: store/query lon back in canonical −180…180. */
+export function fromPacificLon(lon: number): number {
+  if (!Number.isFinite(lon)) return lon;
+  if (lon > 180) return lon - 360;
+  if (lon < -180) return lon + 360;
+  return lon;
+}
