@@ -58,13 +58,6 @@ import {
   eqHoverTooltipHtml,
 } from "@/lib/nodes/exportNodesCsv";
 import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
-import "leaflet.markercluster";
-import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import {
-  EQ_DISABLE_CLUSTER_ZOOM,
-  makeEqClusterRadiusFn,
-} from "@/lib/map/eqClusterRadius";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -167,29 +160,16 @@ function buildEqPopupHtml(
               ${opts.agencyHtml}${shareLine}`;
 }
 
-function makeEqPinIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
-  const label = mag >= 10 ? "10" : mag.toFixed(1);
+/** Simple mag dot — no stems, no clusters, no spiderfy. */
+function makeEqDotIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
+  const m = Number.isFinite(mag) ? mag : 0;
+  const size =
+    m >= 7 ? 26 : m >= 6 ? 22 : m >= 5 ? 18 : m >= 4.5 ? 15 : m >= 4 ? 13 : 11;
+  const label = m >= 4.5 ? (m >= 10 ? "10" : m.toFixed(1)) : "";
+  const font = size >= 18 ? 10 : size >= 15 ? 9 : 8;
   return L.divIcon({
-    className: "ww-eq-pin-wrap",
-    html: `<div class="ww-eq-pin${isSig ? " ww-eq-pin--sig" : ""}" title="M${label}">
-      <div class="ww-eq-pin__stem" style="background:${fill}"></div>
-      <div class="ww-eq-pin__head" style="background:${fill}"></div>
-      <div class="ww-eq-pin__dot"></div>
-      <div class="ww-eq-pin__label">${label}</div>
-    </div>`,
-    iconSize: [26, 44],
-    iconAnchor: [13, 44],
-    popupAnchor: [0, -40],
-  });
-}
-
-function makeClusterIcon(count: number, maxMag: number, fill: string): L.DivIcon {
-  // Compact stack badge — used only for near-coincident events, not regions
-  const hot = maxMag >= 6 || count >= 6;
-  const size = count >= 10 ? 30 : count >= 5 ? 26 : 22;
-  return L.divIcon({
-    className: "ww-eq-cluster",
-    html: `<div class="ww-eq-cluster__badge${hot ? " ww-eq-cluster__badge--hot" : ""}" style="background:${fill}" title="${count} stacked events · max M${maxMag.toFixed(1)} — click to spiderfy pins">${count}</div>`,
+    className: "ww-eq-dot-wrap",
+    html: `<div class="ww-eq-dot${isSig ? " ww-eq-dot--sig" : ""}" style="width:${size}px;height:${size}px;background:${fill};font-size:${font}px" title="M${m.toFixed(1)}">${label}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
@@ -215,7 +195,7 @@ export function LiveMap() {
   const baseLayer = useRef<L.TileLayer | null>(null);
   /** SVG for interactive markers — full-map canvas steals clicks from EQ popups. */
   const vectorRenderer = useRef<L.SVG | null>(null);
-  const eqLayer = useRef<L.MarkerClusterGroup | null>(null);
+  const eqLayer = useRef<L.LayerGroup | null>(null);
   const eqContextLayer = useRef<L.LayerGroup | null>(null);
   const nodeLayer = useRef<L.LayerGroup | null>(null);
   const volcLayer = useRef<L.LayerGroup | null>(null);
@@ -332,54 +312,8 @@ export function LiveMap() {
     heatLayer.current.setActive(false);
     mmiLayer.current = createMmiContourLayer() as MmiContourLayer;
     mmiLayer.current.addTo(map);
-    // Pin-first EQ mapping: only merge near-coincident stacks (not continent bubbles).
-    // World view must still read as a seismic map — trench lines of individual pins.
-    eqLayer.current = L.markerClusterGroup({
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      spiderfyDistanceMultiplier: 2.6,
-      spiderLegPolylineOptions: {
-        weight: 1.5,
-        color: "#94a3b8",
-        opacity: 0.7,
-      },
-      // Pin-first radius curve (screen overlap + geo soft-cap) — see eqClusterRadius.ts
-      maxClusterRadius: makeEqClusterRadiusFn(
-        () => mapObj.current?.getCenter()?.lat,
-      ),
-      // From this zoom up: every event is its own pin
-      disableClusteringAtZoom: EQ_DISABLE_CLUSTER_ZOOM,
-      animate: false,
-      animateAddingMarkers: false,
-      chunkedLoading: true,
-      removeOutsideVisibleBounds: true,
-      // Only spiderfy true stacks — don't zoom-to-bounds into empty ocean
-      zoomToBoundsOnClick: false,
-      iconCreateFunction: (cluster) => {
-        const children = cluster.getAllChildMarkers() as Array<
-          L.Marker & { __eqMag?: number }
-        >;
-        let maxMag = 0;
-        for (const m of children) {
-          const mag = m.__eqMag ?? 0;
-          if (mag > maxMag) maxMag = mag;
-        }
-        const n = cluster.getChildCount();
-        // Small stack chips only (true co-location) — not mega regional counts
-        return makeClusterIcon(n, maxMag, magColor(maxMag));
-      },
-    }).addTo(map);
-    // Click stack chip → spiderfy pins in place (keep map framing)
-    eqLayer.current.on("clusterclick", (e: L.LeafletEvent) => {
-      const ev = e as L.LeafletEvent & {
-        layer?: { spiderfy?: () => void; getChildCount?: () => number };
-      };
-      try {
-        ev.layer?.spiderfy?.();
-      } catch {
-        /* ignore */
-      }
-    });
+    // Simple EQ dots — no MarkerCluster, no spiderfy
+    eqLayer.current = L.layerGroup().addTo(map);
     eqContextLayer.current = L.layerGroup().addTo(map);
     nodeLayer.current = L.layerGroup().addTo(map);
     volcLayer.current = L.layerGroup().addTo(map);
@@ -619,7 +553,11 @@ export function LiveMap() {
 
     if (overlays.quakes) {
       const markers: L.Layer[] = [];
-      for (const f of features) {
+      // Weak first so stronger quakes sit above in the pane
+      const ordered = [...features].sort(
+        (a, b) => (a.properties.mag ?? 0) - (b.properties.mag ?? 0),
+      );
+      for (const f of ordered) {
         const [lon, lat] = f.geometry.coordinates;
         const mag = f.properties.mag ?? 0;
         const depth = eqDepthKm(f);
@@ -685,14 +623,14 @@ export function LiveMap() {
           shareHref,
         });
 
-        // Pin markers — MarkerCluster spiderfy spreads stacked events for selection
+        // Simple mag dot at true epicenter
         const pin = L.marker([lat, lon], {
-          icon: makeEqPinIcon(mag, fill, isSig || !!isMmiSource),
+          icon: makeEqDotIcon(mag, fill, isSig || !!isMmiSource),
           riseOnHover: true,
           keyboard: true,
           title: `M${mag.toFixed(1)} ${place}`,
-        }) as L.Marker & { __eqMag?: number };
-        pin.__eqMag = mag;
+          zIndexOffset: Math.round(mag * 100),
+        });
         pin.bindPopup(popupHtml, {
           className: "ww-eq-popup",
           maxWidth: 300,
@@ -707,7 +645,7 @@ export function LiveMap() {
           }),
           {
             direction: "top",
-            offset: [0, -36],
+            offset: [0, -10],
             opacity: 0.98,
             className: "ww-hover-tip-wrap",
             sticky: false,
@@ -727,12 +665,7 @@ export function LiveMap() {
         });
         markers.push(pin);
       }
-      eqLayer.current.addLayers(markers);
-      try {
-        eqLayer.current.bringToFront();
-      } catch {
-        /* ignore */
-      }
+      for (const m of markers) eqLayer.current.addLayer(m);
     }
 
     // Global M4.5+ / significant day context layer
