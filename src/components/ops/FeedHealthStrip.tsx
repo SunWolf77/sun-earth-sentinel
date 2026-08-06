@@ -1,10 +1,25 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useObservatory } from "@/store/observatory";
-import { buildFeedHealth, healthToneClass } from "@/lib/ops/feedHealth";
+import {
+  buildFeedHealth,
+  buildFeedHealthSnapshot,
+  copyText,
+  healthToneClass,
+  type FeedHealthSnapshot,
+} from "@/lib/ops/feedHealth";
+
+type SesFeedsApi = {
+  (): FeedHealthSnapshot;
+  copy: () => Promise<boolean>;
+  text: () => string;
+};
 
 /**
  * Per-source feed health strip — USGS / JMA / GEOFON / SWPC / Nodes / Volc / Pulse.
- * Ages update every 10s; error/stale/off tones are honest (not a single global pull).
+ *
+ * Fluid debug (no extra chrome clutter):
+ * - Long-press **Feeds** (mobile) or the strip (desktop) → copy JSON snapshot
+ * - Console: `window.__SES_FEEDS()` · `__SES_FEEDS.copy()` · `__SES_FEEDS.text()`
  */
 export function FeedHealthStrip({
   compact = false,
@@ -25,13 +40,16 @@ export function FeedHealthStrip({
   const error = useObservatory((s) => s.error);
   const [tick, setTick] = useState(0);
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const longTimer = useRef<number | null>(null);
+  const longFired = useRef(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setTick((n) => n + 1), 10_000);
     return () => window.clearInterval(id);
   }, []);
 
-  const rows = useMemo(() => {
+  const snapshotOpts = useMemo(() => {
     void tick;
     const feats = eq?.features ?? [];
     const hasJma =
@@ -43,8 +61,7 @@ export function FeedHealthStrip({
         const id = String(f.id ?? "");
         return id.startsWith("gossip-") || id.startsWith("usgs-us");
       });
-
-    return buildFeedHealth({
+    return {
       loading,
       lastUpdate,
       livePulseAt,
@@ -58,7 +75,9 @@ export function FeedHealthStrip({
       error,
       feedTimestamps,
       feedErrors,
-    });
+      eqCount: feats.length,
+      volcCount: usgsVolcAlerts.length,
+    };
   }, [
     tick,
     loading,
@@ -72,6 +91,39 @@ export function FeedHealthStrip({
     feedTimestamps,
     feedErrors,
   ]);
+
+  const rows = useMemo(() => buildFeedHealth(snapshotOpts), [snapshotOpts]);
+
+  const getSnapshot = useCallback(
+    () => buildFeedHealthSnapshot(snapshotOpts),
+    [snapshotOpts],
+  );
+
+  const copySnapshot = useCallback(async () => {
+    const snap = getSnapshot();
+    const text = JSON.stringify(snap, null, 2);
+    const ok = await copyText(text);
+    if (ok) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    }
+    return ok;
+  }, [getSnapshot]);
+
+  // Console API — always available when strip is mounted (prod + dev)
+  useEffect(() => {
+    const api = (() => {
+      const fn = (() => getSnapshot()) as SesFeedsApi;
+      fn.copy = () => copySnapshot();
+      fn.text = () => JSON.stringify(getSnapshot(), null, 2);
+      return fn;
+    })();
+    (window as unknown as { __SES_FEEDS?: SesFeedsApi }).__SES_FEEDS = api;
+    return () => {
+      const w = window as unknown as { __SES_FEEDS?: SesFeedsApi };
+      if (w.__SES_FEEDS === api) delete w.__SES_FEEDS;
+    };
+  }, [getSnapshot, copySnapshot]);
 
   const visible = hideOff ? rows.filter((r) => r.status !== "off") : rows;
   const bad = visible.filter((r) => r.status === "error" || r.status === "stale");
@@ -91,25 +143,69 @@ export function FeedHealthStrip({
     return (feedErrors as Record<string, string | null>)[key] ?? null;
   };
 
+  const clearLong = () => {
+    if (longTimer.current != null) {
+      window.clearTimeout(longTimer.current);
+      longTimer.current = null;
+    }
+  };
+
+  const onPressStart = () => {
+    longFired.current = false;
+    clearLong();
+    longTimer.current = window.setTimeout(() => {
+      longFired.current = true;
+      void copySnapshot();
+    }, 550);
+  };
+
+  const onPressEnd = (toggleOpen: boolean) => {
+    clearLong();
+    if (longFired.current) {
+      longFired.current = false;
+      return;
+    }
+    if (toggleOpen) setOpen((o) => !o);
+  };
+
   return (
     <div
       className={`ww-feed-health ${compact ? "text-[0.55rem]" : "text-[0.6rem]"}`}
-      aria-label="Feed health — per source"
+      aria-label="Feed health — per source. Long-press to copy snapshot."
+      onPointerDown={onPressStart}
+      onPointerUp={() => onPressEnd(false)}
+      onPointerLeave={clearLong}
+      onPointerCancel={clearLong}
+      onDoubleClick={() => void copySnapshot()}
+      title="Long-press or double-click to copy feed health · console: __SES_FEEDS()"
     >
       <button
         type="button"
-        className={`mb-0.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono sm:hidden ${healthToneClass(summaryTone)}`}
-        onClick={() => setOpen((o) => !o)}
+        className={`mb-0.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono sm:hidden ${healthToneClass(
+          copied ? "ok" : summaryTone,
+        )}`}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onPressStart();
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+          onPressEnd(true);
+        }}
+        onPointerLeave={clearLong}
+        onPointerCancel={clearLong}
         aria-expanded={open}
-        title="Toggle per-source feed ages"
+        title="Tap to expand · long-press to copy feed health JSON"
       >
         <span className="font-semibold">Feeds</span>
         <span>
-          {bad.length
-            ? `${bad.length} issue${bad.length > 1 ? "s" : ""}`
-            : loading
-              ? "updating…"
-              : "ok"}
+          {copied
+            ? "copied"
+            : bad.length
+              ? `${bad.length} issue${bad.length > 1 ? "s" : ""}`
+              : loading
+                ? "updating…"
+                : "ok"}
         </span>
         <span className="opacity-70">{open ? "▾" : "▸"}</span>
       </button>
@@ -126,6 +222,7 @@ export function FeedHealthStrip({
             `Last ok: ${r.detail}`,
             err ? `Error: ${err}` : null,
             r.status === "stale" ? "Stale — last good data still shown" : null,
+            "Long-press strip to copy all",
           ]
             .filter(Boolean)
             .join(" · ");
@@ -155,6 +252,22 @@ export function FeedHealthStrip({
             </span>
           );
         })}
+        <button
+          type="button"
+          className={`hidden sm:inline-flex items-center rounded-md border px-1.5 py-0.5 font-mono ${
+            copied
+              ? healthToneClass("ok")
+              : "border-border/60 bg-panel text-dim hover:border-primary/40 hover:text-primary"
+          }`}
+          title="Copy feed health JSON (also: long-press strip or __SES_FEEDS.copy())"
+          onClick={(e) => {
+            e.stopPropagation();
+            void copySnapshot();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {copied ? "copied" : "copy"}
+        </button>
       </div>
     </div>
   );

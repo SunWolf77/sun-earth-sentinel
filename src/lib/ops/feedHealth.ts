@@ -270,3 +270,96 @@ export function healthToneClass(status: FeedHealthStatus): string {
       return "border-border bg-panel text-dim";
   }
 }
+
+/** Serializable snapshot for clipboard / `window.__SES_FEEDS()`. */
+export type FeedHealthSnapshot = {
+  at: string;
+  ua?: string;
+  loading: boolean;
+  error: string | null;
+  sources: Array<{
+    id: string;
+    label: string;
+    status: FeedHealthStatus;
+    detail: string;
+    err: string | null;
+  }>;
+  timestamps: FeedTimestampInput | null;
+  errors: FeedSourceErrors | null;
+  counts?: {
+    eq?: number;
+    volc?: number;
+  };
+};
+
+export function buildFeedHealthSnapshot(opts: {
+  loading: boolean;
+  lastUpdate: number | null;
+  livePulseAt: number | null;
+  hasEq: boolean;
+  hasScales: boolean;
+  hasVolc: boolean;
+  hasJma?: boolean;
+  hasGeofon?: boolean;
+  hasBoards?: boolean;
+  useGeofon?: boolean;
+  error: string | null;
+  feedTimestamps?: FeedTimestampInput | null;
+  feedErrors?: FeedSourceErrors | null;
+  eqCount?: number;
+  volcCount?: number;
+  now?: number;
+}): FeedHealthSnapshot {
+  const now = opts.now ?? Date.now();
+  const rows = buildFeedHealth({ ...opts, now });
+  const errMap = opts.feedErrors ?? {};
+  const errFor = (id: string): string | null => {
+    const key =
+      id === "usgs" ? "eq" : id === "swpc" ? "solar" : id === "boards" ? "boards" : id;
+    return (errMap as Record<string, string | null>)[key] ?? null;
+  };
+  return {
+    at: new Date(now).toISOString(),
+    ua: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+    loading: opts.loading,
+    error: opts.error,
+    sources: rows.map((r) => ({
+      id: r.id,
+      label: r.label,
+      status: r.status,
+      detail: r.detail,
+      err: errFor(r.id),
+    })),
+    timestamps: opts.feedTimestamps ?? null,
+    errors: opts.feedErrors ?? null,
+    counts: {
+      eq: opts.eqCount,
+      volc: opts.volcCount,
+    },
+  };
+}
+
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
