@@ -495,11 +495,17 @@ function ObservatoryApp() {
   }, [mapImmersive, setMapImmersive]);
 
   useEffect(() => {
-    // mapImmersive resize — Leaflet/WebGL need a size pulse after layout change
-    const id = window.setTimeout(() => {
+    // mapImmersive / 2d-3d switch — Leaflet must remeasure container or markers drift
+    const pulse = () => {
       window.dispatchEvent(new Event("resize"));
-    }, 60);
-    return () => window.clearTimeout(id);
+      window.dispatchEvent(new Event("ww-map-resize"));
+    };
+    const id = window.setTimeout(pulse, 60);
+    const id2 = window.setTimeout(pulse, 200);
+    return () => {
+      window.clearTimeout(id);
+      window.clearTimeout(id2);
+    };
   }, [mapImmersive, mapView]);
 
   const filtersBlock = (

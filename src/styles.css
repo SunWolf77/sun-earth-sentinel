@@ -889,36 +889,22 @@
   text-decoration: underline;
 }
 
-/* Simple EQ magnitude dots (no cluster / spiderfy) */
+/* EQ epicenters — SVG circleMarkers (lat/lon locked; no DivIcon offset) */
+.ww-eq-circle {
+  cursor: pointer;
+}
+.leaflet-interactive.ww-eq-circle {
+  outline: none;
+}
+/* Legacy pin/dot classes — neutralize any cached markup (no negative margins) */
+.ww-eq-pin-wrap,
 .ww-eq-dot-wrap {
   background: transparent !important;
   border: none !important;
+  margin: 0 !important;
 }
-.ww-eq-dot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1.5px solid rgba(248, 250, 252, 0.92);
-  box-sizing: border-box;
-  color: #0f172a;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-  transition: transform 0.12s ease;
-  user-select: none;
-}
-.ww-eq-dot:hover {
-  transform: scale(1.12);
-  z-index: 2;
-}
-.ww-eq-dot--sig {
-  border-color: #fbbf24;
-  box-shadow:
-    0 0 0 2px rgba(251, 191, 36, 0.35),
-    0 2px 8px rgba(0, 0, 0, 0.5);
+.ww-eq-pin {
+  margin: 0 !important;
 }
 
 /* Focus-node markers — always labeled so users know what/why */

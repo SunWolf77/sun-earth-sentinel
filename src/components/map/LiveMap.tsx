@@ -160,20 +160,15 @@ function buildEqPopupHtml(
               ${opts.agencyHtml}${shareLine}`;
 }
 
-/** Simple mag dot — no stems, no clusters, no spiderfy. */
-function makeEqDotIcon(mag: number, fill: string, isSig: boolean): L.DivIcon {
+/** Radius (px) for epicenter circle — sits on true lat/lon (no icon anchor drift). */
+function eqCircleRadius(mag: number): number {
   const m = Number.isFinite(mag) ? mag : 0;
-  const size =
-    m >= 7 ? 26 : m >= 6 ? 22 : m >= 5 ? 18 : m >= 4.5 ? 15 : m >= 4 ? 13 : 11;
-  const label = m >= 4.5 ? (m >= 10 ? "10" : m.toFixed(1)) : "";
-  const font = size >= 18 ? 10 : size >= 15 ? 9 : 8;
-  return L.divIcon({
-    className: "ww-eq-dot-wrap",
-    html: `<div class="ww-eq-dot${isSig ? " ww-eq-dot--sig" : ""}" style="width:${size}px;height:${size}px;background:${fill};font-size:${font}px" title="M${m.toFixed(1)}">${label}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
-  });
+  if (m >= 7) return 9;
+  if (m >= 6) return 7;
+  if (m >= 5) return 5.5;
+  if (m >= 4.5) return 4.5;
+  if (m >= 4) return 3.5;
+  return 2.75;
 }
 
 export function LiveMap() {
@@ -327,12 +322,42 @@ export function LiveMap() {
       } catch { /* */ }
     });
 
-    // Full world framing for current container (pad for mobile docks)
+    // Full world framing — size sync keeps markers on basemap
     const mobilePad = window.matchMedia("(max-width: 640px)").matches;
+    const syncSize = () => {
+      try {
+        map.invalidateSize({ animate: false, pan: false });
+      } catch {
+        /* ignore */
+      }
+    };
     requestAnimationFrame(() => {
-      map.invalidateSize(false);
+      syncSize();
       fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
+      // Second pulse after layout/fonts/chrome settle (fullscreen, side panels)
+      window.setTimeout(() => {
+        syncSize();
+        fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
+      }, 120);
     });
+    // Keep marker projection locked to basemap when shell/immersive resizes
+    const ro = new ResizeObserver(() => {
+      syncSize();
+    });
+    ro.observe(map.getContainer());
+    map.once("unload", () => ro.disconnect());
+    window.addEventListener("resize", syncSize);
+    const onShell = () => {
+      syncSize();
+      window.setTimeout(syncSize, 80);
+    };
+    window.addEventListener("ww-map-resize", onShell);
+
+    map.once("unload", () => {
+      window.removeEventListener("resize", syncSize);
+      window.removeEventListener("ww-map-resize", onShell);
+    });
+
 
     setMapInstance(map);
 
@@ -623,13 +648,18 @@ export function LiveMap() {
           shareHref,
         });
 
-        // Simple mag dot at true epicenter
-        const pin = L.marker([lat, lon], {
-          icon: makeEqDotIcon(mag, fill, isSig || !!isMmiSource),
-          riseOnHover: true,
-          keyboard: true,
-          title: `M${mag.toFixed(1)} ${place}`,
-          zIndexOffset: Math.round(mag * 100),
+        // SVG circle on exact epicenter — never drifts from basemap (no DivIcon/anchor)
+        const r = eqCircleRadius(mag);
+        const pin = L.circleMarker([lat, lon], {
+          renderer,
+          radius: r,
+          color: isSig || isMmiSource ? "#fbbf24" : "#f8fafc",
+          weight: isSig || isMmiSource ? 2 : 1.25,
+          fillColor: fill,
+          fillOpacity: 0.9,
+          opacity: 1,
+          className: "ww-eq-circle",
+          bubblingMouseEvents: false,
         });
         pin.bindPopup(popupHtml, {
           className: "ww-eq-popup",
@@ -645,7 +675,7 @@ export function LiveMap() {
           }),
           {
             direction: "top",
-            offset: [0, -10],
+            offset: [0, -r - 4],
             opacity: 0.98,
             className: "ww-hover-tip-wrap",
             sticky: false,
