@@ -34,8 +34,8 @@ export function fitWorldView(
   }
   const animate = opts?.animate ?? false;
   const bottom = opts?.bottomPad ?? 24;
-  const top = 10;
-  const side = 8;
+  const top = 12;
+  const side = 14;
   try {
     map.setMaxBounds(WORLD_MAX_BOUNDS);
     let floor = 1;

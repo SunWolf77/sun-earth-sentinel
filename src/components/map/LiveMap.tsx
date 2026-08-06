@@ -48,6 +48,8 @@ import {
 import { isJmaFeature } from "@/lib/feeds/jma";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { filterFeaturesByTimeWindow } from "@/lib/feeds/usgs";
+import { fairSampleEqPoints } from "@/lib/map/superclusterIndex";
+import type { EqPoint } from "@/lib/map/eqCluster";
 import {
   nodePopupHtml,
   nodeShortName,
@@ -160,15 +162,15 @@ function buildEqPopupHtml(
               ${opts.agencyHtml}${shareLine}`;
 }
 
-/** Radius (px) for epicenter circle — sits on true lat/lon (no icon anchor drift). */
+/** Radius (px) for epicenter circle — true lat/lon via SVG circleMarker. */
 function eqCircleRadius(mag: number): number {
   const m = Number.isFinite(mag) ? mag : 0;
-  if (m >= 7) return 9;
-  if (m >= 6) return 7;
-  if (m >= 5) return 5.5;
-  if (m >= 4.5) return 4.5;
-  if (m >= 4) return 3.5;
-  return 2.75;
+  if (m >= 7) return 7;
+  if (m >= 6) return 5.5;
+  if (m >= 5) return 4.5;
+  if (m >= 4.5) return 3.75;
+  if (m >= 4) return 3;
+  return 2.5;
 }
 
 export function LiveMap() {
@@ -295,7 +297,7 @@ export function LiveMap() {
       },
     });
 
-    vectorRenderer.current = L.svg({ padding: 0.5 });
+    vectorRenderer.current = L.svg({ padding: 0.1 });
     const initial = useObservatory.getState().basemapStyle;
     baseLayer.current = makeTileLayer(initial).addTo(map);
     const el0 = map.getContainer();
@@ -577,9 +579,31 @@ export function LiveMap() {
     heatLayer.current?.setActive(overlays.heatmap);
 
     if (overlays.quakes) {
+      const map = mapObj.current;
+      if (map) {
+        try {
+          map.invalidateSize({ animate: false, pan: false });
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // Geographic fair sample so 30d is a world map, not a few edge piles
+      const modeMax =
+        useObservatory.getState().mode === "full" ? 420 : 220;
+      const points: EqPoint[] = features.map((f) => {
+        const [lon, lat] = f.geometry.coordinates;
+        return { f, lat, lon, mag: f.properties.mag ?? 0 };
+      });
+      const sampled = fairSampleEqPoints(points, modeMax, {
+        cellDeg: 12,
+        perCell: Math.max(3, Math.ceil(modeMax / 50)),
+      });
+      const drawFeatures = sampled.map((p) => p.f);
+
       const markers: L.Layer[] = [];
       // Weak first so stronger quakes sit above in the pane
-      const ordered = [...features].sort(
+      const ordered = [...drawFeatures].sort(
         (a, b) => (a.properties.mag ?? 0) - (b.properties.mag ?? 0),
       );
       for (const f of ordered) {
@@ -653,10 +677,10 @@ export function LiveMap() {
         const pin = L.circleMarker([lat, lon], {
           renderer,
           radius: r,
-          color: isSig || isMmiSource ? "#fbbf24" : "#f8fafc",
-          weight: isSig || isMmiSource ? 2 : 1.25,
+          color: isSig || isMmiSource ? "#fbbf24" : "rgba(248,250,252,0.95)",
+          weight: isSig || isMmiSource ? 1.75 : 1,
           fillColor: fill,
-          fillOpacity: 0.9,
+          fillOpacity: 0.92,
           opacity: 1,
           className: "ww-eq-circle",
           bubblingMouseEvents: false,
