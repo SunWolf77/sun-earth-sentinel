@@ -61,6 +61,10 @@ import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import {
+  EQ_DISABLE_CLUSTER_ZOOM,
+  makeEqClusterRadiusFn,
+} from "@/lib/map/eqClusterRadius";
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -339,17 +343,12 @@ export function LiveMap() {
         color: "#94a3b8",
         opacity: 0.7,
       },
-      // Pixel radius by zoom — tiny at world scale so M pins stay on the map
-      maxClusterRadius: (zoom: number) => {
-        if (zoom <= 2) return 10; // ~co-located only
-        if (zoom <= 3) return 14;
-        if (zoom <= 4) return 20;
-        if (zoom <= 5) return 26;
-        if (zoom <= 7) return 34;
-        return 40;
-      },
-      // From regional zoom upward: always individual pins
-      disableClusteringAtZoom: 6,
+      // Pin-first radius curve (screen overlap + geo soft-cap) — see eqClusterRadius.ts
+      maxClusterRadius: makeEqClusterRadiusFn(
+        () => mapObj.current?.getCenter()?.lat,
+      ),
+      // From this zoom up: every event is its own pin
+      disableClusteringAtZoom: EQ_DISABLE_CLUSTER_ZOOM,
       animate: false,
       animateAddingMarkers: false,
       chunkedLoading: true,
