@@ -1388,6 +1388,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             eqFinal.features,
             cfg.maxMarkers,
             priorityNodeBounds(get().volcWatchNodes),
+            { minMag: cfg.minMag, maxPriorityMicro: Math.min(120, Math.floor(cfg.maxMarkers * 0.2)) },
           ),
         };
       }
@@ -1609,6 +1610,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             eqFinal.features,
             cfg.maxMarkers,
             priorityNodeBounds(get().volcWatchNodes),
+            { minMag: cfg.minMag, maxPriorityMicro: Math.min(120, Math.floor(cfg.maxMarkers * 0.2)) },
           ),
         };
       }

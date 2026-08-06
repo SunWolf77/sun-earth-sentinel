@@ -590,7 +590,7 @@ export function LiveMap() {
 
       // Geographic fair sample so 30d is a world map, not a few edge piles
       const modeMax =
-        useObservatory.getState().mode === "full" ? 700 : 420;
+        useObservatory.getState().mode === "full" ? 900 : 500;
       const points: EqPoint[] = features.map((f) => {
         const [lon, lat] = f.geometry.coordinates;
         return { f, lat, lon, mag: f.properties.mag ?? 0 };

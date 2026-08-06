@@ -177,37 +177,55 @@ export function mergeEqCollections(
 }
 
 /**
- * Cap marker count without erasing priority corridors (Tonga, volcano watches, etc.).
- * Keeps all events inside priority node boxes, then fills remaining slots by magnitude.
+ * Cap catalog size without erasing the global map.
+ *
+ * CRITICAL: node boards (JMA, Campi INGV, TK swarm) inject dense microseismicity.
+ * If we "keep all priority first", those micro-events fill the budget and then
+ * the UI minMag filter drops them — leaving a nearly empty world map.
+ *
+ * Strategy:
+ *  1. Events ≥ minMag are first-class (global, by magnitude).
+ *  2. Sub-minMag events only kept inside priority corridors, hard-capped.
+ *  3. Majority of slots always reserved for the global strong set.
  */
 export function capFeaturesForMode(
   features: EqFeature[],
   maxMarkers: number,
   priorityBounds: LatLonBounds[] = [],
+  opts?: { minMag?: number; maxPriorityMicro?: number },
 ): EqFeature[] {
   if (features.length <= maxMarkers) return features;
 
-  const priority: EqFeature[] = [];
-  const rest: EqFeature[] = [];
+  const minMag = opts?.minMag ?? 0;
+  const maxMicro =
+    opts?.maxPriorityMicro ?? Math.min(120, Math.max(40, Math.floor(maxMarkers * 0.2)));
+
+  const strong: EqFeature[] = [];
+  const microPri: EqFeature[] = [];
+
   for (const f of features) {
-    const [lon, lat] = f.geometry.coordinates;
-    const inPri = priorityBounds.some((b) => pointInBounds(lat, lon, b, 0.15));
-    if (inPri) priority.push(f);
-    else rest.push(f);
+    const mag = f.properties.mag ?? 0;
+    if (mag >= minMag) {
+      strong.push(f);
+      continue;
+    }
+    if (priorityBounds.length) {
+      const [lon, lat] = f.geometry.coordinates;
+      if (priorityBounds.some((b) => pointInBounds(lat, lon, b, 0.15))) {
+        microPri.push(f);
+      }
+    }
   }
 
-  // Always keep priority (even if over cap slightly for corridor integrity)
-  const sortedRest = [...rest].sort(
-    (a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0),
-  );
-  const room = Math.max(0, maxMarkers - priority.length);
-  // If priority alone exceeds cap, keep strongest priority first
-  if (priority.length > maxMarkers) {
-    return [...priority]
-      .sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0))
-      .slice(0, maxMarkers);
-  }
-  return [...priority, ...sortedRest.slice(0, room)];
+  strong.sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0));
+  microPri.sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0));
+
+  // Reserve ≥80% of budget for global strong events
+  const microBudget = Math.min(maxMicro, Math.floor(maxMarkers * 0.2), microPri.length);
+  const strongBudget = maxMarkers - microBudget;
+  const keptStrong = strong.slice(0, strongBudget);
+  const keptMicro = microPri.slice(0, maxMarkers - keptStrong.length);
+  return [...keptStrong, ...keptMicro];
 }
 
 export function latestEventAgeMs(features: EqFeature[] | undefined): number | null {
