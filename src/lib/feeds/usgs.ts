@@ -541,27 +541,98 @@ export function priorityNodeBounds(extra: DragonNode[] = []): LatLonBounds[] {
 
 export type NodeStatus = "quiet" | "elevated" | "active" | "watch";
 
-export function nodeStatus(features: EqFeature[], node: DragonNode): NodeStatus {
+/** Optional catalog window so week/month baselines are not treated as day-scale alarms. */
+export type NodeStatusOpts = {
+  /** hour | day | week | month — defaults to day-like sensitivity */
+  timeWindow?: string;
+  now?: number;
+};
+
+/**
+ * Zone status — window-aware, anti-alarmist.
+ * Ring of Fire arcs normally produce M4–M5 over a week; that is "elevated" or
+ * "active" context, not a red watch. Watch reserved for fresh strong events or
+ * clear short-window bursts (SUPT: signal, not smoke).
+ */
+export function nodeStatus(
+  features: EqFeature[],
+  node: DragonNode,
+  opts?: NodeStatusOpts,
+): NodeStatus {
   if (node.kind === "volcano" && node.aviationCode) {
     const floor = aviationToNodeStatus(node.aviationCode);
-    const seismic = seismicNodeStatus(features, node);
+    const seismic = seismicNodeStatus(features, node, opts);
     const rank = { quiet: 0, elevated: 1, active: 2, watch: 3 } as const;
     return rank[seismic] > rank[floor] ? seismic : floor;
   }
-  return seismicNodeStatus(features, node);
+  return seismicNodeStatus(features, node, opts);
 }
 
-function seismicNodeStatus(features: EqFeature[], node: DragonNode): NodeStatus {
+function seismicNodeStatus(
+  features: EqFeature[],
+  node: DragonNode,
+  opts?: NodeStatusOpts,
+): NodeStatus {
+  const now = opts?.now ?? Date.now();
+  const win = (opts?.timeWindow || "day").toLowerCase();
   const inBounds = features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
     const mag = f.properties.mag ?? 0;
     return pointInBounds(lat, lon, node.bounds) && mag >= 3.5;
   });
-  const maxMag = inBounds.reduce((m, f) => Math.max(m, f.properties.mag ?? 0), 0);
-  if (maxMag >= 6 || inBounds.filter((f) => (f.properties.mag ?? 0) >= 5).length >= 2)
-    return "watch";
-  if (maxMag >= 5) return "active";
-  if (maxMag >= 4 || inBounds.length >= 5) return "elevated";
+  if (!inBounds.length) return "quiet";
+
+  let maxMag = 0;
+  let m5 = 0;
+  let m6 = 0;
+  let m5_24h = 0;
+  let m6_48h = 0;
+  let m5_72h = 0;
+  let count_24h = 0;
+  for (const f of inBounds) {
+    const mag = f.properties.mag ?? 0;
+    const t = f.properties.time;
+    const age = typeof t === "number" ? now - t : Number.POSITIVE_INFINITY;
+    if (mag > maxMag) maxMag = mag;
+    if (mag >= 5) m5++;
+    if (mag >= 6) m6++;
+    if (age <= 24 * 3_600_000) {
+      count_24h++;
+      if (mag >= 5) m5_24h++;
+    }
+    if (age <= 48 * 3_600_000 && mag >= 6) m6_48h++;
+    if (age <= 72 * 3_600_000 && mag >= 5) m5_72h++;
+  }
+
+  // Fresh standout always surfaces (signal)
+  if (m6_48h >= 1 || maxMag >= 7) return "watch";
+  if (m5_24h >= 2 || (m5_24h >= 1 && maxMag >= 5.8)) return "watch";
+
+  // Window-scaled remainder — do not paint whole week of ordinary RoF as "watch"
+  if (win === "hour") {
+    if (maxMag >= 5.5 || m5 >= 1 || inBounds.length >= 4) return "watch";
+    if (maxMag >= 4.5 || inBounds.length >= 2) return "active";
+    if (maxMag >= 3.5 || inBounds.length >= 1) return "elevated";
+    return "quiet";
+  }
+  if (win === "day") {
+    if (maxMag >= 6 || m5 >= 3 || (m5 >= 2 && count_24h >= 6)) return "watch";
+    if (maxMag >= 5 || m5 >= 1 || inBounds.length >= 12) return "active";
+    if (maxMag >= 4 || inBounds.length >= 5) return "elevated";
+    return "quiet";
+  }
+  if (win === "month") {
+    // Month catalogs are dense on arcs — require multi-M6 or recent burst
+    if (m6 >= 2 || maxMag >= 7 || m5_72h >= 4) return "watch";
+    if (m6 >= 1 || m5 >= 8 || m5_72h >= 2) return "active";
+    if (m5 >= 3 || maxMag >= 5.5 || inBounds.length >= 40) return "elevated";
+    return "quiet";
+  }
+  // week (default long window)
+  if (m6 >= 1 && m5_72h >= 2) return "watch";
+  if (m6 >= 1 || m5 >= 5 || m5_72h >= 3) return "active";
+  if (m5 >= 2 || maxMag >= 5.5 || inBounds.length >= 20) return "elevated";
+  if (maxMag >= 4.5 || inBounds.length >= 8) return "elevated";
   return "quiet";
 }
 

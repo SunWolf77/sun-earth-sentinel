@@ -35,6 +35,7 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const exitToHomeView = useObservatory((s) => s.exitToHomeView);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
+  const timeWindow = useObservatory((s) => s.timeWindow);
 
   if (FOCUSED_MONITORS.length === 0) return null;
 
@@ -54,7 +55,7 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
         SES focus nodes — Focus zooms the map here; Full board opens the dedicated Vercel monitor.
       </p>
       {ordered.map((node) => {
-        const st = nodeStatus(features, node);
+        const st = nodeStatus(features, node, { timeWindow });
         const stats = nodeEventStats(features, node);
         const focused = focusNodeId === node.id;
         const pub = getPublishedMonitor(node.id);

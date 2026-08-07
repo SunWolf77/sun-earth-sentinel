@@ -235,7 +235,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v5";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v6";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
@@ -243,10 +243,16 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
     const raw = localStorage.getItem(OVERLAY_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Record<MapOverlayId, boolean>>;
+      // Keep user toggles, but never inherit a stuck M6+ filter from corrupt prefs
       return { ...DEFAULT_OVERLAYS, ...parsed };
     }
-    // Migrate older prefs → single-world calm defaults (no ISS / aurora / heat)
-    for (const k of ["wolfwatch_overlays_v4", "wolfwatch_overlays_v3", "wolfwatch_overlays"]) {
+    // Migrate older prefs → calm defaults (M6+ OFF, no ISS / aurora / heat)
+    for (const k of [
+      "wolfwatch_overlays_v5",
+      "wolfwatch_overlays_v4",
+      "wolfwatch_overlays_v3",
+      "wolfwatch_overlays",
+    ]) {
       const legacy = localStorage.getItem(k);
       if (!legacy) continue;
       try {
@@ -259,8 +265,15 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
           iss: false,
           aurora: false,
           heatmap: false,
+          // First open of v6: map shows full catalog, M6+ is opt-in
+          significant: false,
         };
         localStorage.removeItem(k);
+        try {
+          localStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(merged));
+        } catch {
+          /* */
+        }
         return merged;
       } catch {
         localStorage.removeItem(k);

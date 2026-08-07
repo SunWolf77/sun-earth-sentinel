@@ -765,7 +765,7 @@ export function LiveMap() {
 
     const allNodes = getAllFocusNodes();
     for (const node of allNodes) {
-      const st = nodeStatus(all, node);
+      const st = nodeStatus(all, node, { timeWindow });
       const [[latMin, lonMin], [latMax, lonMax]] = node.bounds;
       const clat = node.center?.[0] ?? (latMin + latMax) / 2;
       const clon =

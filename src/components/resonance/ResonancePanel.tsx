@@ -262,7 +262,7 @@ export function ResonancePanel() {
         </p>
         <ul className="space-y-2 text-sm">
           {DRAGON_NODES.map((node) => {
-            const st = nodeStatus(features, node);
+            const st = nodeStatus(features, node, { timeWindow });
             const stats = nodeEventStats(features, node);
             const active = focusNodeId === node.id;
             return (

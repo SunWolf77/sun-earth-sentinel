@@ -39,6 +39,7 @@ function agencyLinkLabel(nodeId: string, agencyUrl?: string): string {
  * Published SES monitors open dedicated Vercel boards with seamless handoff.
  */
 export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
+  const timeWindow = useObservatory((s) => s.timeWindow);
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const exitToHomeView = useObservatory((s) => s.exitToHomeView);
@@ -60,7 +61,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
     if (!a.watchPriority && b.watchPriority) return 1;
     const rank = (id: string) => {
       const n = allNodes.find((x) => x.id === id)!;
-      const st = nodeStatus(allFeatures, n);
+      const st = nodeStatus(allFeatures, n, { timeWindow });
       if (st === "watch") return 0;
       if (st === "active") return 1;
       if (st === "elevated") return 2;
@@ -138,14 +139,14 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
             </div>
             <span
               className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[0.6rem] font-medium ${
-                nodeStatus(allFeatures, focus) === "watch"
+                nodeStatus(allFeatures, focus, { timeWindow }) === "watch"
                   ? "border-danger/50 text-danger"
-                  : nodeStatus(allFeatures, focus) === "active"
+                  : nodeStatus(allFeatures, focus, { timeWindow }) === "active"
                     ? "border-warn/50 text-warn"
                     : "border-primary/40 text-primary"
               }`}
             >
-              {STATUS_LABEL[nodeStatus(allFeatures, focus)]}
+              {STATUS_LABEL[nodeStatus(allFeatures, focus, { timeWindow })]}
             </span>
           </div>
 
@@ -236,7 +237,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
 
       <ul className="max-h-52 space-y-1 overflow-y-auto scroll-thin">
         {ranked.map((node) => {
-          const st = nodeStatus(allFeatures, node);
+          const st = nodeStatus(allFeatures, node, { timeWindow });
           const stats = nodeEventStats(allFeatures, node);
           const active = focusNodeId === node.id;
           const isVolc = node.kind === "volcano";
@@ -314,13 +315,14 @@ export function NodeFocusBanner() {
   const eq = useObservatory((s) => s.eq);
   const minMag = useObservatory((s) => s.minMag);
   const maxMag = useObservatory((s) => s.maxMag);
+  const timeWindow = useObservatory((s) => s.timeWindow);
   const gvpFocusNode = useObservatory((s) => s.gvpFocusNode);
   void gvpFocusNode;
   const focus = getFocusNode(focusNodeId);
   if (!focus) return null;
 
   const events = viewEvents(eq?.features, minMag, focusNodeId, maxMag);
-  const st = nodeStatus(events.length ? events : eq?.features ?? [], focus);
+  const st = nodeStatus(events.length ? events : eq?.features ?? [], focus, { timeWindow });
   const stats = nodeEventStats(eq?.features ?? [], focus);
   const isVolc = focus.kind === "volcano";
   const pub = getPublishedMonitor(focus.id);

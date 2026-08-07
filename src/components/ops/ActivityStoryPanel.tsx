@@ -197,6 +197,7 @@ export function ActivityStoryPanel({
   const solar = useObservatory((s) => s.solarAssessment);
   const scales = useObservatory((s) => s.scales);
   const lastUpdate = useObservatory((s) => s.lastUpdate);
+  const timeWindow = useObservatory((s) => s.timeWindow);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const setTab = useObservatory((s) => s.setTab);
@@ -218,6 +219,7 @@ export function ActivityStoryPanel({
       volcAlerts: usgsVolcAlerts,
       solar,
       scales,
+      timeWindow,
     });
   }, [
     eq,
@@ -228,6 +230,7 @@ export function ActivityStoryPanel({
     solar,
     scales,
     lastUpdate,
+    timeWindow,
   ]);
 
   useEffect(() => {
@@ -250,13 +253,13 @@ export function ActivityStoryPanel({
         </h3>
         {bundle.hotZones > 0 && (
           <span className="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-[0.58rem] font-semibold text-warn">
-            {bundle.hotZones} hot zone{bundle.hotZones > 1 ? "s" : ""}
+            {bundle.hotZones} notable{bundle.hotZones > 1 ? "" : ""}
           </span>
         )}
       </header>
       <p className="text-[0.62rem] leading-snug text-dim">
-        Live ranking of elevated zones, strong events, and watches — tap for
-        shortcuts. Observational only; not a forecast.
+        Standouts vs ordinary corridor pace — tap for shortcuts. Catches signals;
+        does not invent alerts. Not a forecast.
       </p>
       <div
         className={`space-y-1.5 ${compact ? "max-h-[40vh] overflow-y-auto pr-0.5" : ""}`}
@@ -287,6 +290,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
   const solar = useObservatory((s) => s.solarAssessment);
   const scales = useObservatory((s) => s.scales);
   const lastUpdate = useObservatory((s) => s.lastUpdate);
+  const timeWindow = useObservatory((s) => s.timeWindow);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const setTab = useObservatory((s) => s.setTab);
@@ -317,6 +321,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
       volcAlerts: usgsVolcAlerts,
       solar,
       scales,
+      timeWindow,
     });
   }, [
     eq,
@@ -327,6 +332,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
     solar,
     scales,
     lastUpdate,
+    timeWindow,
   ]);
 
   const top = bundle.stories[0];
@@ -371,7 +377,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
         </span>
         {bundle.hotZones > 0 && (
           <span className="shrink-0 tabular-nums opacity-90">
-            {bundle.hotZones}z
+            {bundle.hotZones}★
           </span>
         )}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
