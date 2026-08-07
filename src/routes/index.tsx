@@ -33,6 +33,7 @@ import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
+import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
@@ -574,6 +575,7 @@ function ObservatoryApp() {
 
   const eventsBlock = (
     <div className="space-y-2 p-3">
+      <ActivityStoryPanel compact />
       <SuptContinuumStrip compact />
       <VolcanoAlertsBar compact />
       <FocusedNodeCard features={filteredEq(eq?.features, minMag, maxMag)} />
@@ -834,6 +836,11 @@ function ObservatoryApp() {
           }`}
         >
           <TodayBriefBar dense />
+          {tab === "live" && (
+            <div className="mt-0.5 min-w-0">
+              <ActivityStoryChip />
+            </div>
+          )}
           {/* Cross-feed desktop only — mobile map stays clean */}
           {tab === "live" && !isMobile && (
             <div className="mt-0.5 min-w-0">
