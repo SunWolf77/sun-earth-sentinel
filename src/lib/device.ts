@@ -23,7 +23,9 @@ export function historyCap(): number {
 }
 
 export function cacheSoftLimitBytes(): number {
-  return isMobileViewport() ? 1_200_000 : 3_500_000;
+  // Room for slimmed USGS week/month + KP/scales. Fat solar (xray/donki)
+  // yields first under pressure — see localCache prune ranks.
+  return isMobileViewport() ? 2_400_000 : 4_500_000;
 }
 
 /** Low-end / phone: prefer lean WebGL (fewer meshes, no heavy textures). */

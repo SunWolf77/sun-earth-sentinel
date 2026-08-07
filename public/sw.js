@@ -32,7 +32,7 @@ const MUTABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_CORE = ["/favicon.svg", "/manifest.webmanifest"];
 const PRECACHE_DESK = ["/og.png"];
 /** Build stamp — bump with shell version so clients drop stale HTML/asset maps */
-const SW_BUILD = "v8-2026-07-31-mobile";
+const SW_BUILD = "v8-2026-08-07-eq-cache";
 
 /** @type {Map<string, true>} */
 let lru = new Map();

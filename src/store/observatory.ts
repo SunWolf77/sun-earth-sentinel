@@ -1122,6 +1122,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     try {
       const eqCacheKey = `eq_${timeWindow}`;
       let eq = force ? null : getCache<EqCollection>(eqCacheKey, cfg.refreshMs);
+      // Treat empty catalog as a miss — never block a live USGS pull
+      if (eq && !eq.features?.length) eq = null;
       let kp = force ? null : getCache<KpPoint[]>("kp", cfg.refreshMs);
       let xray = force ? null : getCache<XrayPoint[]>("xray", cfg.refreshMs * 2);
       let solarWind = force ? null : getCache<SolarWind>("sw", cfg.refreshMs);
@@ -1159,14 +1161,30 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
 
       if (!eq) {
         tasks.push(
-          withTimeout(fetchEarthquakes(timeWindow), 20_000, "usgs-eq")
+          withTimeout(fetchEarthquakes(timeWindow), 22_000, "usgs-eq")
             .then((d) => {
               eq = d;
               setCache(eqCacheKey, d);
               stamp("eq");
             })
             .catch((e) => {
-              fail("eq", e instanceof Error ? e.message : "USGS failed");
+              // Other window caches beat empty map when USGS blips
+              const fallbacks: Array<"hour" | "day" | "week" | "month"> = [
+                "week",
+                "day",
+                "month",
+                "hour",
+              ];
+              for (const w of fallbacks) {
+                if (w === timeWindow) continue;
+                const hit = getCache<EqCollection>(`eq_${w}`, 600_000);
+                if (hit?.features?.length) {
+                  eq = hit;
+                  stamp("eq");
+                  break;
+                }
+              }
+              if (!eq) fail("eq", e instanceof Error ? e.message : "USGS failed");
             }),
         );
       } else if (!get().feedTimestamps.eq) {
@@ -1391,6 +1409,11 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             { minMag: cfg.minMag, maxPriorityMicro: Math.min(120, Math.floor(cfg.maxMarkers * 0.2)) },
           ),
         };
+      }
+      // Re-persist merged catalog (slimmed in setCache) so reload / Vercel
+      // clients keep world history even after solar blobs fill storage.
+      if (eqFinal?.features?.length) {
+        setCache(eqCacheKey, eqFinal);
       }
       const newestEventAgeMs = latestEventAgeMs(eqFinal?.features);
 

@@ -1,12 +1,23 @@
 /**
  * Versioned localStorage cache + bounded history.
  * Prunes on quota / soft size limit (tighter on mobile).
+ *
+ * Priority (highest → lowest survival):
+ *  1. Primary USGS window caches (eq_hour/day/week/month) + live pulse
+ *  2. Resonance / attention history (hist_*)
+ *  3. Small operational prefs & short feeds
+ *  4. Bulky solar / secondary catalogs (xray, donki, protons, jma, node catalogs)
+ *
+ * Past bug: prune preferred keys matching "eq" and "hist_" first, so every
+ * xray/jma write wiped earthquake history — Vercel/mobile looked empty while
+ * a fresh Grok session still had in-memory feeds.
  */
 
 import { cacheSoftLimitBytes, historyCap, isMobileViewport } from "@/lib/device";
 
 const PREFIX = "ww_";
-const CACHE_VER = 3;
+/** Bump wipes legacy ww_* so bad prune order / fat caches cannot stick. */
+const CACHE_VER = 4;
 const VER_KEY = `${PREFIX}cache_ver`;
 
 function ensureVersion(): void {
@@ -14,7 +25,6 @@ function ensureVersion(): void {
   try {
     const v = localStorage.getItem(VER_KEY);
     if (v === String(CACHE_VER)) return;
-    // Wipe legacy ww_ keys on version bump (keeps wolfwatch_* prefs)
     const kill: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -50,47 +60,277 @@ function approxBytes(): number {
   return n * 2; // UTF-16 rough
 }
 
-/** Drop oldest ww_ cache/history entries until under soft limit. */
+/** Bare key (no ww_ prefix) helpers. */
+function bare(key: string): string {
+  return key.startsWith(PREFIX) ? key.slice(PREFIX.length) : key;
+}
+
+/**
+ * Lower number = prune sooner (sacrificial).
+ * Higher number = protect until last resort.
+ */
+function pruneRank(fullKey: string): number {
+  const k = bare(fullKey);
+  // Protect primary seismic catalog + live tip
+  if (/^eq_(hour|day|week|month)$/.test(k) || k === "eq_pulse") return 100;
+  // Protect resonance / attention history series
+  if (k.startsWith("hist_")) return 90;
+  // Small, useful ops
+  if (
+    k === "scales" ||
+    k === "sw" ||
+    k === "flux10" ||
+    k === "kp" ||
+    k === "alerts" ||
+    k === "forecast" ||
+    k === "enlil" ||
+    k === "ovation" ||
+    k === "usgs_volc_alerts_v4" ||
+    k === "volc"
+  ) {
+    return 70;
+  }
+  // Secondary seismic densifiers (re-fetchable)
+  if (k === "geofon" || k.startsWith("node_catalog_")) return 40;
+  if (k === "jma" || k === "global_seismic") return 35;
+  // Fat solar blobs — drop first
+  if (k === "xray" || k === "protons" || k === "donki" || k === "ovationBundle" || k === "kp_fc") {
+    return 10;
+  }
+  return 50;
+}
+
+type Entry = { key: string; ts: number; rank: number; bytes: number };
+
+function listEntries(): Entry[] {
+  const entries: Entry[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(PREFIX) || k === VER_KEY) continue;
+      const raw = localStorage.getItem(k) ?? "";
+      let ts = 0;
+      try {
+        const parsed = JSON.parse(raw) as { ts?: number };
+        if (typeof parsed.ts === "number") ts = parsed.ts;
+      } catch {
+        ts = 0;
+      }
+      entries.push({
+        key: k,
+        ts,
+        rank: pruneRank(k),
+        bytes: (k.length + raw.length) * 2,
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+  // Sacrificial first (low rank), then oldest, then largest
+  entries.sort((a, b) => a.rank - b.rank || a.ts - b.ts || b.bytes - a.bytes);
+  return entries;
+}
+
+/**
+ * Drop sacrificial ww_ entries until under target fraction of soft limit.
+ * Never deletes VER_KEY. Protected ranks only fall if still over after a full pass.
+ */
 export function pruneCache(force = false): void {
   if (typeof localStorage === "undefined") return;
   ensureVersion();
   const limit = cacheSoftLimitBytes();
   if (!force && approxBytes() < limit) return;
 
-  type Entry = { key: string; ts: number };
-  const entries: Entry[] = [];
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!k || !k.startsWith(PREFIX) || k === VER_KEY) continue;
-      let ts = 0;
-      try {
-        const raw = localStorage.getItem(k);
-        if (raw) {
-          const parsed = JSON.parse(raw) as { ts?: number };
-          if (typeof parsed.ts === "number") ts = parsed.ts;
-        }
-      } catch {
-        ts = 0;
-      }
-      entries.push({ key: k, ts });
-    }
-    entries.sort((a, b) => a.ts - b.ts); // oldest first
+    const target = limit * 0.72;
+    const entries = listEntries();
+
+    // Pass 1: rank < 80 (everything except hist + primary eq)
     for (const e of entries) {
-      if (approxBytes() < limit * 0.75) break;
-      // Prefer pruning hist_ and bulky feed keys first
-      if (e.key.includes("hist_") || e.key.includes("eq") || e.key.includes("xray") || e.key.includes("donki")) {
-        localStorage.removeItem(e.key);
-      }
+      if (approxBytes() < target) return;
+      if (e.rank >= 80) continue;
+      localStorage.removeItem(e.key);
     }
-    // Second pass any ww_
+    // Pass 2: history (if still over)
     for (const e of entries) {
-      if (approxBytes() < limit * 0.85) break;
-      if (localStorage.getItem(e.key) != null) localStorage.removeItem(e.key);
+      if (approxBytes() < target) return;
+      if (e.rank < 80 || e.rank >= 100) continue;
+      localStorage.removeItem(e.key);
+    }
+    // Pass 3 last resort: primary eq windows (newest-protected last)
+    const eqLast = entries
+      .filter((e) => e.rank >= 100)
+      .sort((a, b) => a.ts - b.ts);
+    for (const e of eqLast) {
+      if (approxBytes() < target) return;
+      localStorage.removeItem(e.key);
     }
   } catch {
     /* ignore */
   }
+}
+
+/** Free space specifically so a protected write can succeed. */
+function freeSpaceForWrite(incomingBytes: number, protectBareKey: string): void {
+  const limit = cacheSoftLimitBytes();
+  const need = approxBytes() + incomingBytes;
+  if (need < limit * 0.9) return;
+
+  const protectFull = PREFIX + protectBareKey;
+  const entries = listEntries().filter((e) => e.key !== protectFull);
+  for (const e of entries) {
+    if (approxBytes() + incomingBytes < limit * 0.85) break;
+    // Prefer dropping non-protected
+    if (e.rank >= 100 && protectBareKey.startsWith("eq_")) continue;
+    localStorage.removeItem(e.key);
+  }
+}
+
+/**
+ * Slim GeoJSON-like collections before persist — strip bulky unused props.
+ * Keeps mag/place/time/geometry/id which the map + boards need.
+ */
+export function slimEqPayload<T>(data: T, maxFeatures?: number): T {
+  if (!data || typeof data !== "object") return data;
+  const col = data as {
+    type?: string;
+    features?: Array<{
+      type?: string;
+      id?: unknown;
+      properties?: Record<string, unknown>;
+      geometry?: { type?: string; coordinates?: number[] };
+    }>;
+    metadata?: Record<string, unknown>;
+  };
+  if (!Array.isArray(col.features)) return data;
+
+  const mobile = isMobileViewport();
+  const cap =
+    maxFeatures ??
+    (mobile ? 500 : 900);
+
+  // Prefer stronger / newer when capping for cache
+  const sorted = [...col.features].sort((a, b) => {
+    const ma = Number(a.properties?.mag ?? 0);
+    const mb = Number(b.properties?.mag ?? 0);
+    if (mb !== ma) return mb - ma;
+    const ta = Number(a.properties?.time ?? 0);
+    const tb = Number(b.properties?.time ?? 0);
+    return tb - ta;
+  });
+  const slice = sorted.slice(0, cap);
+
+  const features = slice.map((f) => {
+    const p = f.properties ?? {};
+    const coords = Array.isArray(f.geometry?.coordinates)
+      ? f.geometry!.coordinates!.slice(0, 3)
+      : [0, 0, 0];
+    return {
+      type: "Feature" as const,
+      id: f.id,
+      properties: {
+        mag: p.mag ?? null,
+        place: p.place ?? null,
+        time: p.time ?? null,
+        updated: p.updated,
+        url: p.url,
+        title: p.title,
+        type: p.type,
+        status: p.status,
+        mmi: p.mmi,
+        types: p.types,
+        felt: p.felt,
+        cdi: p.cdi,
+        alert: p.alert,
+        tsunami: p.tsunami,
+        sig: p.sig,
+        net: p.net,
+        magType: p.magType,
+        // JMA extras when present
+        jmaMaxi: p.jmaMaxi,
+        jmaEid: p.jmaEid,
+        jmaProduct: p.jmaProduct,
+        jmaEnriched: p.jmaEnriched,
+        detail: p.detail,
+        sesSource: p.sesSource,
+      },
+      geometry: {
+        type: "Point" as const,
+        coordinates: coords as [number, number, number?],
+      },
+    };
+  });
+
+  return {
+    type: "FeatureCollection",
+    features,
+    metadata: {
+      ...(col.metadata ?? {}),
+      count: features.length,
+      slimmed: true,
+    },
+  } as T;
+}
+
+/** Down-sample dense time series (xray / protons) for localStorage. */
+export function slimSeriesPayload<T>(data: T, maxPoints = 360): T {
+  if (!Array.isArray(data)) return data;
+  const arr = data as unknown[];
+  if (arr.length <= maxPoints) return data;
+  const stride = Math.ceil(arr.length / maxPoints);
+  const out: unknown[] = [];
+  for (let i = 0; i < arr.length; i += stride) out.push(arr[i]);
+  // Always keep the newest sample
+  const last = arr[arr.length - 1];
+  if (out[out.length - 1] !== last) out.push(last);
+  return out as T;
+}
+
+function prepareForStorage<T>(key: string, data: T): T {
+  if (
+    key.startsWith("eq_") ||
+    key === "geofon" ||
+    key === "jma" ||
+    key === "volc" ||
+    key.startsWith("node_catalog_")
+  ) {
+    return slimEqPayload(data);
+  }
+  if (key === "global_seismic" && data && typeof data === "object") {
+    const g = data as {
+      significant?: unknown;
+      m45?: unknown;
+      m25?: unknown;
+      fetchedAt?: number;
+    };
+    return {
+      ...g,
+      significant: g.significant ? slimEqPayload(g.significant, 80) : g.significant,
+      m45: g.m45 ? slimEqPayload(g.m45, 200) : g.m45,
+      m25: g.m25 ? slimEqPayload(g.m25, 300) : g.m25,
+    } as T;
+  }
+  if (key === "xray") {
+    return slimSeriesPayload(data, isMobileViewport() ? 240 : 480);
+  }
+  if (key === "protons") {
+    return slimSeriesPayload(data, isMobileViewport() ? 180 : 360);
+  }
+  if (key === "donki" && isMobileViewport()) {
+    // Mobile: keep shallow counts only — full DONKI is huge
+    const d = data as {
+      cmes?: unknown[];
+      flares?: unknown[];
+      fetchedAt?: number;
+    };
+    return {
+      cmes: Array.isArray(d.cmes) ? d.cmes.slice(0, 12) : d.cmes,
+      flares: Array.isArray(d.flares) ? d.flares.slice(0, 12) : d.flares,
+      fetchedAt: d.fetchedAt,
+      slimmed: true,
+    } as T;
+  }
+  return data;
 }
 
 export function getCache<T>(key: string, maxAgeMs = 4 * 60 * 1000): T | null {
@@ -100,7 +340,6 @@ export function getCache<T>(key: string, maxAgeMs = 4 * 60 * 1000): T | null {
     if (!raw) return null;
     const { ts, data } = JSON.parse(raw) as { ts: number; data: T };
     if (Date.now() - ts < maxAgeMs) return data;
-    // expired — drop
     localStorage.removeItem(PREFIX + key);
   } catch {
     /* ignore */
@@ -110,25 +349,49 @@ export function getCache<T>(key: string, maxAgeMs = 4 * 60 * 1000): T | null {
 
 export function setCache<T>(key: string, data: T): void {
   ensureVersion();
-  try {
-    // Don't persist huge donki on mobile
-    if (isMobileViewport() && (key === "donki" || key === "xray" || key === "protons")) {
-      // still cache but prune first
-      pruneCache(true);
+  const prepared = prepareForStorage(key, data);
+
+  // Mobile: skip persisting the greediest solar blobs if primary eq is already
+  // in storage — better a live map than a full xray archive offline.
+  if (
+    isMobileViewport() &&
+    (key === "donki" || key === "xray" || key === "protons" || key === "ovationBundle")
+  ) {
+    const hasEq =
+      getCache("eq_week", 600_000) != null ||
+      getCache("eq_day", 600_000) != null ||
+      getCache("eq_month", 600_000) != null;
+    if (hasEq && approxBytes() > cacheSoftLimitBytes() * 0.55) {
+      // Drop any prior fat copy and leave room for eq
+      removeCache(key);
+      return;
     }
-    localStorage.setItem(
-      PREFIX + key,
-      JSON.stringify({ ts: Date.now(), data, v: CACHE_VER }),
-    );
+  }
+
+  const payload = JSON.stringify({ ts: Date.now(), data: prepared, v: CACHE_VER });
+  const incomingBytes = (PREFIX.length + key.length + payload.length) * 2;
+
+  try {
+    freeSpaceForWrite(incomingBytes, key);
+    localStorage.setItem(PREFIX + key, payload);
   } catch {
+    // Quota — purge sacrificial, retry once
     pruneCache(true);
+    freeSpaceForWrite(incomingBytes, key);
     try {
-      localStorage.setItem(
-        PREFIX + key,
-        JSON.stringify({ ts: Date.now(), data, v: CACHE_VER }),
-      );
+      localStorage.setItem(PREFIX + key, payload);
     } catch {
-      /* give up */
+      // Last ditch: if this is primary eq, wipe solar fat and retry
+      if (key.startsWith("eq_")) {
+        for (const fat of ["xray", "protons", "donki", "ovationBundle", "jma", "kp_fc"]) {
+          removeCache(fat);
+        }
+        try {
+          localStorage.setItem(PREFIX + key, payload);
+        } catch {
+          /* give up */
+        }
+      }
     }
   }
   if (approxBytes() > cacheSoftLimitBytes()) pruneCache(true);
@@ -149,7 +412,6 @@ export function getHistory<T>(key: string, maxItems?: number): T[] {
     const raw = localStorage.getItem(PREFIX + "hist_" + key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as { ts?: number; data?: T[] } | T[];
-    // support new {ts,data} and legacy bare array
     const arr = Array.isArray(parsed) ? parsed : Array.isArray(parsed.data) ? parsed.data : [];
     return arr.slice(-cap);
   } catch {
@@ -160,7 +422,6 @@ export function getHistory<T>(key: string, maxItems?: number): T[] {
 export function pushHistory<T>(key: string, item: T, maxItems?: number): T[] {
   const cap = maxItems ?? historyCap();
   const prev = getHistory<T>(key, cap);
-  // Dedupe rapid identical d_ij points within 30s
   const last = prev[prev.length - 1] as { t?: number; d_ij?: number | null } | undefined;
   const nextItem = item as { t?: number; d_ij?: number | null };
   if (
@@ -173,17 +434,20 @@ export function pushHistory<T>(key: string, item: T, maxItems?: number): T[] {
     return prev;
   }
   const next = [...prev, item].slice(-cap);
+  const payload = JSON.stringify({ ts: Date.now(), data: next, v: CACHE_VER });
   try {
-    localStorage.setItem(
-      PREFIX + "hist_" + key,
-      JSON.stringify({ ts: Date.now(), data: next, v: CACHE_VER }),
-    );
+    freeSpaceForWrite((payload.length + 20) * 2, "hist_" + key);
+    localStorage.setItem(PREFIX + "hist_" + key, payload);
   } catch {
     pruneCache(true);
     try {
       localStorage.setItem(
         PREFIX + "hist_" + key,
-        JSON.stringify({ ts: Date.now(), data: next.slice(-Math.floor(cap / 2)), v: CACHE_VER }),
+        JSON.stringify({
+          ts: Date.now(),
+          data: next.slice(-Math.floor(cap / 2)),
+          v: CACHE_VER,
+        }),
       );
     } catch {
       /* ignore */
@@ -203,8 +467,13 @@ export type AttentionHistoryPoint = {
 export function clearFeedCaches(): void {
   const keys = [
     "eq",
+    "eq_hour",
+    "eq_day",
+    "eq_week",
+    "eq_month",
     "eq_pulse",
     "geofon",
+    "jma",
     "kp",
     "xray",
     "sw",
@@ -215,9 +484,22 @@ export function clearFeedCaches(): void {
     "forecast",
     "enlil",
     "ovation",
+    "ovationBundle",
     "donki",
     "volc",
+    "global_seismic",
   ];
   for (const k of keys) removeCache(k);
+  // Also drop node catalogs
+  try {
+    const kill: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(PREFIX + "node_catalog_")) kill.push(k);
+    }
+    for (const k of kill) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
   pruneCache(true);
 }
