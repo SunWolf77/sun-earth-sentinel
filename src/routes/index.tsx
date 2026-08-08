@@ -35,6 +35,8 @@ import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
 import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
+import { BackToSesButton } from "@/components/nodes/BackToSesButton";
+import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
@@ -480,6 +482,10 @@ function ObservatoryApp() {
   }, [lastUpdate, ageTick, loading]);
 
 
+
+  // Global nav: 1–5 views, H/Esc home, T·C·J·K nodes (see Help → Keys)
+  useNavShortcuts();
+
   // Immersive: Escape exits fullscreen map without killing the session
   useEffect(() => {
     if (!mapImmersive) return;
@@ -767,29 +773,36 @@ function ObservatoryApp() {
           </div>
         </div>
 
-        <nav className="ww-tablist" role="tablist" aria-label="Main sections">
-          {TABS.map(({ id, label, short, Icon }) => {
-            const selected = tab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                id={`tab-${id}`}
-                aria-selected={selected}
-                aria-controls={`panel-${id}`}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => setTab(id)}
-                className={`ww-tab ${selected ? "ww-tab--active" : ""}`}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="ww-only-lg hidden sm:inline">{label}</span>
-                <span className="ww-only-sm sm:hidden">{short}</span>
-              </button>
-            );
-          })}
-        </nav>
-        {/* Published SES nodes — always visible; focus in-app, SES = home (no full reload) */}
+        {/* Row 2 — Views (sections). Shortcuts 1–5 */}
+        <div className="ww-header-row ww-header-row--views">
+          <span className="ww-header-row__label" title="Main sections · keys 1–5">
+            Views
+          </span>
+          <nav className="ww-tablist" role="tablist" aria-label="Main sections">
+            {TABS.map(({ id, label, short, Icon }, i) => {
+              const selected = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={selected}
+                  aria-controls={`panel-${id}`}
+                  tabIndex={selected ? 0 : -1}
+                  title={`${label} (${i + 1})`}
+                  onClick={() => setTab(id)}
+                  className={`ww-tab ${selected ? "ww-tab--active" : ""}`}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="ww-only-lg hidden sm:inline">{label}</span>
+                  <span className="ww-only-sm sm:hidden">{short}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        {/* Row 3 — published nodes; SES home / Back / T·C·J·K keys */}
         <PublishedNodesNav />
       </header>
 
@@ -1012,6 +1025,8 @@ function ObservatoryApp() {
                     {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
                 </ClientOnly>
+                {/* Dedicated back-to-SES — only while a node/zone is focused */}
+                <BackToSesButton variant="float" />
                 {/* Edge chrome dock — out of the way of Earth / map center */}
                 {mapView === "2d" && (
                   <div className="pointer-events-none absolute bottom-[4.25rem] right-1.5 z-[550] sm:bottom-4 sm:right-3">

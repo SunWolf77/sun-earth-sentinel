@@ -77,6 +77,18 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     ],
   },
   {
+    id: "keys",
+    title: "Keyboard shortcuts",
+    body: [
+      "1–5 — Views: Live Map · Solar · Rhythm · Charts · About.",
+      "H · 0 · Home — SES world (clear node focus, no reload).",
+      "T · C · J · K — Focus Tonga · Campi · Japan · Kamchatka (same key again = home).",
+      "Esc — leave full-screen map, or clear focus / close sheet.",
+      "? — open this how-to. Shortcuts ignore keys while typing in fields.",
+      "Header layout: brand/tools → Views (tabs) → Nodes (SES + published hops + Back).",
+    ],
+  },
+  {
     id: "modes",
     title: "Layers: ISS · Aurora · Fires",
     body: [
