@@ -34,6 +34,7 @@ import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
+import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
@@ -788,6 +789,8 @@ function ObservatoryApp() {
             );
           })}
         </nav>
+        {/* Published SES nodes — always visible; focus in-app, SES = home (no full reload) */}
+        <PublishedNodesNav />
       </header>
 
       {(bootWait && !lastUpdate) && (
