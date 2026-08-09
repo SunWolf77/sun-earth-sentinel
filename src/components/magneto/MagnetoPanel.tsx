@@ -22,6 +22,10 @@ import { fetchGoesMagnetometer } from "@/lib/feeds/goesMagneto";
 import { INTERMAGNET_FORMATS } from "@/lib/magneto/intermagnetFormats";
 import { XHandle } from "@/components/ui/XProfileLink";
 import { formatUtc } from "@/lib/utils";
+import { GicExplainer } from "@/components/magneto/GicExplainer";
+import { IgrfFieldNote } from "@/components/magneto/IgrfFieldNote";
+import { Igrf14Explorer } from "@/components/magneto/Igrf14Explorer";
+import { Wmm2025Sampler } from "@/components/magneto/Wmm2025Sampler";
 
 /**
  * Magnetic anomaly desk — data via Richard Cordaro’s public INTERMAGNET tool
@@ -223,6 +227,11 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
           Full tool
         </a>
       </div>
+
+      <GicExplainer />
+      <Igrf14Explorer />
+      <IgrfFieldNote />
+      <Wmm2025Sampler />
 
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-[0.65rem] text-dim">

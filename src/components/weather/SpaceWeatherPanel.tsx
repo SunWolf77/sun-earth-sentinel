@@ -32,6 +32,11 @@ import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
 import { SolarImageryWall } from "@/components/weather/SolarImageryWall";
+import { HistoricalStormDesk } from "@/components/weather/HistoricalStormDesk";
+import { DeepEarthContextCard } from "@/components/weather/DeepEarthContextCard";
+import { SwpcStormWarnings } from "@/components/weather/SwpcStormWarnings";
+import { ModelAccuracyDisclaimer } from "@/components/ops/ModelAccuracyDisclaimer";
+import { KIndexScalesPanel } from "@/components/weather/KIndexScalesPanel";
 import {
   Activity,
   AlertTriangle,
@@ -55,7 +60,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const xray = useObservatory((s) => s.xray);
   const solarWind = useObservatory((s) => s.solarWind);
   const scales = useObservatory((s) => s.scales);
-  const alerts = useObservatory((s) => s.alerts);
   const flux10cm = useObservatory((s) => s.flux10cm);
   const forecast = useObservatory((s) => s.forecast);
   const enlil = useObservatory((s) => s.enlil);
@@ -264,6 +268,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       <SuptContinuumStrip compact />
 
       <MagnetoPanel />
+
+      <HistoricalStormDesk />
+
+      <KIndexScalesPanel />
 
       <Ladder title="1 · Ops brief" hint="Scales · wind · CME impact (official sizes)" />
       {/* Impact command card — ops brief from data */}
@@ -874,38 +882,18 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       <Ladder title="6 · Recommendations" hint="What to watch next" />
       <RecommendationsPanel />
 
-      <Ladder title="7 · SWPC alerts">
-        <button type="button" className="ww-btn min-h-8 text-[0.62rem]" onClick={() => toggleDeep("alerts")}>
-          {deepOpen.alerts ? "Collapse" : "Expand"}
-        </button>
-      </Ladder>
-      {deepOpen.alerts ? (
-      <>
-      {/* Alerts */}
-      <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
-        <h3 className="mb-2 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-          SWPC alerts & watches
-        </h3>
-        <div className="scroll-thin max-h-40 space-y-1.5 overflow-y-auto text-[0.75rem] text-muted">
-          {alerts.length === 0 && <p>No active high-level alerts or feed quiet.</p>}
-          {alerts.slice(0, 8).map((a, i) => (
-            <p key={i} className="border-b border-border/60 pb-1.5 last:border-0">
-              {(a.message || a.issue_datetime || "Alert").slice(0, 220)}
-              {(a.message || "").length > 220 ? "…" : ""}
-            </p>
-          ))}
-        </div>
-      </section>
+      <Ladder title="7 · SWPC storm warnings" hint="Official watches · warnings · alerts" />
+      <SwpcStormWarnings />
 
-      </>
-      ) : (
-        <p className="text-center text-[0.68rem] text-dim">Alerts collapsed — expand to read SWPC text.</p>
-      )}
+      <ModelAccuracyDisclaimer />
+
+      <DeepEarthContextCard />
 
       <footer className="pb-2 text-[0.62rem] leading-relaxed text-dim">
         Free stack: NOAA SWPC (scales, L1 wind, GOES X-ray, 10.7 cm, 3-day forecast, ENLIL, OVATION,
         alerts) · NASA SDO stills/MPEG (+ opt-in imagery wall) · SOHO LASCO · STEREO-A beacons · Solar Orbiter EUI via
-        Helioviewer · NASA CCMC DONKI (server proxy). Not an official forecast product — always
+        Helioviewer · NASA CCMC DONKI (server proxy). Historical Storm Desk & field models are educational.
+        Not an official forecast product — always
         verify with{" "}
         <a
           href="https://www.swpc.noaa.gov/"
