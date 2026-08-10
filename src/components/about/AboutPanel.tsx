@@ -106,7 +106,8 @@ export function AboutPanel() {
           . Deep-link back with{" "}
           <code className="text-primary">?tab=live&node=tonga</code> or{" "}
           <code className="text-primary">node=mediterranean</code> (aliases: campi, cf) or{" "}
-          <code className="text-primary">node=iceland</code> (IS · IMO).
+          <code className="text-primary">node=iceland</code> (IS · IMO) or{" "}
+          <code className="text-primary">node=southsandwich</code> (SS · Drake).
         </p>
       </Section>
 

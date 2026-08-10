@@ -438,22 +438,46 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "southsandwich",
     name: "South Sandwich / Drake",
-    role: "Dragon Head · Fracture Sentinel / Long-tail",
+    role: "Published focus · SES #5 · Scotia Arc · USGS",
     kind: "seismic",
+    /**
+     * South Sandwich trench + Scotia plate / Drake Passage approach.
+     * Remote — USGS/GEOFON/EMSC only practical realtime; no national dense board.
+     */
     bounds: [
       [-65, -40],
       [-50, -15],
+    ],
+    center: [-57.5, -26.5],
+    monitorUrl:
+      "https://earthquake.usgs.gov/earthquakes/map/?extent=-65,-40&extent=-50,-15",
+    publishedFocus: true,
+    watchPriority: true,
+    focusNote:
+      "SES node #5 — South Sandwich trench & Scotia Arc (approach to Drake Passage). Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Tsunami source potential for South Atlantic. Not a forecast.",
+    aliases: [
+      "ss",
+      "sandwich",
+      "south-sandwich",
+      "drake",
+      "scotia",
+      "scotia-arc",
     ],
   },
   {
     id: "andes",
     name: "Chile–Andes / Nazca",
-    role: "Release Valve · KE Threshold",
+    role: "Corridor · Nazca subduction (not yet published board)",
     kind: "seismic",
     bounds: [
       [-45, -80],
       [-15, -65],
     ],
+    center: [-30, -72],
+    watchPriority: true,
+    focusNote:
+      "Chile–Andes / Nazca megathrust corridor — dragon node only for now. USGS + CSN Chile links in agency panel. Promote to published board when ready. Not a forecast.",
+    aliases: ["chile", "andes", "nazca", "csn"],
   },
   {
     id: "mediterranean",

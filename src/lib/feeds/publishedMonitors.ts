@@ -119,6 +119,27 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     focusNote:
       "SES node #4 — Iceland. Dense IMO SeisComP replaces USGS in-box (never dual-read). SUPT volcanic desk segments Reykjanes / Katla / Askja…. Not a forecast.",
   },
+  {
+    sesNodeId: "southsandwich",
+    name: "South Sandwich / Drake",
+    networkOrder: 5,
+    shortCode: "SS",
+    role: "Published focus · SES #5 · Scotia Arc · USGS",
+    monitorUrl:
+      "https://earthquake.usgs.gov/earthquakes/map/?extent=-65,-40&extent=-50,-15",
+    authority: "USGS FDSN / realtime (+ GEOFON/EMSC)",
+    aliases: [
+      "southsandwich",
+      "ss",
+      "sandwich",
+      "south-sandwich",
+      "drake",
+      "scotia",
+      "scotia-arc",
+    ],
+    focusNote:
+      "SES node #5 — South Sandwich trench / Scotia Arc / Drake approach. Remote; USGS primary. No dense national catalog (islands uninhabited). Tsunami source potential South Atlantic. Not a forecast.",
+  },
 ];
 
 const ALIAS_TO_SES = (() => {
