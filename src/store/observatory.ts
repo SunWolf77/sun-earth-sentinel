@@ -17,6 +17,14 @@ import {
 } from "@/lib/feeds/usgs";
 import { fetchGeofonWeek } from "@/lib/feeds/geofon";
 import { fetchJmaQuakes, mergeJmaIntoCollection } from "@/lib/feeds/jma";
+import {
+  fetchEmscWeek,
+  mergeEmscIntoCollection,
+} from "@/lib/feeds/emsc";
+import {
+  fetchImoQuakes,
+  mergeImoIntoCollection,
+} from "@/lib/feeds/imoQuakes";
 import { alertNewEvents } from "@/lib/audio/alerts";
 import {
   fetchKp,
@@ -113,6 +121,8 @@ export type FeedTimestamps = {
   volc: number | null;
   geofon: number | null;
   jma: number | null;
+  emsc: number | null;
+  imo: number | null;
   global: number | null;
   pulse: number | null;
   donki: number | null;
@@ -127,6 +137,8 @@ export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
   volc: null,
   geofon: null,
   jma: null,
+  emsc: null,
+  imo: null,
   global: null,
   pulse: null,
   donki: null,
@@ -139,6 +151,8 @@ export type FeedSourceErrors = {
   eq: string | null;
   jma: string | null;
   geofon: string | null;
+  emsc: string | null;
+  imo: string | null;
   solar: string | null;
   volc: string | null;
   boards: string | null;
@@ -152,6 +166,8 @@ export const EMPTY_FEED_ERRORS: FeedSourceErrors = {
   eq: null,
   jma: null,
   geofon: null,
+  emsc: null,
+  imo: null,
   solar: null,
   volc: null,
   boards: null,
@@ -1154,6 +1170,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let pulse: EqCollection | null = null;
       let geofon: EqCollection | null = null;
       let jma: EqCollection | null = null;
+      let emsc: EqCollection | null = null;
+      let imo: EqCollection | null = null;
       const stamps: Partial<FeedTimestamps> = {};
       const errs: Partial<FeedSourceErrors> = {};
       const stamp = (k: keyof FeedTimestamps) => {
@@ -1237,6 +1255,48 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             if (!jma) fail("jma", e instanceof Error ? e.message : "JMA failed");
           }),
       );
+      // EMSC — Europe/Med + IMO-contributed Iceland (independent of USGS)
+      tasks.push(
+        withTimeout(fetchEmscWeek(Math.min(cfg.minMag, 2.5)), 20_000, "emsc")
+          .then((d) => {
+            emsc = d;
+            setCache("emsc", d);
+            stamp("emsc");
+          })
+          .catch((e) => {
+            emsc = getCache<EqCollection>("emsc", 300_000);
+            if (!emsc) fail("emsc", e instanceof Error ? e.message : "EMSC failed");
+          }),
+      );
+      // IMO Iceland national catalog — densifies below USGS threshold
+      {
+        const imoDays =
+          timeWindow === "hour"
+            ? 1
+            : timeWindow === "day"
+              ? 2
+              : timeWindow === "week"
+                ? 7
+                : 14;
+        // Floor at 1.0 so microseismicity is visible without flooding M4+ world view
+        const imoMin = Math.min(cfg.minMag, 1.5);
+        tasks.push(
+          withTimeout(
+            fetchImoQuakes({ sizeMin: imoMin, days: imoDays, limit: 800 }),
+            18_000,
+            "imo",
+          )
+            .then((d) => {
+              imo = d;
+              setCache("imo", d);
+              stamp("imo");
+            })
+            .catch((e) => {
+              imo = getCache<EqCollection>("imo", 300_000);
+              if (!imo) fail("imo", e instanceof Error ? e.message : "IMO failed");
+            }),
+        );
+      }
       // Solar stack via server proxy (CORS-safe) + DONKI
       if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !forecast || !flux10cm || force)) {
         tasks.push(
@@ -1372,17 +1432,22 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       if (useGeofon && geofon) {
         eqFinal = mergeEqCollections(eqFinal, geofon);
       }
+      const age =
+        timeWindow === "hour"
+          ? 3_600_000
+          : timeWindow === "day"
+            ? 86_400_000
+            : timeWindow === "week"
+              ? 7 * 86_400_000
+              : 30 * 86_400_000;
+      if (emsc) {
+        eqFinal = mergeEmscIntoCollection(eqFinal, emsc, { maxAgeMs: age });
+      }
       if (jma) {
-        // Match selected window (not looser ages) so 3D/2D stay honest
-        const age =
-          timeWindow === "hour"
-            ? 3_600_000
-            : timeWindow === "day"
-              ? 86_400_000
-              : timeWindow === "week"
-                ? 7 * 86_400_000
-                : 30 * 86_400_000;
         eqFinal = mergeJmaIntoCollection(eqFinal, jma, { maxAgeMs: age });
+      }
+      if (imo) {
+        eqFinal = mergeImoIntoCollection(eqFinal, imo, { maxAgeMs: age });
       }
       // Authority boards (CF / INGV): strip bbox USGS → inject catalogFeedUrl
       // Never dual-read — see src/lib/feeds/nodeCatalogFeed.ts

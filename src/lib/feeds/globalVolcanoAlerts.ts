@@ -11,6 +11,7 @@ import { fetchIngvItalyElevated } from "@/lib/feeds/ingvVolcanoAlerts";
 import { VOLCANO_WATCHES } from "@/lib/feeds/volcanoWatches";
 import { fetchGvpWeeklyAndErupting } from "@/lib/feeds/gvpActivity";
 import { buildGuatemalaFromGvp } from "@/lib/feeds/guatemalaVolcanoes";
+import { fetchImoElevatedVolcanoes } from "@/lib/feeds/imoVolcanoes";
 
 export type VolcAlertSource =
   | "usgs"
@@ -51,16 +52,18 @@ function rankSource(s?: string): number {
   switch (s) {
     case "ingv":
       return 5;
+    case "imo":
+      return 5; // national Iceland authority
     case "kvert":
       return 4;
     case "usgs":
       return 3;
     case "gvp-gt":
-      return 2; // Guatemala pack — above plain GVP, honest GVP-cited label
+      return 2;
     case "official":
       return 2;
     case "gvp":
-      return 1; // weekly / VOTW fill — yield to USGS/INGV/GT on same vent
+      return 1;
     default:
       return 0;
   }
@@ -166,9 +169,10 @@ export function dedupeVolcanoAlerts(alerts: GlobalVolcAlert[]): GlobalVolcAlert[
 
 /** Fetch all sources in parallel and merge (no overlapping pins). */
 export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
-  const [usgs, ingv, gvpParts, curated] = await Promise.all([
+  const [usgs, ingv, imo, gvpParts, curated] = await Promise.all([
     fetchUsgsElevatedVolcanoes().catch(() => [] as UsgsVolcanoAlert[]),
     fetchIngvItalyElevated().catch(() => [] as UsgsVolcanoAlert[]),
+    fetchImoElevatedVolcanoes().catch(() => [] as GlobalVolcAlert[]),
     fetchGvpWeeklyAndErupting().catch(() => ({
       weekly: [] as UsgsVolcanoAlert[],
       erupting: [] as UsgsVolcanoAlert[],
@@ -179,17 +183,16 @@ export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
   const weekly = gvpParts.weekly;
   const erupting = gvpParts.erupting;
   const gvp = [...weekly, ...erupting];
-  // Phase A: same GVP payloads → Guatemala focus tags (Fuego etc.), no extra network
   const gt = buildGuatemalaFromGvp(weekly, erupting);
 
-  // GT before plain GVP so de-dupe keeps enriched metadata when ranks equal-ish
   const merged = dedupeVolcanoAlerts([
     ...tagUsgs(usgs),
     ...tagUsgs(ingv),
+    ...imo,
     ...curated,
     ...tagUsgs(gt),
     ...tagUsgs(gvp),
-  ]).slice(0, 100);
+  ]).slice(0, 120);
 
   return merged;
 }
@@ -200,6 +203,10 @@ export function alertSourceLabel(v: GlobalVolcAlert): string {
       return v.officialNative
         ? `INGV/PC · ${v.officialNative}`
         : "INGV · Protezione Civile";
+    case "imo":
+      return v.officialNative
+        ? `IMO · ${v.officialNative}`
+        : "IMO Iceland · VALS/VONA";
     case "kvert":
       return "KVERT";
     case "usgs":

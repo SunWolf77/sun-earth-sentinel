@@ -146,11 +146,28 @@ function buildEqPopupHtml(
     : isJma
       ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">JMA catalog</div>`
       : "";
+  const idStr = String(f.id ?? "");
+  const isImo =
+    idStr.startsWith("imo:") ||
+    f.properties.detail === "imo" ||
+    f.properties.net === "imo";
+  const isEmsc =
+    idStr.startsWith("emsc:") ||
+    f.properties.detail === "emsc" ||
+    f.properties.net === "emsc";
   const srcBadge = isJma
     ? `<span style="color:#22d3ee;font-size:10px;font-weight:600"> · JMA</span>`
-    : f.properties.jmaEnriched
-      ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
-      : "";
+    : isImo
+      ? `<span style="color:#a78bfa;font-size:10px;font-weight:600"> · IMO</span>`
+      : isEmsc
+        ? `<span style="color:#67e8f9;font-size:10px;font-weight:600"> · EMSC</span>`
+        : f.properties.jmaEnriched
+          ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
+          : f.properties.imoEnriched
+            ? `<span style="color:#a78bfa;font-size:10px"> · +IMO</span>`
+            : f.properties.emscEnriched
+              ? `<span style="color:#67e8f9;font-size:10px"> · +EMSC</span>`
+              : "";
   const shareLine = opts.shareHref
     ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none">Share this EQ →</a></div>`
     : "";

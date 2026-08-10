@@ -46,6 +46,8 @@ export type FeedTimestampInput = {
   volc: number | null;
   geofon?: number | null;
   jma?: number | null;
+  emsc?: number | null;
+  imo?: number | null;
   global?: number | null;
   pulse?: number | null;
   donki?: number | null;
@@ -59,6 +61,8 @@ export type FeedSourceErrors = Partial<
     | "eq"
     | "jma"
     | "geofon"
+    | "emsc"
+    | "imo"
     | "solar"
     | "volc"
     | "boards"
@@ -109,6 +113,8 @@ export function buildFeedHealth(opts: {
   hasVolc: boolean;
   hasJma?: boolean;
   hasGeofon?: boolean;
+  hasEmsc?: boolean;
+  hasImo?: boolean;
   hasBoards?: boolean;
   useGeofon?: boolean;
   error: string | null;
@@ -123,6 +129,8 @@ export function buildFeedHealth(opts: {
   const eqTs = ft?.eq ?? null;
   const jmaTs = ft?.jma ?? null;
   const geoTs = ft?.geofon ?? null;
+  const emscTs = ft?.emsc ?? null;
+  const imoTs = ft?.imo ?? null;
   const solarTs = ft?.solar ?? null;
   const volcTs = ft?.volc ?? null;
   const boardsTs = ft?.boards ?? null;
@@ -150,6 +158,20 @@ export function buildFeedHealth(opts: {
     error: err.geofon,
     now,
     off: !opts.useGeofon,
+    staleMs: 20 * 60_000,
+  });
+  const emsc = layerStatus(emscTs, {
+    loading: opts.loading,
+    hasData: !!opts.hasEmsc || !!emscTs,
+    error: err.emsc,
+    now,
+    staleMs: 20 * 60_000,
+  });
+  const imo = layerStatus(imoTs, {
+    loading: opts.loading,
+    hasData: !!opts.hasImo || !!imoTs,
+    error: err.imo,
+    now,
     staleMs: 20 * 60_000,
   });
   const solar = layerStatus(solarTs, {
@@ -194,6 +216,20 @@ export function buildFeedHealth(opts: {
       status: jma.status,
       detail: jma.detail,
       hint: "Japan Meteorological Agency quakes",
+    },
+    {
+      id: "emsc",
+      label: "EMSC",
+      status: emsc.status,
+      detail: emsc.detail,
+      hint: "EMSC SeismicPortal · Europe/Med + regional agencies",
+    },
+    {
+      id: "imo",
+      label: "IMO",
+      status: imo.status,
+      detail: imo.detail,
+      hint: "Iceland Met Office · dense national catalog + volcanoes",
     },
     {
       id: "geofon",

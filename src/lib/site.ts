@@ -13,9 +13,10 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 2026-08-03: multi-source volcano alerts, plain-first timing UX, lunar sky context.
+ * 1.17.0: multi-catalog densify — IMO Iceland quakes/volcanoes + EMSC global.
  */
-export const APP_VERSION = "1.16.0";
+export const APP_VERSION = "1.17.0";
+
 
 
 function normalizeOrigin(raw: string): string {

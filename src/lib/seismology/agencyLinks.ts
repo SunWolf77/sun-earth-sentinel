@@ -193,6 +193,20 @@ export function agencyLinksForEvent(opts: {
     });
   }
 
+  // Iceland — IMO / Veðurstofa (national authority; denser than USGS)
+  if (
+    inBox(lat, lon, 62.5, 67.5, -25.5, -12.5) ||
+    /iceland|reykjanes|reykjav|askja|krafla|grímsvötn|grimsvotn|katla|bárðarbunga|bardarbunga|hengill|tjörnes|tjornes/i.test(
+      placeL,
+    )
+  ) {
+    links.push({
+      id: "imo",
+      label: "IMO Iceland",
+      url: "https://en.vedur.is/earthquakes-and-volcanism/earthquakes/",
+    });
+  }
+
   // Indonesia — BMKG
   if (
     inBox(lat, lon, -11, 6, 95, 141) ||

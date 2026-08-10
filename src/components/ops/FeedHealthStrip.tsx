@@ -55,7 +55,13 @@ export function FeedHealthStrip({
     const feats = eq?.features ?? [];
     const hasJma =
       !!feedTimestamps.jma ||
-      feats.some((f) => String(f.id ?? "").startsWith("jma-"));
+      feats.some((f) => String(f.id ?? "").startsWith("jma:") || String(f.id ?? "").startsWith("jma-"));
+    const hasEmsc =
+      !!feedTimestamps.emsc ||
+      feats.some((f) => String(f.id ?? "").startsWith("emsc:"));
+    const hasImo =
+      !!feedTimestamps.imo ||
+      feats.some((f) => String(f.id ?? "").startsWith("imo:"));
     const hasBoards =
       !!feedTimestamps.boards ||
       feats.some((f) => {
@@ -70,6 +76,8 @@ export function FeedHealthStrip({
       hasScales: !!scales,
       hasVolc: usgsVolcAlerts.length > 0,
       hasJma,
+      hasEmsc,
+      hasImo,
       hasGeofon: !!feedTimestamps.geofon,
       hasBoards,
       useGeofon,

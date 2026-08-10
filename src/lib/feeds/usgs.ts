@@ -33,6 +33,8 @@ export type EqFeature = {
     jmaProduct?: string | null;
     jmaJson?: string | null;
     jmaEnriched?: boolean;
+    emscEnriched?: boolean;
+    imoEnriched?: boolean;
   };
   geometry: {
     type: "Point";
