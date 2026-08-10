@@ -18,6 +18,7 @@ import {
 } from "@/lib/feeds/publishedMonitors";
 import { BackToSesButton } from "@/components/nodes/BackToSesButton";
 import { WolfFaceIcon } from "@/components/nodes/WolfFaceIcon";
+import { DeskGlyph } from "@/components/nodes/DeskGlyph";
 
 const SHORTCUT_HINT: Record<string, string> = {
   tonga: "T",
@@ -149,6 +150,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
                 aria-label={`Focus ${m.name}${hint ? `, shortcut ${hint}` : ""}`}
                 onClick={() => goNode(m.sesNodeId)}
               >
+                <DeskGlyph sesNodeId={m.sesNodeId} className="ww-nodes-nav__glyph" />
                 <span className="ww-nodes-nav__code">{code}</span>
                 <span className="ww-nodes-nav__name">{m.name.split(/[–—-]/)[0]?.trim()}</span>
                 {hint && (
@@ -253,6 +255,9 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
                             className="ww-ww-sheet__focus"
                             onClick={() => goNode(m.sesNodeId)}
                           >
+                            <span className="ww-ww-sheet__glyph-wrap">
+                              <DeskGlyph sesNodeId={m.sesNodeId} className="h-5 w-5" />
+                            </span>
                             <span className="ww-ww-sheet__code">{monitorNavLabel(m)}</span>
                             <span className="min-w-0 flex-1 text-left">
                               <span className="block truncate font-semibold text-fg">{m.name}</span>

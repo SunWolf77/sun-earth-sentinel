@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.21.1: WolfWatch wolf-face brand mark (replaces network nodes glyph).
+ * 1.22.0: Desk animal glyphs + SunWolf X avatar identity.
  */
-export const APP_VERSION = "1.21.1";
+export const APP_VERSION = "1.22.0";
 
 
 
@@ -71,25 +71,39 @@ export const X_PROFILES = {
     name: "SunWolf",
     handle: "Sunwolf77",
     url: "https://x.com/Sunwolf77",
-    role: "Primary technical lineage · Sun Earth Sentinel",
+    role: "Primary technical lineage · Sun Earth Sentinel · WolfWatch",
+    /**
+     * Self-hosted copy of X profile image (permission granted by SunWolf).
+     * Source: pbs.twimg.com/profile_images/1928027843285635074/…
+     * Refresh: re-download when the X avatar changes.
+     */
+    avatarSrc: "/brand/sunwolf-x.jpg",
+    avatarRemote:
+      "https://pbs.twimg.com/profile_images/1928027843285635074/KJIylhSA_400x400.jpg",
   },
   sheppard: {
     name: "Paul Sheppard",
     handle: "PaulSheppard_CO",
     url: "https://x.com/PaulSheppard_CO",
     role: "SUPT & resonance probe",
+    avatarSrc: undefined as string | undefined,
+    avatarRemote: undefined as string | undefined,
   },
   dutchsinse: {
     name: "Dutchsinse",
     handle: "RealDutchsinse",
     url: "https://x.com/RealDutchsinse",
     role: "Public seismic globe — limited credit (inspiration only)",
+    avatarSrc: undefined as string | undefined,
+    avatarRemote: undefined as string | undefined,
   },
   cordaro: {
     name: "Richard Cordaro",
     handle: "rrichcord",
     url: "https://x.com/rrichcord",
     role: "Magnetic anomaly / INTERMAGNET public tool (drmagneto)",
+    avatarSrc: undefined as string | undefined,
+    avatarRemote: undefined as string | undefined,
   },
 } as const;
 

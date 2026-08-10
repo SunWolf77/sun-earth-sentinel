@@ -15,6 +15,8 @@ import {
 import { useObservatory } from "@/store/observatory";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { WolfFaceIcon } from "@/components/nodes/WolfFaceIcon";
+import { DeskGlyph } from "@/components/nodes/DeskGlyph";
+import { getDeskGlyph } from "@/lib/feeds/deskGlyphs";
 
 const STATUS_LABEL: Record<NodeStatus, string> = {
   quiet: "Quiet",
@@ -83,7 +85,8 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {pub && (
-                    <span className="inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-md border border-gold/40 bg-gold/10 px-1.5 text-[0.65rem] font-extrabold tracking-wide text-gold">
+                    <span className="inline-flex h-6 items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-1.5 text-[0.65rem] font-extrabold tracking-wide text-gold">
+                      <DeskGlyph sesNodeId={node.id} className="h-3.5 w-3.5" />
                       {monitorNavLabel(pub)}
                     </span>
                   )}
@@ -91,6 +94,11 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
                   {pub && (
                     <span className="rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-gold">
                       WW #{pub.networkOrder}
+                    </span>
+                  )}
+                  {getDeskGlyph(node.id) && (
+                    <span className="rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] text-dim">
+                      {getDeskGlyph(node.id)!.label}
                     </span>
                   )}
                 </div>

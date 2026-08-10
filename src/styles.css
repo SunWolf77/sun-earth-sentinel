@@ -333,7 +333,7 @@
   border: none;
   background: transparent;
   color: var(--color-muted);
-  padding: 0.4rem 0.55rem;
+  padding: 0.4rem 0.5rem;
   min-height: 2.5rem;
   min-width: 2.5rem;
   font-size: 0.68rem;
@@ -343,6 +343,26 @@
   transition:
     background 0.12s ease,
     color 0.12s ease;
+}
+.ww-nodes-nav__glyph {
+  width: 0.95rem;
+  height: 0.95rem;
+  opacity: 0.95;
+}
+.ww-nodes-nav__chip--on .ww-nodes-nav__glyph {
+  color: var(--color-gold);
+}
+.ww-ww-sheet__glyph-wrap {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.45rem;
+  border: 1px solid color-mix(in oklab, var(--color-gold) 30%, var(--color-border));
+  background: color-mix(in oklab, var(--color-gold) 8%, transparent);
+  color: var(--color-gold);
 }
 .ww-nodes-nav__chip:hover {
   background: var(--color-elevated);
@@ -677,6 +697,53 @@
 }
 .ww-shell--map-focus .ww-header-row--nodes {
   padding-bottom: 0.15rem;
+}
+
+/* SunWolf X identity chip (header) */
+.ww-sunwolf-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.15rem 0.4rem 0.15rem 0.15rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 90%, transparent);
+  background: color-mix(in oklab, var(--color-panel) 80%, transparent);
+  color: var(--color-muted);
+  text-decoration: none;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.ww-sunwolf-id:hover {
+  border-color: color-mix(in oklab, var(--color-gold) 45%, var(--color-border));
+  background: color-mix(in oklab, var(--color-gold) 10%, var(--color-panel));
+  color: var(--color-gold);
+}
+.ww-sunwolf-id__img {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  object-fit: cover;
+  ring: 1px;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-border) 80%, transparent);
+}
+.ww-sunwolf-id__handle {
+  display: none;
+  font-size: 0.62rem;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  padding-right: 0.2rem;
+}
+@media (min-width: 640px) {
+  .ww-sunwolf-id__handle {
+    display: inline;
+  }
+  .ww-sunwolf-id {
+    min-height: 2.1rem;
+    padding-right: 0.55rem;
+  }
 }
 .ww-shell--immersive .ww-header-row--nodes,
 .ww-shell--immersive .ww-header-row--views .ww-header-row__label {

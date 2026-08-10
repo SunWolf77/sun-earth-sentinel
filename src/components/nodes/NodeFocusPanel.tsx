@@ -12,6 +12,7 @@ import {
   monitorHandoffUrl,
 } from "@/lib/feeds/publishedMonitors";
 import { downloadNodesCsv } from "@/lib/nodes/exportNodesCsv";
+import { DeskGlyph } from "@/components/nodes/DeskGlyph";
 
 const STATUS_DOT: Record<NodeStatus, string> = {
   quiet: "bg-primary border-primary",
@@ -128,6 +129,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
                 {focus.kind === "volcano" && (
                   <Mountain className="h-3.5 w-3.5 shrink-0 text-warn" />
                 )}
+                {pub && <DeskGlyph sesNodeId={focus.id} className="h-3.5 w-3.5 text-gold" />}
                 {focus.name}
                 {pub && (
                   <span className="rounded border border-gold/40 px-1 text-[0.55rem] uppercase text-gold">

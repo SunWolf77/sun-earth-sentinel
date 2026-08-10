@@ -37,6 +37,7 @@ import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
 import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
 import { BackToSesButton } from "@/components/nodes/BackToSesButton";
+import { X_PROFILES } from "@/lib/site";
 import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
@@ -713,6 +714,24 @@ function ObservatoryApp() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <a
+              href={X_PROFILES.sunwolf.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ww-sunwolf-id"
+              title={`${X_PROFILES.sunwolf.name} · @${X_PROFILES.sunwolf.handle} on X`}
+              aria-label={`Open @${X_PROFILES.sunwolf.handle} on X`}
+            >
+              <img
+                src={X_PROFILES.sunwolf.avatarSrc}
+                alt=""
+                width={24}
+                height={24}
+                className="ww-sunwolf-id__img"
+                decoding="async"
+              />
+              <span className="ww-sunwolf-id__handle">@{X_PROFILES.sunwolf.handle}</span>
+            </a>
             <span className={isMobile && tab === "live" ? "hidden" : undefined}>
               <HelpGuide />
             </span>
