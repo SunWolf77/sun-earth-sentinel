@@ -65,7 +65,7 @@ export const LAYER_GROUPS: {
   {
     id: "atmosphere",
     label: "Atmosphere (opt-in · 2D)",
-    ids: ["windParticles", "radar", "clouds", "cape", "waves", "wxProbe"],
+    ids: ["windParticles", "radar", "clouds", "cape", "waves", "airQuality", "wxProbe"],
   },
   {
     id: "space",

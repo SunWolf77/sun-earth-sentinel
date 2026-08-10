@@ -32,7 +32,8 @@ export function MapLegend() {
   const showPlates = overlays.plates;
   const showWind = overlays.windParticles;
   const showCape = overlays.cape;
-  const hasContent = showDepth || showDecay || showPlates || showWind || showCape;
+  const showAq = overlays.airQuality;
+  const hasContent = showDepth || showDecay || showPlates || showWind || showCape || showAq;
 
   const [open, setOpen] = useState(false);
   /** Mobile accordion: which block is expanded inside the panel */
@@ -329,6 +330,29 @@ export function MapLegend() {
               <span className="h-2 w-2 rounded-full bg-red-500/70" /> Extreme
             </li>
           </ul>
+        </div>
+      )}
+
+      {showAq && (
+        <div className="rounded-lg border border-border bg-bg/92 px-2 py-1.5 shadow-md backdrop-blur">
+          <div className="mb-1 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
+            PM2.5
+          </div>
+          <ul className="space-y-0.5 text-[0.58rem] text-muted">
+            <li className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-green-500/50" /> Good
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-yellow-400/60" /> Moderate
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-orange-500/70" /> Unhealthy
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-500/70" /> Hazardous
+            </li>
+          </ul>
+          <p className="mt-1 text-[0.52rem] text-dim">Open-Meteo AQ</p>
         </div>
       )}
     </div>

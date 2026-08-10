@@ -553,6 +553,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     cape: false,
     waves: false,
     wxProbe: false,
+    airQuality: false,
   },
   useGeofon: false,
   audioAlerts: false,

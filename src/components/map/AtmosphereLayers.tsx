@@ -2,12 +2,19 @@ import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } fr
 import L from "leaflet";
 import { useObservatory } from "@/store/observatory";
 import {
+  fetchAirQualityGrid,
   fetchCapeGrid,
   fetchCloudGrid,
   fetchWaveGrid,
   fetchWeatherProbe,
   fetchWindGrid,
+  loadWeatherModel,
+  saveWeatherModel,
+  weatherModelLabel,
+  WEATHER_MODELS,
+  wmoWeatherLabel,
   type GridScalar,
+  type WeatherModelId,
   type WeatherProbe,
   type WindSample,
 } from "@/lib/feeds/openMeteo";
@@ -18,11 +25,11 @@ import {
   rainViewerTileUrl,
 } from "@/lib/feeds/rainViewer";
 import { createWindParticleLayer, type WindParticleHandle } from "@/components/map/WindParticleLayer";
-import { Cloud, Waves, Wind, X, Crosshair } from "lucide-react";
+import { Cloud, Waves, Wind, X, Crosshair, Droplets } from "lucide-react";
 
 /**
  * Windy-inspired atmosphere overlays for 2D LiveMap (opt-in).
- * Free sources only: Open-Meteo + RainViewer.
+ * Free sources: Open-Meteo + RainViewer.
  */
 export function useAtmosphereMapLayers(map: L.Map | null) {
   const overlays = useObservatory((s) => s.overlays);
@@ -32,12 +39,20 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
   const capeOn = overlays.cape;
   const wavesOn = overlays.waves;
   const probeOn = overlays.wxProbe;
+  const aqOn = overlays.airQuality;
+
+  const [model, setModelState] = useState<WeatherModelId>(() => loadWeatherModel());
+  const setModel = (id: WeatherModelId) => {
+    setModelState(id);
+    saveWeatherModel(id);
+  };
 
   const windRef = useRef<WindParticleHandle | null>(null);
   const radarRef = useRef<L.TileLayer | null>(null);
   const cloudLayerRef = useRef<L.LayerGroup | null>(null);
   const capeLayerRef = useRef<L.LayerGroup | null>(null);
   const waveLayerRef = useRef<L.LayerGroup | null>(null);
+  const aqLayerRef = useRef<L.LayerGroup | null>(null);
   const [radarAsOf, setRadarAsOf] = useState<string | null>(null);
   const [windAsOf, setWindAsOf] = useState<string | null>(null);
   const [probe, setProbe] = useState<WeatherProbe | null>(null);
@@ -80,6 +95,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
           b.getEast(),
           cols,
           rows,
+          model,
         );
         if (cancelled) return;
         windRef.current?.setSamples(samples);
@@ -103,7 +119,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
       window.clearInterval(refresh);
       map.off("moveend", onMove);
     };
-  }, [map, windOn]);
+  }, [map, windOn, model]);
 
   useEffect(() => {
     if (!map) return;
@@ -223,6 +239,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
             b.getEast(),
             9,
             6,
+            model,
           );
           if (!cancelled)
             paintGrid(
@@ -235,7 +252,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
               22,
             );
         } catch {
-          /* ignore */
+          /* */
         }
       } else ensureGroup(cloudLayerRef, false);
 
@@ -249,6 +266,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
             b.getEast(),
             8,
             5,
+            model,
           );
           if (!cancelled)
             paintGrid(
@@ -263,7 +281,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
               16,
             );
         } catch {
-          /* ignore */
+          /* */
         }
       } else ensureGroup(capeLayerRef, false);
 
@@ -298,12 +316,41 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
             }
           }
         } catch {
-          /* ignore */
+          /* */
         }
       } else ensureGroup(waveLayerRef, false);
+
+      if (aqOn) {
+        const g = ensureGroup(aqLayerRef, true);
+        try {
+          const cells = await fetchAirQualityGrid(
+            b.getSouth(),
+            b.getWest(),
+            b.getNorth(),
+            b.getEast(),
+            7,
+            5,
+          );
+          if (!cancelled)
+            paintGrid(
+              g,
+              cells,
+              (v) => {
+                // PM2.5 μg/m³ rough AQI-ish colors
+                if (v < 12) return "rgba(34,197,94,0.3)";
+                if (v < 35) return "rgba(250,204,21,0.4)";
+                if (v < 55) return "rgba(249,115,22,0.45)";
+                return "rgba(239,68,68,0.5)";
+              },
+              14,
+            );
+        } catch {
+          /* */
+        }
+      } else ensureGroup(aqLayerRef, false);
     };
 
-    if (cloudsOn || capeOn || wavesOn) {
+    if (cloudsOn || capeOn || wavesOn || aqOn) {
       void load();
       const onMove = () => {
         window.clearTimeout(timer);
@@ -317,15 +364,17 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
         ensureGroup(cloudLayerRef, false);
         ensureGroup(capeLayerRef, false);
         ensureGroup(waveLayerRef, false);
+        ensureGroup(aqLayerRef, false);
       };
     }
     ensureGroup(cloudLayerRef, false);
     ensureGroup(capeLayerRef, false);
     ensureGroup(waveLayerRef, false);
+    ensureGroup(aqLayerRef, false);
     return () => {
       cancelled = true;
     };
-  }, [map, cloudsOn, capeOn, wavesOn]);
+  }, [map, cloudsOn, capeOn, wavesOn, aqOn, model]);
 
   useEffect(() => {
     if (!map) return;
@@ -338,7 +387,7 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
     const onClick = (e: L.LeafletMouseEvent) => {
       const { lat, lng } = e.latlng;
       setProbeLoading(true);
-      void fetchWeatherProbe(lat, lng)
+      void fetchWeatherProbe(lat, lng, model)
         .then((p) => setProbe(p))
         .finally(() => setProbeLoading(false));
     };
@@ -347,7 +396,21 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
       map.off("click", onClick);
       map.getContainer().style.cursor = "";
     };
-  }, [map, probeOn]);
+  }, [map, probeOn, model]);
+
+  // Refresh open probe when model changes
+  useEffect(() => {
+    if (!probe || !probeOn) return;
+    setProbeLoading(true);
+    void fetchWeatherProbe(probe.lat, probe.lon, model)
+      .then((p) => setProbe(p))
+      .finally(() => setProbeLoading(false));
+    // only on model change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]);
+
+  const showModelChrome =
+    windOn || cloudsOn || capeOn || probeOn || Boolean(probe);
 
   return {
     radarAsOf,
@@ -355,8 +418,12 @@ export function useAtmosphereMapLayers(map: L.Map | null) {
     probe,
     probeLoading,
     status,
+    model,
+    setModel,
+    showModelChrome,
     clearProbe: () => setProbe(null),
-    atmosphereActive: windOn || radarOn || cloudsOn || capeOn || wavesOn || probeOn,
+    atmosphereActive:
+      windOn || radarOn || cloudsOn || capeOn || wavesOn || probeOn || aqOn,
   };
 }
 
@@ -367,6 +434,9 @@ export function AtmosphereChrome({ map }: { map: L.Map | null }) {
     probe,
     probeLoading,
     status,
+    model,
+    setModel,
+    showModelChrome,
     clearProbe,
     atmosphereActive,
   } = useAtmosphereMapLayers(map);
@@ -375,12 +445,31 @@ export function AtmosphereChrome({ map }: { map: L.Map | null }) {
 
   return (
     <>
-      {(radarAsOf || windAsOf || status) && (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-[445] flex max-w-[min(96vw,28rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5">
+      {(radarAsOf || windAsOf || status || showModelChrome) && (
+        <div className="pointer-events-none absolute left-1/2 top-2 z-[445] flex max-w-[min(96vw,32rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5">
+          {showModelChrome && (
+            <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-border bg-bg/95 p-0.5 shadow backdrop-blur">
+              {WEATHER_MODELS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  title={m.hint}
+                  onClick={() => setModel(m.id)}
+                  className={`rounded-full px-1.5 py-0.5 text-[0.55rem] font-semibold ${
+                    model === m.id
+                      ? "bg-primary/25 text-primary"
+                      : "text-dim hover:text-fg"
+                  }`}
+                >
+                  {m.short}
+                </button>
+              ))}
+            </div>
+          )}
           {windAsOf && (
             <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-bg/90 px-2 py-0.5 text-[0.58rem] text-sky-300 shadow backdrop-blur">
               <Wind className="h-3 w-3" />
-              Wind · Open-Meteo · {windAsOf}
+              Wind · {weatherModelLabel(model)} · {windAsOf}
             </span>
           )}
           {radarAsOf && (
@@ -397,7 +486,7 @@ export function AtmosphereChrome({ map }: { map: L.Map | null }) {
       )}
 
       {(probe || probeLoading) && (
-        <div className="pointer-events-auto absolute bottom-[5.5rem] left-2 z-[520] w-[min(92vw,17.5rem)] rounded-xl border border-border bg-bg/95 p-2.5 shadow-xl backdrop-blur sm:bottom-24 sm:left-3">
+        <div className="pointer-events-auto absolute bottom-[5.5rem] left-2 z-[520] w-[min(94vw,19rem)] rounded-xl border border-border bg-bg/95 p-2.5 shadow-xl backdrop-blur sm:bottom-24 sm:left-3">
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1 text-[0.7rem] font-semibold text-fg">
               <Crosshair className="h-3.5 w-3.5 text-primary" />
@@ -421,6 +510,16 @@ export function AtmosphereChrome({ map }: { map: L.Map | null }) {
                 {probe.lat.toFixed(2)}°, {probe.lon.toFixed(2)}°
                 {probe.time ? ` · ${probe.time}` : ""}
               </p>
+              {probe.weatherLabel && (
+                <p className="text-[0.72rem] font-medium text-fg">
+                  {probe.weatherLabel}
+                  {probe.weatherCode != null ? (
+                    <span className="ml-1 font-mono text-[0.58rem] text-dim">
+                      WMO {probe.weatherCode}
+                    </span>
+                  ) : null}
+                </p>
+              )}
               <Row
                 icon={<Wind className="h-3 w-3" />}
                 label="Wind"
@@ -431,21 +530,43 @@ export function AtmosphereChrome({ map }: { map: L.Map | null }) {
                 }
               />
               <Row
+                label="Gusts"
+                value={
+                  probe.windGustKmh != null
+                    ? `${probe.windGustKmh.toFixed(0)} km/h`
+                    : "—"
+                }
+              />
+              <Row
                 label="Temp"
                 value={probe.tempC != null ? `${probe.tempC.toFixed(1)} °C` : "—"}
               />
               <Row
+                label="MSLP"
+                value={
+                  probe.pressureHpa != null
+                    ? `${probe.pressureHpa.toFixed(1)} hPa`
+                    : "—"
+                }
+              />
+              <Row
                 label="Precip"
-                value={probe.precipMm != null ? `${probe.precipMm.toFixed(1)} mm` : "—"}
+                value={
+                  probe.precipMm != null ? `${probe.precipMm.toFixed(1)} mm` : "—"
+                }
               />
               <Row
                 icon={<Cloud className="h-3 w-3" />}
                 label="Cloud"
-                value={probe.cloudPct != null ? `${probe.cloudPct.toFixed(0)} %` : "—"}
+                value={
+                  probe.cloudPct != null ? `${probe.cloudPct.toFixed(0)} %` : "—"
+                }
               />
               <Row
                 label="CAPE"
-                value={probe.capeJkg != null ? `${Math.round(probe.capeJkg)} J/kg` : "—"}
+                value={
+                  probe.capeJkg != null ? `${Math.round(probe.capeJkg)} J/kg` : "—"
+                }
               />
               <Row
                 icon={<Waves className="h-3 w-3" />}
@@ -453,12 +574,71 @@ export function AtmosphereChrome({ map }: { map: L.Map | null }) {
                 value={
                   probe.waveHeightM != null
                     ? `${probe.waveHeightM.toFixed(1)} m` +
-                      (probe.wavePeriodS != null ? ` · ${probe.wavePeriodS.toFixed(0)} s` : "")
+                      (probe.swellHeightM != null
+                        ? ` · swell ${probe.swellHeightM.toFixed(1)} m`
+                        : "") +
+                      (probe.wavePeriodS != null
+                        ? ` · ${probe.wavePeriodS.toFixed(0)} s`
+                        : "")
                     : "n/a (land?)"
                 }
               />
+              <Row
+                icon={<Droplets className="h-3 w-3" />}
+                label="AQ"
+                value={
+                  probe.pm25 != null
+                    ? `PM2.5 ${probe.pm25.toFixed(1)}` +
+                      (probe.usAqi != null ? ` · AQI ${Math.round(probe.usAqi)}` : "") +
+                      (probe.dust != null ? ` · dust ${probe.dust.toFixed(1)}` : "")
+                    : "—"
+                }
+              />
+
+              {probe.hourly.length > 0 && (
+                <div className="pt-1.5">
+                  <div className="mb-1 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
+                    Next 12 h · model strip
+                  </div>
+                  <div className="flex items-end gap-0.5 overflow-x-auto pb-0.5">
+                    {probe.hourly.map((h, i) => {
+                      const t = h.tempC ?? 0;
+                      const maxT = Math.max(
+                        ...probe.hourly.map((x) => x.tempC ?? 0),
+                        1,
+                      );
+                      const minT = Math.min(
+                        ...probe.hourly.map((x) => x.tempC ?? 0),
+                        0,
+                      );
+                      const span = Math.max(1, maxT - minT);
+                      const hgt = 8 + ((t - minT) / span) * 22;
+                      const hour = h.time.slice(11, 13);
+                      const wet = (h.precipMm ?? 0) > 0.1;
+                      return (
+                        <div
+                          key={h.time + i}
+                          className="flex w-4 shrink-0 flex-col items-center gap-0.5"
+                          title={`${h.time} · ${h.tempC ?? "—"}°C · ${h.precipMm ?? 0} mm · ${wmoWeatherLabel(h.weatherCode) ?? ""}`}
+                        >
+                          <span className="text-[0.45rem] text-dim">{hour}</span>
+                          <div
+                            className={`w-1.5 rounded-sm ${wet ? "bg-sky-400" : "bg-primary/70"}`}
+                            style={{ height: hgt }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-0.5 text-[0.5rem] text-dim">
+                    Bars = temp · blue tint if precip
+                  </p>
+                </div>
+              )}
+
               <p className="pt-1 text-[0.58rem] leading-snug text-dim">
-                Open-Meteo model guidance · not an official forecast · SES atmosphere context
+                Open-Meteo · {weatherModelLabel(probe.model)} · model guidance ·
+                not an official forecast
               </p>
             </div>
           )}
@@ -483,7 +663,9 @@ function Row({
         {icon}
         {label}
       </span>
-      <span className="font-mono text-fg">{value}</span>
+      <span className="max-w-[58%] truncate text-right font-mono text-fg">
+        {value}
+      </span>
     </div>
   );
 }

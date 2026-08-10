@@ -23,7 +23,9 @@ import {
   Cloud,
   Crosshair,
   CloudRain,
+  Droplets,
 } from "lucide-react";
+
 import { useObservatory } from "@/store/observatory";
 import {
   BASEMAP_STYLES,
@@ -64,6 +66,7 @@ const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   cape: Zap,
   waves: Waves,
   wxProbe: Crosshair,
+  airQuality: Droplets,
 };
 
 export function MapStyleControl() {

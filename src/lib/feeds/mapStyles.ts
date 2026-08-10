@@ -25,7 +25,8 @@ export type MapOverlayId =
   | "clouds"
   | "cape"
   | "waves"
-  | "wxProbe";
+  | "wxProbe"
+  | "airQuality";
 
 export type MapStyleConfig = {
   id: BasemapStyleId;
@@ -108,6 +109,7 @@ export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   cape: false,
   waves: false,
   wxProbe: false,
+  airQuality: false,
 };
 
 /** Mobile first-open: even leaner */
@@ -135,6 +137,7 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     cape: false,
     waves: false,
     wxProbe: false,
+    airQuality: false,
   };
 }
 
@@ -274,7 +277,13 @@ export const OVERLAY_META: {
     id: "wxProbe",
     label: "Weather probe",
     short: "Probe",
-    hint: "Click map for point wind / temp / CAPE / waves",
+    hint: "Click map · gusts, MSLP, WMO code, 12 h strip, AQ",
+  },
+  {
+    id: "airQuality",
+    label: "Air quality (PM2.5)",
+    short: "AQ",
+    hint: "Open-Meteo PM2.5 / dust · pairs with wildfires",
   },
 ];
 
@@ -290,7 +299,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v7";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v8";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
@@ -301,6 +310,7 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
       return { ...DEFAULT_OVERLAYS, ...parsed };
     }
     for (const k of [
+      "wolfwatch_overlays_v7",
       "wolfwatch_overlays_v6",
       "wolfwatch_overlays_v5",
       "wolfwatch_overlays_v4",
@@ -326,6 +336,7 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
           cape: false,
           waves: false,
           wxProbe: false,
+          airQuality: false,
         };
         localStorage.removeItem(k);
         try {
