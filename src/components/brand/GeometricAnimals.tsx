@@ -299,12 +299,12 @@ export function GeoWhale({ className, title = "Whale" }: IconProps) {
 }
 
 export const GEOMETRIC_ANIMALS = [
-  { id: "wolf", name: "Wolf", role: "WolfWatch primary", Icon: GeoWolf },
-  { id: "eagle", name: "Eagle", role: "Overlook / watch", Icon: GeoEagle },
-  { id: "owl", name: "Owl", role: "Night watch", Icon: GeoOwl },
-  { id: "fox", name: "Fox", role: "Swift desk", Icon: GeoFox },
-  { id: "raven", name: "Raven", role: "Sentinel bird", Icon: GeoRaven },
-  { id: "bear", name: "Bear", role: "Ground strength", Icon: GeoBear },
-  { id: "serpent", name: "Serpent", role: "Ring of Fire", Icon: GeoSerpent },
-  { id: "whale", name: "Whale", role: "Ocean corridor", Icon: GeoWhale },
+  { id: "wolf", name: "Wolf", role: "NZ home desk · network brand", Icon: GeoWolf },
+  { id: "eagle", name: "Eagle", role: "Chile–Andes overlook", Icon: GeoEagle },
+  { id: "owl", name: "Owl", role: "Campi Flegrei densify", Icon: GeoOwl },
+  { id: "fox", name: "Fox", role: "Japan Arc · kitsune", Icon: GeoFox },
+  { id: "raven", name: "Raven", role: "Iceland north watch", Icon: GeoRaven },
+  { id: "bear", name: "Bear", role: "Kamchatka–Kurils", Icon: GeoBear },
+  { id: "serpent", name: "Serpent", role: "Tonga–Kermadec RoF", Icon: GeoSerpent },
+  { id: "whale", name: "Whale", role: "South Sandwich / Drake", Icon: GeoWhale },
 ] as const;
