@@ -270,7 +270,8 @@ export function buildFeedHealth(opts: {
       label: "Nodes",
       status: boards.status,
       detail: boards.detail,
-      hint: "Published: TK · CF · JP · KM · IS · SS · CL · NZ",
+      hint: "WolfWatch desks: TK · CF · JP · KM · IS · SS · CL · NZ",
+
     },
     {
       id: "volc",

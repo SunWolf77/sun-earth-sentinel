@@ -246,6 +246,8 @@ export const fetchGeonetFdsnServer = createServerFn({ method: "POST" })
       minmagnitude: String(minMag),
       format: "text",
       orderby: "time",
+      // Local densify only — drop teleseisms tagged outside network interest
+      eventtype: "earthquake",
     };
 
     try {

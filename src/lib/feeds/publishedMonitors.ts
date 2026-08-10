@@ -1,15 +1,25 @@
 /**
- * Published swarm boards living outside Sentinel (Vercel).
- * SES dragon-node ids must match monitor-side `sesDragonId` / DRAGON_NODES.
+ * Published regional desks living with / outside Sentinel.
+ * SES = Sun-Earth Sentinel (world observatory home).
+ * WolfWatch Network = the published focus desks (TK · CF · JP · …).
  *
  * Handoff contract:
  *  - Sentinel → board:  open monitorUrl (+ optional ?from=ses&sesNode=)
  *  - Board → Sentinel:  PRODUCTION_ORIGIN/?tab=live&node=<sesDragonId>
- *  - Dense catalog:   catalogFeedUrl (GeoJSON) — replace USGS in-bounds for INGV nodes
+ *  - Dense catalog:   catalogFeedUrl — replace USGS in-bounds for authority nodes
  *  - URL aliases resolve in resolveNodeId() so deep links stay flexible.
  */
 
 import { PRODUCTION_ORIGIN } from "@/lib/site";
+
+/** Brand for the published regional desk constellation (header strip + sidebar). */
+export const WOLFWATCH_NETWORK = {
+  id: "wolfwatch",
+  name: "WolfWatch Network",
+  shortName: "WolfWatch",
+  code: "WW",
+  tagline: "Regional seismic desks · focus in SES · open boards when needed",
+} as const;
 
 export type PublishedMonitor = {
   /** SES dragon-node id (DRAGON_NODES) */
@@ -19,8 +29,15 @@ export type PublishedMonitor = {
   /** SES network order (1 = first published) */
   networkOrder: number;
   shortCode: string;
+  /**
+   * Ultra-short label for dense mobile chips (defaults to shortCode).
+   * Prefer 2–3 chars — never full place names in the header strip.
+   */
+  navLabel?: string;
+  /** Optional region bucket for “All desks” grouping */
+  region?: "pacific" | "ring" | "atlantic" | "europe" | "polar";
   role: string;
-  /** Production Vercel board */
+  /** Production board / authority homepage */
   monitorUrl: string;
   /**
    * Optional authority catalog feed (GeoJSON FeatureCollection).
@@ -41,6 +58,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "Tonga–Kermadec",
     networkOrder: 1,
     shortCode: "TK",
+    navLabel: "TK",
+    region: "pacific",
     role: "Published focus · SES #1 · Swarm corridor",
     monitorUrl: "https://tonga-kermadec-monitor.vercel.app/",
     catalogFeedUrl:
@@ -55,6 +74,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "Campi Flegrei",
     networkOrder: 2,
     shortCode: "CF",
+    navLabel: "CF",
+    region: "europe",
     role: "Published focus · SES #2 · INGV authority",
     monitorUrl: "https://campi-flegrei-monitor.vercel.app/",
     catalogFeedUrl:
@@ -69,6 +90,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "Japan Arc",
     networkOrder: 3,
     shortCode: "JP",
+    navLabel: "JP",
+    region: "ring",
     role: "Published focus · SES #3 · JMA + tsunami",
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/",
     catalogFeedUrl:
@@ -83,12 +106,14 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "Kamchatka–Kurils",
     networkOrder: 3,
     shortCode: "KM",
+    navLabel: "KM",
+    region: "ring",
     role: "Published focus · SES #3 companion · USGS",
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/?node=kamchatka",
     catalogFeedUrl:
       "https://japan-kamchatka-monitor.vercel.app/api/ses/catalog?window=7d&node=kamchatka",
     authority: "USGS FDSN / realtime",
-    aliases: ["kamchatka", "km", "kuril", "kurils", "kvert", "okhotsk"],
+    aliases: ["kamchatka", "km", "kuril", "kurils", "klyuchevskoy"],
     focusNote:
       "SES node #3 companion on Japan board — Kamchatka Peninsula / Kurils. USGS exclusive; KVERT for volcano status links. High tsunami source potential. Not a forecast.",
   },
@@ -97,21 +122,17 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "Iceland",
     networkOrder: 4,
     shortCode: "IS",
-    role: "Published focus · SES #4 · IMO · volcanic systems",
-    /** Authority desk — Skjálftalísa until a dedicated Vercel board ships */
+    navLabel: "IS",
+    region: "atlantic",
+    role: "Published focus · SES #4 · IMO densify",
     monitorUrl: "https://skjalftalisa.vedur.is/",
-    /**
-     * Marker: catalog is served in-process from IMO SeisComP (see nodeCatalogFeed).
-     * Empty path segment is not fetched; fetchNodeCatalogFeed special-cases iceland.
-     */
     catalogFeedUrl: "imo://iceland/catalog",
     authority: "IMO Veðurstofa (SeisComP + VALS/VONA)",
     aliases: [
       "iceland",
       "is",
-      "imo",
       "reykjanes",
-      "svartsengi",
+      "imo",
       "askja",
       "katla",
       "iceland-arc",
@@ -124,6 +145,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "South Sandwich / Drake",
     networkOrder: 5,
     shortCode: "SS",
+    navLabel: "SS",
+    region: "polar",
     role: "Published focus · SES #5 · Scotia Arc · USGS",
     /** USGS 30-day M2.5+ satellite · Scotia Sea / Drake / SS swarm (ops screenshot view) */
     monitorUrl:
@@ -146,6 +169,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "Chile–Andes / Nazca",
     networkOrder: 6,
     shortCode: "CL",
+    navLabel: "CL",
+    region: "pacific",
     role: "Published focus · SES #6 · Nazca megathrust · CSN densify",
     monitorUrl: "https://www.sismologia.cl/",
     /**
@@ -171,6 +196,8 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     name: "New Zealand",
     networkOrder: 7,
     shortCode: "NZ",
+    navLabel: "NZ",
+    region: "pacific",
     role: "Published focus · SES #7 · GeoNet densify",
     monitorUrl: "https://www.geonet.org.nz/",
     catalogFeedUrl: "geonet://newzealand/catalog",
@@ -209,11 +236,55 @@ export function resolveNodeId(raw: string | null | undefined): string | null {
 export function getPublishedMonitor(sesNodeId: string | null | undefined): PublishedMonitor | null {
   if (!sesNodeId) return null;
   const id = resolveNodeId(sesNodeId);
+  if (!id) return null;
   return PUBLISHED_MONITORS.find((p) => p.sesNodeId === id) ?? null;
 }
 
+export function orderedPublishedMonitors(): PublishedMonitor[] {
+  return [...PUBLISHED_MONITORS].sort((a, b) => {
+    if (a.networkOrder !== b.networkOrder) return a.networkOrder - b.networkOrder;
+    return a.shortCode.localeCompare(b.shortCode);
+  });
+}
+
+export function listPublishedMonitors(): PublishedMonitor[] {
+  return orderedPublishedMonitors();
+}
+
+/** Chip text — shortCode only on mobile; navLabel is the canonical 2-letter code. */
+export function monitorNavLabel(p: PublishedMonitor): string {
+  return p.navLabel || p.shortCode;
+}
+
+/**
+ * Authority catalog feed URL (windowed). Returns null when the board has no feed.
+ * In-process schemes (imo:/csn:/geonet:) pass through for nodeCatalogFeed.
+ */
+export function catalogFeedUrl(
+  sesNodeId: string,
+  windowKey: string = "7d",
+): string | null {
+  const p = getPublishedMonitor(sesNodeId);
+  if (!p?.catalogFeedUrl) return null;
+  try {
+    if (
+      p.catalogFeedUrl.startsWith("imo:") ||
+      p.catalogFeedUrl.startsWith("csn:") ||
+      p.catalogFeedUrl.startsWith("geonet:")
+    ) {
+      return p.catalogFeedUrl;
+    }
+    const u = new URL(p.catalogFeedUrl);
+    u.searchParams.set("window", windowKey);
+    u.searchParams.set("node", p.sesNodeId);
+    return u.toString();
+  } catch {
+    return p.catalogFeedUrl;
+  }
+}
+
 /** Board URL with SES handoff query (monitors may ignore unknown params). */
-export function monitorHandoffUrl(sesNodeId: string): string | null {
+export function monitorHandoffUrl(sesNodeId: string | null | undefined): string | null {
   const p = getPublishedMonitor(sesNodeId);
   if (!p) return null;
   try {
@@ -238,26 +309,7 @@ export function sentinelFocusUrl(
   return u.toString();
 }
 
-/**
- * Authority catalog feed URL (windowed). Returns null when the board has no feed.
- * CF → INGV GOSSIP GeoJSON; use to replace USGS inside mediterranean bbox.
- */
-export function catalogFeedUrl(
-  sesNodeId: string,
-  windowKey: string = "7d",
-): string | null {
-  const p = getPublishedMonitor(sesNodeId);
-  if (!p?.catalogFeedUrl) return null;
-  try {
-    const u = new URL(p.catalogFeedUrl);
-    u.searchParams.set("window", windowKey);
-    u.searchParams.set("node", p.sesNodeId);
-    return u.toString();
-  } catch {
-    return p.catalogFeedUrl;
-  }
-}
-
-export function listPublishedMonitors(): PublishedMonitor[] {
-  return [...PUBLISHED_MONITORS].sort((a, b) => a.networkOrder - b.networkOrder);
+/** Deep link back into SES focused on a node. */
+export function sesNodeDeepLink(sesNodeId: string): string {
+  return sentinelFocusUrl(sesNodeId);
 }

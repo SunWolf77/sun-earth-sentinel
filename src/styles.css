@@ -212,11 +212,39 @@
   opacity: 0.85;
   user-select: none;
 }
+.ww-header-row__label--ww {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: color-mix(in oklab, var(--color-gold) 75%, var(--color-dim));
+  opacity: 1;
+}
+.ww-header-row__label-icon {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+.ww-header-row__label-short {
+  display: inline;
+}
+.ww-header-row__label-full {
+  display: none;
+}
 @media (min-width: 768px) {
   .ww-header-row__label {
     padding-left: 1rem;
     font-size: 0.58rem;
     min-width: 2.75rem;
+  }
+  .ww-header-row__label--ww {
+    min-width: 5.5rem;
+  }
+  .ww-header-row__label-full {
+    display: inline;
+  }
+  .ww-header-row__label-short {
+    display: none;
   }
 }
 .ww-header-row--views .ww-tablist {
@@ -231,23 +259,25 @@
   }
 }
 
-/* Published nodes strip inside row 3 */
+/* Published WolfWatch desks strip */
 .ww-nodes-nav {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.28rem;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
   flex: 1;
   min-width: 0;
-  padding: 0 0.5rem 0.35rem 0;
+  padding: 0 0.4rem 0.3rem 0;
   -webkit-overflow-scrolling: touch;
 }
 .ww-header-row--nodes {
   padding-bottom: 0.1rem;
   border-top: 1px solid color-mix(in oklab, var(--color-border) 55%, transparent);
-  padding-top: 0.25rem;
+  padding-top: 0.28rem;
+  position: relative;
 }
 .ww-nodes-nav::-webkit-scrollbar {
   display: none;
@@ -265,27 +295,41 @@
   opacity: 0.55;
   flex-shrink: 0;
   user-select: none;
+  scroll-snap-align: none;
+}
+.ww-nodes-nav__back-wrap {
+  display: none;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+@media (min-width: 640px) {
+  .ww-nodes-nav__back-wrap {
+    display: inline-flex;
+  }
 }
 .ww-nodes-nav__pair {
   display: inline-flex;
   align-items: stretch;
   flex-shrink: 0;
-  border-radius: 0.5rem;
+  border-radius: 0.55rem;
   border: 1px solid var(--color-border);
   background: var(--color-panel);
   overflow: hidden;
+  scroll-snap-align: start;
 }
 .ww-nodes-nav__chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.28rem;
   flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--color-muted);
-  padding: 0.28rem 0.45rem;
-  min-height: 1.7rem;
-  font-size: 0.62rem;
+  padding: 0.4rem 0.55rem;
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -299,9 +343,18 @@
 }
 .ww-nodes-nav__chip--home {
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  border-radius: 0.55rem;
   background: var(--color-panel);
-  padding-inline: 0.5rem;
+  padding-inline: 0.55rem;
+  scroll-snap-align: start;
+}
+.ww-nodes-nav__chip--all {
+  border: 1px dashed color-mix(in oklab, var(--color-border) 80%, transparent);
+  border-radius: 0.55rem;
+  background: transparent;
+  scroll-snap-align: end;
+  gap: 0.2rem;
+  color: var(--color-dim);
 }
 .ww-nodes-nav__chip--on {
   background: color-mix(in oklab, var(--color-gold) 16%, transparent);
@@ -340,6 +393,24 @@
   color: var(--color-dim);
   opacity: 0.9;
 }
+/* External board links: mobile only when that desk is focused; always on sm+ */
+.ww-nodes-nav__ext {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.4rem;
+  border-left: 1px solid var(--color-border);
+  color: var(--color-dim);
+  min-width: 2rem;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.ww-nodes-nav__pair:has(.ww-nodes-nav__chip--on) .ww-nodes-nav__ext {
+  display: inline-flex;
+}
+.ww-nodes-nav__ext:hover {
+  color: var(--color-gold);
+  background: color-mix(in oklab, var(--color-gold) 10%, transparent);
+}
 @media (min-width: 640px) {
   .ww-nodes-nav__name {
     display: inline;
@@ -347,25 +418,184 @@
   .ww-nodes-nav__kbd {
     display: inline-block;
   }
+  .ww-nodes-nav__ext {
+    display: inline-flex;
+  }
   .ww-nodes-nav__chip {
     font-size: 0.65rem;
-    min-height: 1.85rem;
+    min-height: 1.9rem;
+    min-width: 0;
     padding: 0.3rem 0.5rem;
+    justify-content: flex-start;
   }
 }
-.ww-nodes-nav__ext {
+
+/* WolfWatch “All desks” sheet */
+.ww-ww-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.ww-ww-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: color-mix(in oklab, black 45%, transparent);
+  cursor: pointer;
+}
+.ww-ww-sheet__panel {
+  position: relative;
+  z-index: 1;
+  width: min(28rem, 100%);
+  max-height: min(78vh, 36rem);
+  overflow: auto;
+  border-radius: 1rem 1rem 0 0;
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  background: var(--color-bg);
+  box-shadow: 0 -12px 40px color-mix(in oklab, black 40%, transparent);
+  padding: 0.85rem 0.85rem 1.25rem;
+  overscroll-behavior: contain;
+}
+@media (min-width: 640px) {
+  .ww-ww-sheet {
+    align-items: center;
+    padding: 1rem;
+  }
+  .ww-ww-sheet__panel {
+    border-radius: 1rem;
+    border-bottom: 1px solid var(--color-border);
+    max-height: min(70vh, 34rem);
+  }
+}
+.ww-ww-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.ww-ww-sheet__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-gold);
+  letter-spacing: 0.01em;
+}
+.ww-ww-sheet__sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.65rem;
+  line-height: 1.35;
+  color: var(--color-dim);
+}
+.ww-ww-sheet__close {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.35rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-muted);
+}
+.ww-ww-sheet__close:hover {
+  color: var(--color-fg);
+  background: var(--color-elevated);
+}
+.ww-ww-sheet__home-row {
+  margin-bottom: 0.5rem;
+}
+.ww-ww-sheet__group {
+  margin-top: 0.55rem;
+}
+.ww-ww-sheet__group-label {
+  margin: 0 0 0.3rem;
+  padding-left: 0.15rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.ww-ww-sheet__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.ww-ww-sheet__row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 0.65rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+  overflow: hidden;
+  min-height: 2.75rem;
+}
+.ww-ww-sheet__row--on {
+  border-color: color-mix(in oklab, var(--color-gold) 50%, transparent);
+  background: color-mix(in oklab, var(--color-gold) 10%, var(--color-panel));
+}
+.ww-ww-sheet__focus {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.ww-ww-sheet__focus:hover {
+  background: color-mix(in oklab, var(--color-elevated) 60%, transparent);
+}
+.ww-ww-sheet__code {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 1.7rem;
+  border-radius: 0.4rem;
+  border: 1px solid color-mix(in oklab, var(--color-gold) 35%, var(--color-border));
+  background: color-mix(in oklab, var(--color-gold) 12%, transparent);
+  color: var(--color-gold);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.ww-ww-sheet__board {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  border: none;
   border-left: 1px solid var(--color-border);
   color: var(--color-dim);
-  min-width: 1.55rem;
-  transition: color 0.12s ease, background 0.12s ease;
+  background: transparent;
 }
-.ww-nodes-nav__ext:hover {
+.ww-ww-sheet__board:hover {
   color: var(--color-gold);
   background: color-mix(in oklab, var(--color-gold) 10%, transparent);
+}
+.ww-ww-sheet__foot {
+  margin: 0.75rem 0 0;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--color-dim);
 }
 
 /* Dedicated back-to-SES widget */

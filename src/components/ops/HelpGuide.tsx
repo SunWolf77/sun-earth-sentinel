@@ -82,7 +82,8 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     body: [
       "1–5 — Views: Live Map · Solar · Rhythm · Charts · About.",
       "H · 0 · Home — SES world (clear node focus, no reload).",
-      "T · C · J · K — Focus Tonga · Campi · Japan · Kamchatka (same key again = home).",
+      "T · C · J · K · I · S · A · N — WolfWatch desks (Tonga · Campi · Japan · Kamchatka · Iceland · S.Sandwich · Andes · NZ). Same key again = SES home.",
+      "All (header) — full WolfWatch desk list with names & boards (mobile-friendly).",
       "Esc — leave full-screen map, or clear focus / close sheet.",
       "? — open this how-to. Shortcuts ignore keys while typing in fields.",
       "Header layout: brand/tools → Views (tabs) → Nodes (SES + published hops + Back).",

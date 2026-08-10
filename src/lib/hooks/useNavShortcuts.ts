@@ -133,7 +133,7 @@ export function useNavShortcuts(opts: NavShortcutsOptions = {}) {
 export const NAV_SHORTCUTS_HELP: { keys: string; action: string }[] = [
   { keys: "1 – 5", action: "Views: Live · Solar · Rhythm · Charts · About" },
   { keys: "H · 0 · Home", action: "SES world — clear node focus" },
-  { keys: "T · C · J · K · I · S · A · N", action: "Nodes: Tonga · Campi · Japan · Kamchatka · Iceland · S.Sandwich · Andes · NZ" },
+  { keys: "T · C · J · K · I · S · A · N", action: "WolfWatch: Tonga · Campi · Japan · Kamchatka · Iceland · S.Sandwich · Andes · NZ" },
   { keys: "Esc", action: "Exit full map, or clear focus / sheet" },
   { keys: "?", action: "Open how-to" },
 ];

@@ -804,7 +804,7 @@ function ObservatoryApp() {
             })}
           </nav>
         </div>
-        {/* Row 3 — published nodes; SES home / Back / T·C·J·K keys */}
+        {/* Row 3 — WolfWatch Network desks; SES home / All sheet */}
         <PublishedNodesNav />
       </header>
 

@@ -131,7 +131,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
                 {focus.name}
                 {pub && (
                   <span className="rounded border border-gold/40 px-1 text-[0.55rem] uppercase text-gold">
-                    SES #{pub.networkOrder}
+                    WW #{pub.networkOrder}
                   </span>
                 )}
               </div>
@@ -266,7 +266,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
                     <span className="text-[0.75rem] font-medium text-fg">{node.name}</span>
                     {nodePub && (
                       <span className="rounded border border-gold/40 px-1 text-[0.55rem] uppercase text-gold">
-                        SES #{nodePub.networkOrder}
+                        WW #{nodePub.networkOrder}
                       </span>
                     )}
                     {node.watchPriority && !nodePub && (
@@ -348,7 +348,7 @@ export function NodeFocusBanner() {
           {focus.name}
           {pub && (
             <span className="rounded border border-gold/40 px-1 text-[0.55rem] font-medium uppercase text-gold">
-              SES #{pub.networkOrder}
+              WW #{pub.networkOrder}
             </span>
           )}
         </div>

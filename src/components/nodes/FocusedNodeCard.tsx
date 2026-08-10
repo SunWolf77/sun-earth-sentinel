@@ -1,4 +1,4 @@
-import { ExternalLink, Radar } from "lucide-react";
+import { ExternalLink, Network } from "lucide-react";
 import {
   FOCUSED_MONITORS,
   nodeEventStats,
@@ -7,8 +7,10 @@ import {
   type NodeStatus,
 } from "@/lib/feeds/usgs";
 import {
+  WOLFWATCH_NETWORK,
   getPublishedMonitor,
   monitorHandoffUrl,
+  monitorNavLabel,
 } from "@/lib/feeds/publishedMonitors";
 import { useObservatory } from "@/store/observatory";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
@@ -48,11 +50,12 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
   return (
     <section className="space-y-2">
       <h3 className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-gold">
-        <Radar className="h-3.5 w-3.5" />
-        Published Swarm Boards
+        <Network className="h-3.5 w-3.5" />
+        {WOLFWATCH_NETWORK.name}
       </h3>
       <p className="text-[0.62rem] leading-snug text-dim">
-        SES focus nodes — Focus zooms the map here; Full board opens the dedicated Vercel monitor.
+        Regional desks under SES. Focus zooms the map; open board for the dedicated monitor when
+        you need depth.
       </p>
       {ordered.map((node) => {
         const st = nodeStatus(features, node, { timeWindow });
@@ -78,15 +81,17 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
+                  {pub && (
+                    <span className="inline-flex h-6 min-w-[1.75rem] items-center justify-center rounded-md border border-gold/40 bg-gold/10 px-1.5 text-[0.65rem] font-extrabold tracking-wide text-gold">
+                      {monitorNavLabel(pub)}
+                    </span>
+                  )}
                   <span className="font-medium text-fg">{node.name}</span>
                   {pub && (
                     <span className="rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-gold">
-                      SES #{pub.networkOrder}
+                      WW #{pub.networkOrder}
                     </span>
                   )}
-                  <span className="rounded-full border border-gold/40 bg-gold/10 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-gold">
-                    Published
-                  </span>
                 </div>
                 <p className="mt-0.5 text-[0.7rem] leading-snug text-dim">{node.role}</p>
                 {pub && (
