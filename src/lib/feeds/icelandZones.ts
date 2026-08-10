@@ -1,5 +1,5 @@
 /**
- * Iceland volcanic / seismic system zones for SES node #4.
+ * Iceland volcanic / seismic system zones for SES node #5.
  * Bounds are operational focus boxes (not legal hazard zones).
  * Codes align with IMO volcano codes where possible.
  */

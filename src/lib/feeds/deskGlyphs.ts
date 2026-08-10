@@ -5,7 +5,8 @@
  *  1. One unique glyph per published desk (header scan recognition).
  *  2. Prefer tectonic / cultural / ocean fit over decoration.
  *  3. Wolf = network brand + NZ home desk (SunWolf · Aotearoa).
- *  4. “Why” strings stay short enough for tooltips.
+ *  4. networkOrder is unique 1…N (no shared “companion” numbers in the index).
+ *  5. “Why” strings stay short enough for tooltips.
  */
 
 import type { ComponentType } from "react";
@@ -38,7 +39,7 @@ export type DeskGlyphMeta = {
   why: string;
   /** Desk short code (TK, CF, …) for tables */
   shortCode: string;
-  /** Published network order */
+  /** Unique published network order (1…N) */
   networkOrder: number;
   Icon: ComponentType<{ className?: string; title?: string }>;
 };
@@ -51,11 +52,11 @@ export type DeskGlyphMeta = {
  * | 1 | TK   | Tonga–Kermadec    | Serpent | Pacific RoF trench coil |
  * | 2 | CF   | Campi Flegrei     | Owl     | Continuous caldera densify |
  * | 3 | JP   | Japan Arc         | Fox     | Kitsune · JMA local densify |
- * | 3 | KM   | Kamchatka–Kurils  | Bear    | Peninsula mass · volcanoes |
- * | 4 | IS   | Iceland           | Raven   | Norse north · VALS/VONA |
- * | 5 | SS   | South Sandwich    | Whale   | Scotia–Drake ocean corridor |
- * | 6 | CL   | Chile–Andes       | Eagle   | Andean overlook · Nazca |
- * | 7 | NZ   | New Zealand       | Wolf    | SunWolf home desk |
+ * | 4 | KM   | Kamchatka–Kurils  | Bear    | Peninsula mass · volcanoes |
+ * | 5 | IS   | Iceland           | Raven   | Norse north · VALS/VONA |
+ * | 6 | SS   | South Sandwich    | Whale   | Scotia–Drake ocean corridor |
+ * | 7 | CL   | Chile–Andes       | Eagle   | Andean overlook · Nazca |
+ * | 8 | NZ   | New Zealand       | Wolf    | SunWolf home desk |
  */
 export const DESK_GLYPHS: Record<string, DeskGlyphMeta> = {
   tonga: {
@@ -87,7 +88,7 @@ export const DESK_GLYPHS: Record<string, DeskGlyphMeta> = {
     label: "Bear",
     why: "Peninsula mass · volcanic ground",
     shortCode: "KM",
-    networkOrder: 3,
+    networkOrder: 4,
     Icon: GeoBear,
   },
   iceland: {
@@ -95,7 +96,7 @@ export const DESK_GLYPHS: Record<string, DeskGlyphMeta> = {
     label: "Raven",
     why: "Norse north · VALS / VONA watch",
     shortCode: "IS",
-    networkOrder: 4,
+    networkOrder: 5,
     Icon: GeoRaven,
   },
   southsandwich: {
@@ -103,7 +104,7 @@ export const DESK_GLYPHS: Record<string, DeskGlyphMeta> = {
     label: "Whale",
     why: "Scotia–Drake ocean corridor",
     shortCode: "SS",
-    networkOrder: 5,
+    networkOrder: 6,
     Icon: GeoWhale,
   },
   andes: {
@@ -111,7 +112,7 @@ export const DESK_GLYPHS: Record<string, DeskGlyphMeta> = {
     label: "Eagle",
     why: "Andean overlook · Nazca megathrust",
     shortCode: "CL",
-    networkOrder: 6,
+    networkOrder: 7,
     Icon: GeoEagle,
   },
   newzealand: {
@@ -119,7 +120,7 @@ export const DESK_GLYPHS: Record<string, DeskGlyphMeta> = {
     label: "Wolf",
     why: "SunWolf home desk · Aotearoa",
     shortCode: "NZ",
-    networkOrder: 7,
+    networkOrder: 8,
     Icon: GeoWolf,
   },
 };

@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.22.1: Refined desk glyph map (kitsune JP, eagle Andes, owl CF).
+ * 1.22.2: Unique desk networkOrder 1–8 (KM was duplicate #3).
  */
-export const APP_VERSION = "1.22.1";
+export const APP_VERSION = "1.22.2";
 
 
 

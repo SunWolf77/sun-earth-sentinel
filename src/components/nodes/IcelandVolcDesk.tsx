@@ -1,5 +1,5 @@
 /**
- * Iceland node #4 — SUPT volcanic analytics desk (IMO authority).
+ * Iceland node #5 — SUPT volcanic analytics desk (IMO authority).
  * Shown when iceland is focused; calm language, zone breakdown, spacing probe.
  */
 
@@ -87,7 +87,7 @@ export function IcelandVolcDesk({ className = "" }: { className?: string }) {
             Iceland · SUPT volcanic desk
           </h3>
           <p className="mt-0.5 text-[0.62rem] text-dim">
-            SES #4 · IMO authority · window {desk.windowLabel}
+            SES #5 · IMO authority · window {desk.windowLabel}
           </p>
         </div>
         <button

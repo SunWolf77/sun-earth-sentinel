@@ -439,7 +439,7 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "southsandwich",
     name: "South Sandwich / Drake",
-    role: "Published focus · SES #5 · Scotia Arc · USGS",
+    role: "Published focus · SES #6 · Scotia Arc · USGS",
     kind: "seismic",
     /**
      * South Sandwich trench + Scotia plate + Drake Passage approach.
@@ -456,7 +456,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #5 — South Sandwich trench, Scotia Arc & Drake Passage. Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Full board opens USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential for South Atlantic. Not a forecast.",
+      "SES node #6 — South Sandwich trench, Scotia Arc & Drake Passage. Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Full board opens USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential for South Atlantic. Not a forecast.",
     aliases: [
       "ss",
       "sandwich",
@@ -469,7 +469,7 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "andes",
     name: "Chile–Andes / Nazca",
-    role: "Published focus · SES #6 · Nazca megathrust · CSN densify",
+    role: "Published focus · SES #7 · Nazca megathrust · CSN densify",
     kind: "seismic",
     /**
      * Central–south Chile Nazca subduction corridor (megathrust + outer rise).
@@ -484,7 +484,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #6 — Chile–Andes / Nazca megathrust. CSN densify (HTML catalog + EMSC-CSN) is exclusive in-box authority — never dual-read USGS. High tsunami source potential Pacific. Not a forecast.",
+      "SES node #7 — Chile–Andes / Nazca megathrust. CSN densify (HTML catalog + EMSC-CSN) is exclusive in-box authority — never dual-read USGS. High tsunami source potential Pacific. Not a forecast.",
     aliases: [
       "chile",
       "andes",
@@ -530,13 +530,13 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #3 — Japan archipelago (JMA Bosai authority). Tsunami watch first-class on the Japan board. Open full board for Kamchatka companion, volcano watch, SUPT continuum. Not a forecast.",
+      "SES node #3 — Japan archipelago (JMA Bosai authority). Tsunami watch first-class on the Japan board. Open full board for Kamchatka (#4) companion, volcano watch, SUPT continuum. Not a forecast.",
     aliases: ["jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
   },
   {
     id: "kamchatka",
     name: "Kamchatka–Kurils",
-    role: "Published focus · SES #3 companion · USGS",
+    role: "Published focus · SES #4 · Japan companion · USGS",
     kind: "seismic",
     bounds: [
       [42, 145],
@@ -547,13 +547,13 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #3 companion — Kamchatka / Kurils (USGS authority, KVERT volcano links). High tsunami source potential. Hosted on Japan–Kamchatka board. Not a forecast.",
+      "SES node #4 — Kamchatka / Kurils (USGS authority, KVERT volcano links). High tsunami source potential. Hosted on Japan–Kamchatka board. Not a forecast.",
     aliases: ["km", "kuril", "kurils", "kvert", "okhotsk"],
   },
   {
     id: "iceland",
     name: "Iceland",
-    role: "Published focus · SES #4 · IMO authority · volcanic systems",
+    role: "Published focus · SES #5 · IMO authority · volcanic systems",
     kind: "seismic",
     /**
      * Whole-island + near-offshore — matches IMO densify polygon.
@@ -568,7 +568,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #4 — Iceland plate boundary + volcanic systems (Reykjanes, Katla, Askja…). IMO (Veðurstofa) is exclusive dense catalog + VALS/VONA. SUPT volcanic desk segments by system box. Not a forecast.",
+      "SES node #5 — Iceland plate boundary + volcanic systems (Reykjanes, Katla, Askja…). IMO (Veðurstofa) is exclusive dense catalog + VALS/VONA. SUPT volcanic desk segments by system box. Not a forecast.",
     aliases: [
       "is",
       "imo",
@@ -602,7 +602,7 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "newzealand",
     name: "New Zealand",
-    role: "Published focus · SES #7 · GeoNet densify",
+    role: "Published focus · SES #8 · GeoNet densify",
     kind: "seismic",
     /**
      * Aotearoa main islands + near offshore (+ Chatham via densify pad).
@@ -618,7 +618,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #7 — New Zealand (Aotearoa). GeoNet / GNS Science is exclusive dense catalog (FDSN + API). USGS under-samples here. Hikurangi / Alpine Fault / volcanic zones are educational context — not a forecast.",
+      "SES node #8 — New Zealand (Aotearoa). GeoNet / GNS Science is exclusive dense catalog (FDSN + API). USGS under-samples here. Hikurangi / Alpine Fault / volcanic zones are educational context — not a forecast.",
     aliases: [
       "nz",
       "new-zealand",

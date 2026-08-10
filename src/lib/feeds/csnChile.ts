@@ -18,7 +18,7 @@ const CSN_HOME = "https://www.sismologia.cl/";
 const CSN_UA =
   "Mozilla/5.0 (compatible; SunEarthSentinel/1.18; +https://sun-earth-sentinel.vercel.app) educational";
 
-/** SES #6 Chile–Andes / Nazca focus box */
+/** SES #7 Chile–Andes / Nazca focus box */
 export const CHILE_BOUNDS = {
   minLat: -45,
   maxLat: -15,

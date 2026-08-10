@@ -104,27 +104,27 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
   {
     sesNodeId: "kamchatka",
     name: "Kamchatka–Kurils",
-    networkOrder: 3,
+    networkOrder: 4,
     shortCode: "KM",
     navLabel: "KM",
     region: "ring",
-    role: "Published focus · SES #3 companion · USGS",
+    role: "Published focus · SES #4 · Japan companion · USGS",
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/?node=kamchatka",
     catalogFeedUrl:
       "https://japan-kamchatka-monitor.vercel.app/api/ses/catalog?window=7d&node=kamchatka",
     authority: "USGS FDSN / realtime",
     aliases: ["kamchatka", "km", "kuril", "kurils", "klyuchevskoy"],
     focusNote:
-      "SES node #3 companion on Japan board — Kamchatka Peninsula / Kurils. USGS exclusive; KVERT for volcano status links. High tsunami source potential. Not a forecast.",
+      "SES node #4 — Kamchatka Peninsula / Kurils (companion board to Japan #3). USGS exclusive; KVERT for volcano status links. High tsunami source potential. Not a forecast.",
   },
   {
     sesNodeId: "iceland",
     name: "Iceland",
-    networkOrder: 4,
+    networkOrder: 5,
     shortCode: "IS",
     navLabel: "IS",
     region: "atlantic",
-    role: "Published focus · SES #4 · IMO densify",
+    role: "Published focus · SES #5 · IMO densify",
     monitorUrl: "https://skjalftalisa.vedur.is/",
     catalogFeedUrl: "imo://iceland/catalog",
     authority: "IMO Veðurstofa (SeisComP + VALS/VONA)",
@@ -138,16 +138,16 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "iceland-arc",
     ],
     focusNote:
-      "SES node #4 — Iceland. Dense IMO SeisComP replaces USGS in-box (never dual-read). SUPT volcanic desk segments Reykjanes / Katla / Askja…. Not a forecast.",
+      "SES node #5 — Iceland. Dense IMO SeisComP replaces USGS in-box (never dual-read). SUPT volcanic desk segments Reykjanes / Katla / Askja…. Not a forecast.",
   },
   {
     sesNodeId: "southsandwich",
     name: "South Sandwich / Drake",
-    networkOrder: 5,
+    networkOrder: 6,
     shortCode: "SS",
     navLabel: "SS",
     region: "polar",
-    role: "Published focus · SES #5 · Scotia Arc · USGS",
+    role: "Published focus · SES #6 · Scotia Arc · USGS",
     /** USGS 30-day M2.5+ satellite · Scotia Sea / Drake / SS swarm (ops screenshot view) */
     monitorUrl:
       "https://earthquake.usgs.gov/earthquakes/map/#%7B%22feed%22%3A%2230day_m25%22%2C%22sort%22%3A%22newest%22%2C%22basemap%22%3A%22satellite%22%2C%22autoUpdate%22%3Afalse%2C%22restrictListToMap%22%3Atrue%2C%22timeZone%22%3A%22utc%22%2C%22mapposition%22%3A%5B%5B-63.5%2C-78%5D%2C%5B-47.5%2C-12%5D%5D%2C%22overlays%22%3A%7B%22plates%22%3Atrue%7D%2C%22viewModes%22%3A%7B%22map%22%3Atrue%2C%22list%22%3Atrue%2C%22settings%22%3Afalse%2C%22help%22%3Afalse%7D%7D",
@@ -162,16 +162,16 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "scotia-arc",
     ],
     focusNote:
-      "SES node #5 — South Sandwich trench / Scotia Arc / Drake Passage. Remote; USGS primary. Full board = USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential South Atlantic. Not a forecast.",
+      "SES node #6 — South Sandwich trench / Scotia Arc / Drake Passage. Remote; USGS primary. Full board = USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential South Atlantic. Not a forecast.",
   },
   {
     sesNodeId: "andes",
     name: "Chile–Andes / Nazca",
-    networkOrder: 6,
+    networkOrder: 7,
     shortCode: "CL",
     navLabel: "CL",
     region: "pacific",
-    role: "Published focus · SES #6 · Nazca megathrust · CSN densify",
+    role: "Published focus · SES #7 · Nazca megathrust · CSN densify",
     monitorUrl: "https://www.sismologia.cl/",
     /**
      * In-process CSN HTML + EMSC-CSN densify (see nodeCatalogFeed / csnChile).
@@ -189,16 +189,16 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "sa",
     ],
     focusNote:
-      "SES node #6 — Chile–Andes / Nazca. Dense CSN catalog replaces USGS in-box (never dual-read). Phase A EMSC-CSN + Phase B sismologia.cl daily HTML. Attribution: Centro Sismológico Nacional de la Universidad de Chile. Not a forecast.",
+      "SES node #7 — Chile–Andes / Nazca. Dense CSN catalog replaces USGS in-box (never dual-read). Phase A EMSC-CSN + Phase B sismologia.cl daily HTML. Attribution: Centro Sismológico Nacional de la Universidad de Chile. Not a forecast.",
   },
   {
     sesNodeId: "newzealand",
     name: "New Zealand",
-    networkOrder: 7,
+    networkOrder: 8,
     shortCode: "NZ",
     navLabel: "NZ",
     region: "pacific",
-    role: "Published focus · SES #7 · GeoNet densify",
+    role: "Published focus · SES #8 · GeoNet densify",
     monitorUrl: "https://www.geonet.org.nz/",
     catalogFeedUrl: "geonet://newzealand/catalog",
     authority: "GeoNet / GNS Science (FDSN + API)",
@@ -213,7 +213,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "taupo",
     ],
     focusNote:
-      "SES node #7 — New Zealand. GeoNet FDSN densify replaces USGS in-box (never dual-read). Attribution: GeoNet / GNS Science. Not a forecast.",
+      "SES node #8 — New Zealand. GeoNet FDSN densify replaces USGS in-box (never dual-read). Attribution: GeoNet / GNS Science. Not a forecast.",
   },
 ];
 
