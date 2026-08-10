@@ -73,7 +73,10 @@ export async function fetchEmscIceland(days = 7, minMag = 1.5): Promise<EqCollec
 }
 
 /** FDSN text: EventID|Time|Lat|Lon|Depth|Author|Catalog|Contributor|...|Mag|...|Place */
-export function parseEmscText(text: string): EqCollection {
+export function parseEmscText(
+  text: string,
+  opts?: { chileCsnTag?: boolean },
+): EqCollection {
   const lines = text.trim().split("\n");
   const features: EqFeature[] = [];
 
@@ -88,11 +91,26 @@ export function parseEmscText(text: string): EqCollection {
     const lon = parseFloat(c[3] || "");
     const depth = parseFloat(c[4] || "0");
     const author = (c[5] || "").trim();
+    const contributor = (c[7] || "").trim();
     let mag = parseFloat(c[10] || "");
     if (!Number.isFinite(mag)) mag = parseFloat(c[9] || "");
     const place = (c[12] || c[c.length - 1] || "EMSC").trim();
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) continue;
+
+    // CSN solutions relayed via EMSC — tag as national authority for Chile desk
+    const isCsn =
+      /^csn$/i.test(author) ||
+      /^csn$/i.test(contributor) ||
+      (opts?.chileCsnTag &&
+        lat >= -45 &&
+        lat <= -15 &&
+        lon >= -80 &&
+        lon <= -65 &&
+        /csn/i.test(author + contributor));
+
+    const net = isCsn ? "csn" : "emsc";
+    const detail = isCsn ? "csn" : "emsc";
 
     features.push({
       type: "Feature",
@@ -103,12 +121,14 @@ export function parseEmscText(text: string): EqCollection {
         time: Number.isFinite(timeMs) ? timeMs : null,
         url: id
           ? `https://www.seismicportal.eu/eventdetails.html?unid=${encodeURIComponent(id)}`
-          : "https://www.emsc-csem.org/",
-        title: `M${mag.toFixed(1)} ${place} (EMSC${author ? `/${author}` : ""})`,
+          : isCsn
+            ? "https://www.sismologia.cl/"
+            : "https://www.emsc-csem.org/",
+        title: `M${mag.toFixed(1)} ${place} (${isCsn ? "CSN" : `EMSC${author ? `/${author}` : ""}`})`,
         type: "earthquake",
         status: "automatic",
-        detail: "emsc",
-        net: "emsc",
+        detail,
+        net,
       },
       geometry: {
         type: "Point",

@@ -571,7 +571,9 @@ export function LiveMap() {
         ? Math.min(minMag, 1.0)
         : focus?.id === "mediterranean"
           ? Math.min(minMag, 1.5)
-          : minMag;
+          : focus?.id === "andes"
+            ? Math.min(minMag, 2.0)
+            : minMag;
     const all = filteredEq(eq?.features, mapMin, maxMag);
     let features = focus
       ? all.filter((f) => {

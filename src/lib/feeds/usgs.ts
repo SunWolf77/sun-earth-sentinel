@@ -441,20 +441,21 @@ export const DRAGON_NODES: DragonNode[] = [
     role: "Published focus · SES #5 · Scotia Arc · USGS",
     kind: "seismic",
     /**
-     * South Sandwich trench + Scotia plate / Drake Passage approach.
-     * Remote — USGS/GEOFON/EMSC only practical realtime; no national dense board.
+     * South Sandwich trench + Scotia plate + Drake Passage approach.
+     * Wider than trench-only so Drake events appear (ops satellite 30d view).
+     * USGS primary — remote, no national dense board.
      */
     bounds: [
-      [-65, -40],
-      [-50, -15],
+      [-64, -75],
+      [-48, -12],
     ],
-    center: [-57.5, -26.5],
+    center: [-56.5, -40],
     monitorUrl:
-      "https://earthquake.usgs.gov/earthquakes/map/?extent=-65,-40&extent=-50,-15",
+      "https://earthquake.usgs.gov/earthquakes/map/#%7B%22feed%22%3A%2230day_m25%22%2C%22sort%22%3A%22newest%22%2C%22basemap%22%3A%22satellite%22%2C%22autoUpdate%22%3Afalse%2C%22restrictListToMap%22%3Atrue%2C%22timeZone%22%3A%22utc%22%2C%22mapposition%22%3A%5B%5B-63.5%2C-78%5D%2C%5B-47.5%2C-12%5D%5D%2C%22overlays%22%3A%7B%22plates%22%3Atrue%7D%2C%22viewModes%22%3A%7B%22map%22%3Atrue%2C%22list%22%3Atrue%2C%22settings%22%3Afalse%2C%22help%22%3Afalse%7D%7D",
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #5 — South Sandwich trench & Scotia Arc (approach to Drake Passage). Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Tsunami source potential for South Atlantic. Not a forecast.",
+      "SES node #5 — South Sandwich trench, Scotia Arc & Drake Passage. Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Full board opens USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential for South Atlantic. Not a forecast.",
     aliases: [
       "ss",
       "sandwich",
@@ -467,22 +468,22 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "andes",
     name: "Chile–Andes / Nazca",
-    role: "Published focus · SES #6 · Nazca megathrust · USGS",
+    role: "Published focus · SES #6 · Nazca megathrust · CSN densify",
     kind: "seismic",
     /**
      * Central–south Chile Nazca subduction corridor (megathrust + outer rise).
-     * CSN densify can come later; USGS/EMSC/GEOFON for realtime now.
+     * Dense CSN HTML catalog + EMSC-CSN authority override (never dual-read USGS).
      */
     bounds: [
       [-45, -80],
       [-15, -65],
     ],
     center: [-30.0, -72.0],
-    monitorUrl: "https://www.csn.uchile.cl/",
+    monitorUrl: "https://www.sismologia.cl/",
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #6 — Chile–Andes / Nazca megathrust. USGS primary realtime; CSN (Centro Sismológico Nacional) is national authority for dense local catalog. High tsunami source potential Pacific. Not a forecast.",
+      "SES node #6 — Chile–Andes / Nazca megathrust. CSN densify (HTML catalog + EMSC-CSN) is exclusive in-box authority — never dual-read USGS. High tsunami source potential Pacific. Not a forecast.",
     aliases: [
       "chile",
       "andes",
@@ -646,7 +647,11 @@ function seismicNodeStatus(
   const win = (opts?.timeWindow || "day").toLowerCase();
   // Dense national catalogs (IMO Iceland, INGV CF): lower floor so microseismicity counts
   const minMagFloor =
-    node.id === "iceland" || node.id === "mediterranean" ? 1.5 : 3.5;
+    node.id === "iceland" || node.id === "mediterranean"
+      ? 1.5
+      : node.id === "andes"
+        ? 2.5
+        : 3.5;
   const inBounds = features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
     const mag = f.properties.mag ?? 0;
@@ -700,6 +705,27 @@ function seismicNodeStatus(
     if (m6 >= 1 || maxMag >= 5.5) return "watch";
     if (m5 >= 1 || m3 >= 20 || inBounds.length >= 200) return "active";
     if (m3 >= 5 || maxMag >= 3.5 || inBounds.length >= 40) return "elevated";
+    return "quiet";
+  }
+
+  // Chile megathrust — dense M2.5–3.5 is baseline, not smoke
+  if (node.id === "andes") {
+    if (win === "hour") {
+      if (maxMag >= 5.5 || m5 >= 1) return "watch";
+      if (maxMag >= 4.5 || m3 >= 5) return "active";
+      if (maxMag >= 3.5 || inBounds.length >= 8) return "elevated";
+      return "quiet";
+    }
+    if (win === "day") {
+      if (maxMag >= 6 || m5 >= 2) return "watch";
+      if (maxMag >= 5 || m5 >= 1 || m3 >= 15) return "active";
+      if (maxMag >= 4 || m3 >= 6 || inBounds.length >= 40) return "elevated";
+      return "quiet";
+    }
+    // week / month
+    if (m6 >= 1 || m5_72h >= 3) return "watch";
+    if (m5 >= 2 || maxMag >= 5.5 || m3 >= 40) return "active";
+    if (m5 >= 1 || maxMag >= 4.5 || m3 >= 15 || inBounds.length >= 80) return "elevated";
     return "quiet";
   }
 

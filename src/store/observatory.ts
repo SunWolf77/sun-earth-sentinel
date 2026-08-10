@@ -1794,7 +1794,9 @@ export function viewEvents(
       ? Math.min(minMag, 1.0)
       : node?.id === "mediterranean"
         ? Math.min(minMag, 1.5)
-        : minMag;
+        : node?.id === "andes"
+          ? Math.min(minMag, 2.0)
+          : minMag;
   let list = filteredEq(features, floor, maxMag);
   if (node) {
     list = list.filter((f) => {

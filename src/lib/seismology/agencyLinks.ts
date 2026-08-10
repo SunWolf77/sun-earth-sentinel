@@ -228,12 +228,19 @@ export function agencyLinksForEvent(opts: {
     });
   }
 
-  // Chile — CSN
-  if (inBox(lat, lon, -56, -17, -76, -66) || /chile|coquimbo|santiago|atacama/i.test(placeL)) {
-    links.push({
+  // Chile — CSN (national densify authority)
+  if (
+    inBox(lat, lon, -56, -15, -80, -65) ||
+    id.startsWith("csn:") ||
+    /chile|coquimbo|santiago|atacama|valparaiso|antofagasta|tarapaca|araucania|biobio|maule|iquique/i.test(
+      placeL,
+    )
+  ) {
+    links.unshift({
       id: "csn",
       label: "CSN Chile",
       url: "https://www.sismologia.cl/",
+      primary: id.startsWith("csn:") || id.startsWith("emsc:"),
     });
   }
 

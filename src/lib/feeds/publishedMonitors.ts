@@ -125,8 +125,9 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 5,
     shortCode: "SS",
     role: "Published focus · SES #5 · Scotia Arc · USGS",
+    /** USGS 30-day M2.5+ satellite · Scotia Sea / Drake / SS swarm (ops screenshot view) */
     monitorUrl:
-      "https://earthquake.usgs.gov/earthquakes/map/?extent=-65,-40&extent=-50,-15",
+      "https://earthquake.usgs.gov/earthquakes/map/#%7B%22feed%22%3A%2230day_m25%22%2C%22sort%22%3A%22newest%22%2C%22basemap%22%3A%22satellite%22%2C%22autoUpdate%22%3Afalse%2C%22restrictListToMap%22%3Atrue%2C%22timeZone%22%3A%22utc%22%2C%22mapposition%22%3A%5B%5B-63.5%2C-78%5D%2C%5B-47.5%2C-12%5D%5D%2C%22overlays%22%3A%7B%22plates%22%3Atrue%7D%2C%22viewModes%22%3A%7B%22map%22%3Atrue%2C%22list%22%3Atrue%2C%22settings%22%3Afalse%2C%22help%22%3Afalse%7D%7D",
     authority: "USGS FDSN / realtime (+ GEOFON/EMSC)",
     aliases: [
       "southsandwich",
@@ -138,16 +139,20 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "scotia-arc",
     ],
     focusNote:
-      "SES node #5 — South Sandwich trench / Scotia Arc / Drake approach. Remote; USGS primary. No dense national catalog (islands uninhabited). Tsunami source potential South Atlantic. Not a forecast.",
+      "SES node #5 — South Sandwich trench / Scotia Arc / Drake Passage. Remote; USGS primary. Full board = USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential South Atlantic. Not a forecast.",
   },
   {
     sesNodeId: "andes",
     name: "Chile–Andes / Nazca",
     networkOrder: 6,
     shortCode: "CL",
-    role: "Published focus · SES #6 · Nazca megathrust · USGS",
-    monitorUrl: "https://www.csn.uchile.cl/",
-    authority: "USGS FDSN / realtime · CSN Chile national",
+    role: "Published focus · SES #6 · Nazca megathrust · CSN densify",
+    monitorUrl: "https://www.sismologia.cl/",
+    /**
+     * In-process CSN HTML + EMSC-CSN densify (see nodeCatalogFeed / csnChile).
+     */
+    catalogFeedUrl: "csn://andes/catalog",
+    authority: "CSN Chile (HTML catalog + EMSC-CSN)",
     aliases: [
       "andes",
       "chile",
@@ -159,7 +164,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "sa",
     ],
     focusNote:
-      "SES node #6 — Chile–Andes / Nazca megathrust corridor. USGS for global realtime; CSN (Centro Sismológico Nacional, U. Chile) is dense national authority — densify feed when API path is stable. Tsunami source potential Pacific. Not a forecast.",
+      "SES node #6 — Chile–Andes / Nazca. Dense CSN catalog replaces USGS in-box (never dual-read). Phase A EMSC-CSN + Phase B sismologia.cl daily HTML. Attribution: Centro Sismológico Nacional de la Universidad de Chile. Not a forecast.",
   },
 ];
 

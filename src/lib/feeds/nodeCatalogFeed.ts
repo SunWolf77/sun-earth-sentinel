@@ -21,6 +21,7 @@ import {
 } from "@/lib/feeds/publishedMonitors";
 import { DRAGON_NODES, type EqCollection, type EqFeature } from "@/lib/feeds/usgs";
 import { fetchImoQuakes } from "@/lib/feeds/imoQuakes";
+import { fetchChileAuthorityCatalog } from "@/lib/feeds/csnChile";
 
 export type SesTimeWindow = "hour" | "day" | "week" | "month";
 
@@ -45,7 +46,9 @@ export function isAuthorityOverrideMonitor(p: PublishedMonitor): boolean {
     /ingv/i.test(p.authority) ||
     p.sesNodeId === "mediterranean" ||
     /imo/i.test(p.authority) ||
-    p.sesNodeId === "iceland"
+    p.sesNodeId === "iceland" ||
+    /csn/i.test(p.authority) ||
+    p.sesNodeId === "andes"
   );
 }
 
@@ -94,7 +97,9 @@ export function normalizeBoardFeature(raw: unknown, sesNodeId: string): EqFeatur
       ? props.sesSource
       : sesNodeId === "iceland"
         ? "imo"
-        : "ingv";
+        : sesNodeId === "andes"
+          ? "csn"
+          : "ingv";
   const id =
     f.id != null
       ? String(f.id)
@@ -183,8 +188,25 @@ export async function fetchNodeCatalogFeed(
     }
   }
 
+  // Chile–Andes: CSN HTML + EMSC-CSN densify
+  if (sesNodeId === "andes") {
+    try {
+      const days =
+        boardWindow === "24h" ? 2 : boardWindow === "30d" ? 14 : boardWindow === "7d" ? 7 : 7;
+      const col = await fetchChileAuthorityCatalog({ days, minMag: 2.0 });
+      if (col?.features?.length) {
+        setCache(key, col);
+        return col;
+      }
+      return getCache<EqCollection>(key, 600_000);
+    } catch {
+      return getCache<EqCollection>(key, 600_000);
+    }
+  }
+
   const url = catalogFeedUrl(sesNodeId, boardWindow);
-  if (!url || url.startsWith("imo:")) return getCache<EqCollection>(key, 600_000);
+  if (!url || url.startsWith("imo:") || url.startsWith("csn:"))
+    return getCache<EqCollection>(key, 600_000);
 
   try {
     const res = await fetch(url, {
