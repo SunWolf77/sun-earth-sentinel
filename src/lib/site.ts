@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.24.0: SUPT volcanic desks A+B — per-zone spacing + peer rate · IS/NZ/JP/CL/KM.
+ * 1.25.0: Since-last-visit pulse strip — observational diff vs last open baseline.
  */
-export const APP_VERSION = "1.24.0";
+export const APP_VERSION = "1.25.0";
 
 
 

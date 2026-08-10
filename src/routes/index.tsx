@@ -32,6 +32,7 @@ import { FocusedNodeCard } from "@/components/nodes/FocusedNodeCard";
 import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
+import { SinceLastVisitStrip } from "@/components/ops/SinceLastVisitStrip";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
@@ -873,6 +874,11 @@ function ObservatoryApp() {
           }`}
         >
           <TodayBriefBar dense />
+          {tab === "live" && (
+            <div className="mt-0.5 min-w-0">
+              <SinceLastVisitStrip dense />
+            </div>
+          )}
           {tab === "live" && (
             <div className="mt-0.5 min-w-0">
               <ActivityStoryChip />
