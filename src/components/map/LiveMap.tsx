@@ -564,8 +564,15 @@ export function LiveMap() {
 
     const renderer = vectorRenderer.current ?? undefined;
     const sat = basemapStyle === "satellite";
-    const all = filteredEq(eq?.features, minMag, maxMag);
     const focus = getFocusNode(focusNodeId);
+    // Dense national catalogs when focused (IMO Iceland / INGV CF)
+    const mapMin =
+      focus?.id === "iceland"
+        ? Math.min(minMag, 1.0)
+        : focus?.id === "mediterranean"
+          ? Math.min(minMag, 1.5)
+          : minMag;
+    const all = filteredEq(eq?.features, mapMin, maxMag);
     let features = focus
       ? all.filter((f) => {
           const [lon, lat] = f.geometry.coordinates;

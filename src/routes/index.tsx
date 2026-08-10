@@ -29,6 +29,7 @@ import { AnalyticsCharts } from "@/components/charts/AnalyticsCharts";
 import { AboutPanel } from "@/components/about/AboutPanel";
 import { NodeFocusPanel } from "@/components/nodes/NodeFocusPanel";
 import { FocusedNodeCard } from "@/components/nodes/FocusedNodeCard";
+import { IcelandVolcDesk } from "@/components/nodes/IcelandVolcDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
@@ -583,6 +584,7 @@ function ObservatoryApp() {
   const eventsBlock = (
     <div className="space-y-2 p-3">
       <ActivityStoryPanel compact />
+      <IcelandVolcDesk />
       <SuptContinuumStrip compact />
       <VolcanoAlertsBar compact />
       <FocusedNodeCard features={filteredEq(eq?.features, minMag, maxMag)} />

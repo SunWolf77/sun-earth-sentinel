@@ -1,13 +1,13 @@
 /**
  * Runtime merge of published-board authority catalogs into SES global eq.
  *
- * Contract (Campi Flegrei / mediterranean):
- *  1. Keep global USGS (and GEOFON/JMA) outside the node bbox.
+ * Contract (Campi Flegrei / mediterranean · Iceland):
+ *  1. Keep global USGS (and GEOFON/JMA/EMSC) outside the node bbox.
  *  2. STRIP any feature inside the node bbox.
- *  3. INJECT GeoJSON from board catalogFeedUrl (INGV-OV GOSSIP).
- *  4. Never dual-read USGS + INGV for the same box.
+ *  3. INJECT GeoJSON from board catalogFeedUrl or in-process national feed.
+ *  4. Never dual-read USGS + national authority for the same box.
  *
- * Only monitors whose authority is INGV-family are overridden at runtime.
+ * Only monitors marked authority-override are replaced at runtime.
  * TK stays on USGS unless a future authority flip requires it.
  */
 
@@ -20,6 +20,7 @@ import {
   type PublishedMonitor,
 } from "@/lib/feeds/publishedMonitors";
 import { DRAGON_NODES, type EqCollection, type EqFeature } from "@/lib/feeds/usgs";
+import { fetchImoQuakes } from "@/lib/feeds/imoQuakes";
 
 export type SesTimeWindow = "hour" | "day" | "week" | "month";
 
@@ -40,7 +41,12 @@ export function sesWindowToBoardWindow(w: SesTimeWindow | string): string {
 
 /** True when this board feed replaces USGS inside its bbox (never dual-read). */
 export function isAuthorityOverrideMonitor(p: PublishedMonitor): boolean {
-  return /ingv/i.test(p.authority) || p.sesNodeId === "mediterranean";
+  return (
+    /ingv/i.test(p.authority) ||
+    p.sesNodeId === "mediterranean" ||
+    /imo/i.test(p.authority) ||
+    p.sesNodeId === "iceland"
+  );
 }
 
 export function dragonBoundsForSesNode(sesNodeId: string): LatLonBounds | null {
@@ -83,7 +89,12 @@ export function normalizeBoardFeature(raw: unknown, sesNodeId: string): EqFeatur
       : typeof timeRaw === "string"
         ? Date.parse(timeRaw)
         : null;
-  const sesSource = typeof props.sesSource === "string" ? props.sesSource : "ingv";
+  const sesSource =
+    typeof props.sesSource === "string"
+      ? props.sesSource
+      : sesNodeId === "iceland"
+        ? "imo"
+        : "ingv";
   const id =
     f.id != null
       ? String(f.id)
@@ -103,6 +114,7 @@ export function normalizeBoardFeature(raw: unknown, sesNodeId: string): EqFeatur
       status: typeof props.status === "string" ? props.status : "reviewed",
       magType: typeof props.magType === "string" ? props.magType : null,
       net: sesSource,
+      detail: sesSource,
     },
     geometry: {
       type: "Point",
@@ -123,6 +135,25 @@ export function stripFeaturesInBounds(
   });
 }
 
+/** In-process IMO catalog for Iceland node (no external Vercel board required). */
+async function fetchIcelandAuthorityCatalog(
+  boardWindow: string,
+): Promise<EqCollection | null> {
+  const days =
+    boardWindow === "24h" ? 2 : boardWindow === "30d" ? 14 : boardWindow === "7d" ? 7 : 7;
+  // Dense board path: include microseismicity M≥0.8
+  const col = await fetchImoQuakes({ sizeMin: 0.8, days, limit: 1500 });
+  if (!col.features.length) return null;
+  return {
+    ...col,
+    metadata: {
+      generated: Date.now(),
+      count: col.features.length,
+      title: "IMO Iceland authority catalog",
+    },
+  };
+}
+
 /**
  * Fetch one board catalog feed (cached ~90s).
  * Returns null on network/parse failure — caller keeps last good merge when possible.
@@ -138,8 +169,22 @@ export async function fetchNodeCatalogFeed(
     if (hit?.features?.length) return hit;
   }
 
+  // Iceland: in-process IMO — never hit imo:// URL
+  if (sesNodeId === "iceland") {
+    try {
+      const col = await fetchIcelandAuthorityCatalog(boardWindow);
+      if (col?.features?.length) {
+        setCache(key, col);
+        return col;
+      }
+      return getCache<EqCollection>(key, 600_000);
+    } catch {
+      return getCache<EqCollection>(key, 600_000);
+    }
+  }
+
   const url = catalogFeedUrl(sesNodeId, boardWindow);
-  if (!url) return getCache<EqCollection>(key, 600_000);
+  if (!url || url.startsWith("imo:")) return getCache<EqCollection>(key, 600_000);
 
   try {
     const res = await fetch(url, {
@@ -187,7 +232,7 @@ export type NodeFeedMergeMeta = {
 };
 
 /**
- * After USGS/GEOFON/JMA merge: replace in-box features with authority board feeds.
+ * After USGS/GEOFON/JMA/EMSC/IMO merge: replace in-box features with authority feeds.
  * Safe no-op when no override monitors or all feeds fail.
  */
 export async function mergePublishedNodeFeeds(
@@ -277,7 +322,7 @@ export function mergePublishedNodeFeedsFromCache(
     metadata: {
       generated: Date.now(),
       count: features.length,
-      title: "USGS + authority node feeds (cache)",
+      title: base?.metadata?.title ?? "USGS + authority (cache)",
     },
   };
 }

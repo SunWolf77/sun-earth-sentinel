@@ -26,6 +26,7 @@ const SHORTCUT_HINT: Record<string, string> = {
   mediterranean: "C",
   japan: "J",
   kamchatka: "K",
+  iceland: "I",
 };
 
 export function PublishedNodesNav({ className = "" }: { className?: string }) {

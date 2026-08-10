@@ -21,6 +21,7 @@ const NODE_BY_KEY: Record<string, string> = {
   c: "mediterranean",
   j: "japan",
   k: "kamchatka",
+  i: "iceland",
 };
 
 function isTypingTarget(el: EventTarget | null): boolean {
@@ -46,7 +47,7 @@ export type NavShortcutsOptions = {
  * |-----|--------|
  * | 1–5 | Live · Solar · Rhythm · Charts · About |
  * | H / 0 / Home | SES world (clear focus) |
- * | T · C · J · K | Tonga · Campi · Japan · Kamchatka |
+ * | T · C · J · K · I | Tonga · Campi · Japan · Kamchatka · Iceland |
  * | Esc | Exit immersive, else clear node focus |
  * | ? | Help (if onHelp provided) |
  */
@@ -129,7 +130,7 @@ export function useNavShortcuts(opts: NavShortcutsOptions = {}) {
 export const NAV_SHORTCUTS_HELP: { keys: string; action: string }[] = [
   { keys: "1 – 5", action: "Views: Live · Solar · Rhythm · Charts · About" },
   { keys: "H · 0 · Home", action: "SES world — clear node focus" },
-  { keys: "T · C · J · K", action: "Nodes: Tonga · Campi · Japan · Kamchatka" },
+  { keys: "T · C · J · K · I", action: "Nodes: Tonga · Campi · Japan · Kamchatka · Iceland" },
   { keys: "Esc", action: "Exit full map, or clear focus / sheet" },
   { keys: "?", action: "Open how-to" },
 ];

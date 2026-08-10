@@ -92,6 +92,33 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     focusNote:
       "SES node #3 companion on Japan board — Kamchatka Peninsula / Kurils. USGS exclusive; KVERT for volcano status links. High tsunami source potential. Not a forecast.",
   },
+  {
+    sesNodeId: "iceland",
+    name: "Iceland",
+    networkOrder: 4,
+    shortCode: "IS",
+    role: "Published focus · SES #4 · IMO · volcanic systems",
+    /** Authority desk — Skjálftalísa until a dedicated Vercel board ships */
+    monitorUrl: "https://skjalftalisa.vedur.is/",
+    /**
+     * Marker: catalog is served in-process from IMO SeisComP (see nodeCatalogFeed).
+     * Empty path segment is not fetched; fetchNodeCatalogFeed special-cases iceland.
+     */
+    catalogFeedUrl: "imo://iceland/catalog",
+    authority: "IMO Veðurstofa (SeisComP + VALS/VONA)",
+    aliases: [
+      "iceland",
+      "is",
+      "imo",
+      "reykjanes",
+      "svartsengi",
+      "askja",
+      "katla",
+      "iceland-arc",
+    ],
+    focusNote:
+      "SES node #4 — Iceland. Dense IMO SeisComP replaces USGS in-box (never dual-read). SUPT volcanic desk segments Reykjanes / Katla / Askja…. Not a forecast.",
+  },
 ];
 
 const ALIAS_TO_SES = (() => {

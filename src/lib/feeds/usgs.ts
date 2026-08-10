@@ -511,6 +511,35 @@ export const DRAGON_NODES: DragonNode[] = [
     aliases: ["km", "kuril", "kurils", "kvert", "okhotsk"],
   },
   {
+    id: "iceland",
+    name: "Iceland",
+    role: "Published focus · SES #4 · IMO authority · volcanic systems",
+    kind: "seismic",
+    /**
+     * Whole-island + near-offshore — matches IMO densify polygon.
+     * Dense SeisComP catalog under-samples on USGS; use IMO authority merge.
+     */
+    bounds: [
+      [62.8, -25.5],
+      [67.3, -12.5],
+    ],
+    center: [64.9, -18.8],
+    monitorUrl: "https://skjalftalisa.vedur.is/",
+    publishedFocus: true,
+    watchPriority: true,
+    focusNote:
+      "SES node #4 — Iceland plate boundary + volcanic systems (Reykjanes, Katla, Askja…). IMO (Veðurstofa) is exclusive dense catalog + VALS/VONA. SUPT volcanic desk segments by system box. Not a forecast.",
+    aliases: [
+      "is",
+      "imo",
+      "reykjanes",
+      "iceland-arc",
+      "svartsengi",
+      "askja",
+      "katla",
+    ],
+  },
+  {
     id: "cascadia",
     name: "Cascadia / Pacific NW",
     role: "Fracture Sentinel / Locked Node",
@@ -577,10 +606,13 @@ function seismicNodeStatus(
 ): NodeStatus {
   const now = opts?.now ?? Date.now();
   const win = (opts?.timeWindow || "day").toLowerCase();
+  // Dense national catalogs (IMO Iceland, INGV CF): lower floor so microseismicity counts
+  const minMagFloor =
+    node.id === "iceland" || node.id === "mediterranean" ? 1.5 : 3.5;
   const inBounds = features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
     const mag = f.properties.mag ?? 0;
-    return pointInBounds(lat, lon, node.bounds) && mag >= 3.5;
+    return pointInBounds(lat, lon, node.bounds) && mag >= minMagFloor;
   });
   if (!inBounds.length) return "quiet";
 
@@ -591,11 +623,13 @@ function seismicNodeStatus(
   let m6_48h = 0;
   let m5_72h = 0;
   let count_24h = 0;
+  let m3 = 0;
   for (const f of inBounds) {
     const mag = f.properties.mag ?? 0;
     const t = f.properties.time;
     const age = typeof t === "number" ? now - t : Number.POSITIVE_INFINITY;
     if (mag > maxMag) maxMag = mag;
+    if (mag >= 3) m3++;
     if (mag >= 5) m5++;
     if (mag >= 6) m6++;
     if (age <= 24 * 3_600_000) {
@@ -609,6 +643,27 @@ function seismicNodeStatus(
   // Fresh standout always surfaces (signal)
   if (m6_48h >= 1 || maxMag >= 7) return "watch";
   if (m5_24h >= 2 || (m5_24h >= 1 && maxMag >= 5.8)) return "watch";
+
+  // Iceland microseismicity-aware (anti-alarmist: dense M1 is normal, not red)
+  if (node.id === "iceland") {
+    if (win === "hour") {
+      if (maxMag >= 4.5 || m3 >= 3) return "watch";
+      if (maxMag >= 3.5 || inBounds.length >= 15) return "active";
+      if (maxMag >= 2.5 || inBounds.length >= 5) return "elevated";
+      return "quiet";
+    }
+    if (win === "day") {
+      if (maxMag >= 5.5 || m5 >= 1) return "watch";
+      if (maxMag >= 4 || m3 >= 8 || inBounds.length >= 80) return "active";
+      if (maxMag >= 3 || m3 >= 3 || inBounds.length >= 25) return "elevated";
+      return "quiet";
+    }
+    // week / month — Reykjanes can log hundreds of M1s in a quiet week
+    if (m6 >= 1 || maxMag >= 5.5) return "watch";
+    if (m5 >= 1 || m3 >= 20 || inBounds.length >= 200) return "active";
+    if (m3 >= 5 || maxMag >= 3.5 || inBounds.length >= 40) return "elevated";
+    return "quiet";
+  }
 
   // Window-scaled remainder — do not paint whole week of ordinary RoF as "watch"
   if (win === "hour") {

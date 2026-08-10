@@ -1787,8 +1787,15 @@ export function viewEvents(
   focusNodeId: string | null,
   maxMag = 10,
 ): EqFeature[] {
-  let list = filteredEq(features, minMag, maxMag);
   const node = getFocusNode(focusNodeId);
+  // Dense authority nodes: lower floor so IMO/INGV microseismicity is visible
+  const floor =
+    node?.id === "iceland"
+      ? Math.min(minMag, 1.0)
+      : node?.id === "mediterranean"
+        ? Math.min(minMag, 1.5)
+        : minMag;
+  let list = filteredEq(features, floor, maxMag);
   if (node) {
     list = list.filter((f) => {
       const [lon, lat] = f.geometry.coordinates;
