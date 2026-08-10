@@ -256,29 +256,78 @@ export async function idbSetFeed<T>(
     bytes,
     rank,
   };
+
+  // Fast path: single put
   try {
     const tx = db.transaction(FEEDS, "readwrite");
     tx.objectStore(FEEDS).put(rec);
     await txDone(tx);
-    // Advisory prune — fire and forget
     void idbPruneFeedsIfNeeded();
     return true;
   } catch (e) {
     lastError = e instanceof Error ? e.message : "set failed";
-    // Quota — hard prune then retry once
-    try {
-      await idbPruneFeeds(true);
-      const db2 = await openDb();
-      if (!db2) return false;
-      const tx2 = db2.transaction(FEEDS, "readwrite");
-      tx2.objectStore(FEEDS).put(rec);
-      await txDone(tx2);
-      return true;
-    } catch (e2) {
-      lastError = e2 instanceof Error ? e2.message : "set retry failed";
-      return false;
-    }
   }
+
+  // Quota / pressure: atomic make-room + put in one readwrite tx
+  try {
+    return await idbSetFeedMakingRoom(rec);
+  } catch (e2) {
+    lastError = e2 instanceof Error ? e2.message : "set retry failed";
+    return false;
+  }
+}
+
+/**
+ * Single readwrite tx: snapshot feeds, delete victims (never `rec.key`), put rec.
+ */
+async function idbSetFeedMakingRoom<T>(rec: IdbFeedRecord<T>): Promise<boolean> {
+  const db = await openDb();
+  if (!db) return false;
+  const budget = idbSoftBudgetBytes();
+  const target = budget * 0.75;
+
+  const tx = db.transaction([FEEDS, META], "readwrite");
+  const feedStore = tx.objectStore(FEEDS);
+  const metaStore = tx.objectStore(META);
+
+  const all = (await reqToPromise(feedStore.getAll())) as IdbFeedRecord[];
+  const others: VictimRow[] = [];
+  let totalOthers = 0;
+  for (const r of all) {
+    if (r.key === rec.key) continue;
+    const row = toVictimRow(r);
+    others.push(row);
+    totalOthers += row.bytes;
+  }
+  const totalWithRec = totalOthers + (rec.bytes ?? 0);
+
+  let removed = 0;
+  let totalAfter = totalWithRec;
+  if (totalWithRec > budget) {
+    const picked = pickVictims(others, totalWithRec, target, true);
+    for (const key of picked.victims) {
+      feedStore.delete(key);
+      removed++;
+    }
+    totalAfter = picked.totalAfter;
+  }
+
+  feedStore.put(rec);
+  metaStore.put({
+    key: "lastPrune",
+    value: {
+      at: Date.now(),
+      removed,
+      totalBefore: totalWithRec,
+      totalAfter,
+      force: true,
+      reason: "setMakingRoom",
+      protectKey: rec.key,
+    },
+    ts: Date.now(),
+  });
+  await txDone(tx);
+  return true;
 }
 
 export async function idbDeleteFeed(key: string): Promise<void> {
@@ -304,12 +353,7 @@ export async function idbListFeeds(): Promise<
       tx.objectStore(FEEDS).getAll(),
     )) as IdbFeedRecord[];
     await txDone(tx);
-    return all.map((r) => ({
-      key: r.key,
-      ts: r.ts,
-      bytes: r.bytes ?? 0,
-      rank: r.rank ?? idbPruneRank(r.key),
-    }));
+    return all.map((r) => toVictimRow(r));
   } catch {
     return [];
   }
@@ -317,11 +361,49 @@ export async function idbListFeeds(): Promise<
 
 export async function idbFeedsBytes(): Promise<number> {
   const list = await idbListFeeds();
-  return list.reduce((s, e) => s + (e.bytes || 0), 0);
+  return list.reduce((s, e) => s + e.bytes, 0);
+}
+
+type VictimRow = { key: string; ts: number; bytes: number; rank: number };
+
+function toVictimRow(r: IdbFeedRecord, rankOf: RankFn = idbPruneRank): VictimRow {
+  return {
+    key: r.key,
+    ts: r.ts,
+    bytes: r.bytes ?? 0,
+    rank: r.rank ?? rankOf(r.key),
+  };
 }
 
 /**
- * Drop sacrificial feeds until under budget (or force aggressive prune).
+ * Choose keys to delete: low rank → oldest → largest.
+ * Stops when running total < target. Unless force, skips rank≥100 while under budget.
+ */
+export function pickVictims(
+  list: VictimRow[],
+  totalBytes: number,
+  targetBytes: number,
+  force: boolean,
+  budget = idbSoftBudgetBytes(),
+): { victims: string[]; totalAfter: number } {
+  const sorted = list
+    .slice()
+    .sort((a, b) => a.rank - b.rank || a.ts - b.ts || b.bytes - a.bytes);
+
+  const victims: string[] = [];
+  let running = totalBytes;
+  for (const e of sorted) {
+    if (running < targetBytes) break;
+    if (!force && e.rank >= 100 && running < budget) break;
+    victims.push(e.key);
+    running -= e.bytes;
+  }
+  return { victims, totalAfter: Math.max(0, running) };
+}
+
+/**
+ * Atomic prune: one readwrite tx over feeds + meta.
+ * Snapshot → pick victims → delete all → stamp lastPrune → single commit.
  */
 export async function idbPruneFeeds(
   force = false,
@@ -329,47 +411,58 @@ export async function idbPruneFeeds(
 ): Promise<number> {
   const db = await openDb();
   if (!db) return 0;
+
   const budget = idbSoftBudgetBytes();
-  let list = await idbListFeeds();
-  let total = list.reduce((s, e) => s + e.bytes, 0);
-  if (!force && total < budget) return 0;
-
   const target = budget * 0.75;
-  // Sort: low rank first, then oldest, then largest
-  list = list
-    .map((e) => ({ ...e, rank: e.rank || rankOf(e.key) }))
-    .sort((a, b) => a.rank - b.rank || a.ts - b.ts || b.bytes - a.bytes);
-
-  let removed = 0;
-  for (const e of list) {
-    if (total < target) break;
-    // Prefer not to delete rank 100 until necessary
-    if (!force && e.rank >= 100 && total < budget) break;
-    await idbDeleteFeed(e.key);
-    total -= e.bytes;
-    removed++;
-  }
 
   try {
-    const db2 = await openDb();
-    if (db2) {
-      const tx = db2.transaction(META, "readwrite");
-      tx.objectStore(META).put({
-        key: "lastPrune",
-        value: { at: Date.now(), removed, total },
-        ts: Date.now(),
-      });
+    const tx = db.transaction([FEEDS, META], "readwrite");
+    const feedStore = tx.objectStore(FEEDS);
+    const metaStore = tx.objectStore(META);
+
+    const all = (await reqToPromise(feedStore.getAll())) as IdbFeedRecord[];
+    const list = all.map((r) => toVictimRow(r, rankOf));
+    const total = list.reduce((s, e) => s + e.bytes, 0);
+
+    if (!force && total < budget) {
       await txDone(tx);
+      return 0;
     }
-  } catch {
-    /* ignore */
+
+    const { victims, totalAfter } = pickVictims(list, total, target, force, budget);
+
+    for (const key of victims) {
+      feedStore.delete(key);
+    }
+
+    metaStore.put({
+      key: "lastPrune",
+      value: {
+        at: Date.now(),
+        removed: victims.length,
+        totalBefore: total,
+        totalAfter,
+        force,
+        reason: "prune",
+      },
+      ts: Date.now(),
+    });
+
+    await txDone(tx);
+    return victims.length;
+  } catch (e) {
+    lastError = e instanceof Error ? e.message : "prune failed";
+    return 0;
   }
-  return removed;
 }
 
 async function idbPruneFeedsIfNeeded(): Promise<void> {
-  const total = await idbFeedsBytes();
-  if (total > idbSoftBudgetBytes()) await idbPruneFeeds(false);
+  try {
+    const total = await idbFeedsBytes();
+    if (total > idbSoftBudgetBytes()) await idbPruneFeeds(false);
+  } catch {
+    /* ignore */
+  }
 }
 
 // ── history ────────────────────────────────────────────────────────
