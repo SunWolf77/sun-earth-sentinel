@@ -2,7 +2,9 @@
  * Versioned localStorage cache + bounded history.
  * Prunes on quota / soft size limit (tighter on mobile).
  *
- * Priority (highest → lowest survival):
+ * Fat keys are dual-written to IndexedDB via dualWrite helpers (survives LS prune).
+ *
+ * Priority (highest → lowest survival on LS):
  *  1. Primary USGS window caches (eq_hour/day/week/month) + live pulse
  *  2. Resonance / attention history (hist_*)
  *  3. Small operational prefs & short feeds
@@ -14,7 +16,11 @@
  */
 
 import { cacheSoftLimitBytes, historyCap, isMobileViewport } from "@/lib/device";
-import { idbDeleteFeed, idbSetFeed, isIdbPreferredKey } from "@/lib/cache/idbCache";
+import {
+  dropMirroredFeed,
+  mirrorFeedToIdb,
+  readFeedDual,
+} from "@/lib/cache/dualWrite";
 
 const PREFIX = "ww_";
 /** Bump wipes legacy ww_* so bad prune order / fat caches cannot stick. */
@@ -352,66 +358,82 @@ export function setCache<T>(key: string, data: T): void {
   ensureVersion();
   const prepared = prepareForStorage(key, data);
 
-  // Mobile: skip persisting the greediest solar blobs if primary eq is already
-  // in storage — better a live map than a full xray archive offline.
-  if (
-    isMobileViewport() &&
-    (key === "donki" || key === "xray" || key === "protons" || key === "ovationBundle")
-  ) {
-    const hasEq =
-      getCache("eq_week", 600_000) != null ||
-      getCache("eq_day", 600_000) != null ||
-      getCache("eq_month", 600_000) != null;
-    if (hasEq && approxBytes() > cacheSoftLimitBytes() * 0.55) {
-      // Drop any prior fat copy and leave room for eq
-      removeCache(key);
-      return;
-    }
+  // Mobile: keep fat solar out of LS when EQ is already cached near soft limit.
+  // Still mirror to IDB so offline solar can live outside the LS budget.
+  if (shouldSkipMobileSolarWrite(key)) {
+    removeLocalOnly(key);
+    mirrorFeedToIdb(key, prepared);
+    return;
   }
 
+  writeLocalStoragePayload(key, prepared);
+  mirrorFeedToIdb(key, prepared);
+}
+
+/** True when mobile should refuse to persist fat solar into localStorage. */
+function shouldSkipMobileSolarWrite(key: string): boolean {
+  if (!isMobileViewport()) return false;
+  if (key !== "donki" && key !== "xray" && key !== "protons" && key !== "ovationBundle") {
+    return false;
+  }
+  const hasEq =
+    getCache("eq_week", 600_000) != null ||
+    getCache("eq_day", 600_000) != null ||
+    getCache("eq_month", 600_000) != null;
+  return hasEq && approxBytes() > cacheSoftLimitBytes() * 0.55;
+}
+
+/**
+ * Persist prepared payload to localStorage with prune/retry.
+ * Returns whether the final setItem likely succeeded.
+ */
+function writeLocalStoragePayload<T>(key: string, prepared: T): boolean {
   const payload = JSON.stringify({ ts: Date.now(), data: prepared, v: CACHE_VER });
   const incomingBytes = (PREFIX.length + key.length + payload.length) * 2;
 
-  try {
-    freeSpaceForWrite(incomingBytes, key);
-    localStorage.setItem(PREFIX + key, payload);
-  } catch {
-    // Quota — purge sacrificial, retry once
-    pruneCache(true);
-    freeSpaceForWrite(incomingBytes, key);
+  const tryWrite = (): boolean => {
     try {
+      freeSpaceForWrite(incomingBytes, key);
       localStorage.setItem(PREFIX + key, payload);
+      return true;
     } catch {
-      // Last ditch: if this is primary eq, wipe solar fat and retry
-      if (key.startsWith("eq_")) {
-        for (const fat of ["xray", "protons", "donki", "ovationBundle", "jma", "kp_fc"]) {
-          removeCache(fat);
-        }
-        try {
-          localStorage.setItem(PREFIX + key, payload);
-        } catch {
-          /* give up — still try IDB below */
-        }
-      }
+      return false;
     }
-  }
-  if (approxBytes() > cacheSoftLimitBytes()) pruneCache(true);
+  };
 
-  // Dual-write fat keys to IndexedDB (async, non-blocking). Survives LS prune.
-  if (isIdbPreferredKey(key)) {
-    void idbSetFeed(key, prepared);
+  if (tryWrite()) {
+    if (approxBytes() > cacheSoftLimitBytes()) pruneCache(true);
+    return true;
   }
+
+  pruneCache(true);
+  if (tryWrite()) {
+    if (approxBytes() > cacheSoftLimitBytes()) pruneCache(true);
+    return true;
+  }
+
+  // Last ditch for primary EQ: drop solar fat keys and retry once
+  if (key.startsWith("eq_")) {
+    for (const fat of ["xray", "protons", "donki", "ovationBundle", "jma", "kp_fc"]) {
+      removeLocalOnly(fat);
+    }
+    if (tryWrite()) return true;
+  }
+  return false;
 }
 
-export function removeCache(key: string): void {
+/** Remove LS entry without touching IDB (used when cascading frees space). */
+function removeLocalOnly(key: string): void {
   try {
     localStorage.removeItem(PREFIX + key);
   } catch {
     /* ignore */
   }
-  if (isIdbPreferredKey(key)) {
-    void idbDeleteFeed(key);
-  }
+}
+
+export function removeCache(key: string): void {
+  removeLocalOnly(key);
+  dropMirroredFeed(key);
 }
 
 export function getHistory<T>(key: string, maxItems?: number): T[] {
@@ -521,14 +543,5 @@ export async function getCacheAsync<T>(
   key: string,
   maxAgeMs = 4 * 60 * 1000,
 ): Promise<T | null> {
-  if (isIdbPreferredKey(key)) {
-    try {
-      const { idbGetFeed } = await import("@/lib/cache/idbCache");
-      const hit = await idbGetFeed<T>(key, maxAgeMs);
-      if (hit != null) return hit;
-    } catch {
-      /* fall through */
-    }
-  }
-  return getCache<T>(key, maxAgeMs);
+  return readFeedDual<T>(key, maxAgeMs, getCache);
 }
