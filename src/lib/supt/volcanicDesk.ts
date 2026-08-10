@@ -5,8 +5,8 @@
  * Phase B: same builder for any desk pack (Iceland, NZ, Japan, Andes, Kamchatka).
  *
  * Sync path: buildVolcanicDesk (pure, main-thread).
- * Async path: buildVolcanicDeskAsync — parallel resonanceScoreAsync per zone +
- * desk-wide via the isolated worker (transferred Float64Array per job).
+ * Async path: buildVolcanicDeskAsync — one resonanceScoreBatchAsync for all
+ * zone + desk-wide scores (single transfer list, bounded queue depth).
  *
  * Not a forecast. Official aviation / VALS colors are badges only.
  */
@@ -21,7 +21,7 @@ import {
   resonanceVerdict,
   type ResonanceScore,
 } from "@/lib/supt/probe";
-import { resonanceScoreAsync } from "@/lib/supt/workerClient";
+import { resonanceScoreBatchAsync } from "@/lib/supt/workerClient";
 
 export type ZoneActivityTone = "quiet" | "background" | "elevated" | "swarm";
 
@@ -31,7 +31,6 @@ export type VolcZoneDef = {
   bounds: LatLonBounds;
   center: [number, number];
   role: string;
-  /** Agency code (IMO VALS, etc.) */
   agencyCode?: string;
   gvpUrl?: string;
 };
@@ -46,11 +45,9 @@ export type VolcDeskConfig = {
   authority: string;
   nodeBounds: LatLonBounds;
   zones: VolcZoneDef[];
-  /** Min mag for SUPT spacing probe (desk-wide + per-zone) */
   probeMinMag: number;
   links: VolcDeskLink[];
   disclaimer: string;
-  /** Match official alerts to this desk */
   matchAlert?: (a: GlobalVolcAlert) => boolean;
 };
 
@@ -66,9 +63,7 @@ export type VolcZoneSnapshot = {
   m3: number;
   lastMs: number | null;
   ratePerDay: number;
-  /** Median rate among active peer zones (count≥1) */
   baselineRatePerDay: number;
-  /** rate / max(baseline, floor) */
   relativeRate: number;
   relativePlain: string;
   tone: ZoneActivityTone;
@@ -98,7 +93,6 @@ export type VolcanicDeskModel = {
   links: VolcDeskLink[];
 };
 
-/** Default null-shuffle count for desk spacing (sync + async). */
 const DESK_SHUFFLE = 60;
 
 function interEventSeconds(features: EqFeature[]): number[] {
@@ -274,7 +268,6 @@ type DeskPartition = {
   alerts: GlobalVolcAlert[];
 };
 
-/** Shared catalog partition — pure, no scoring. */
 function partitionDesk(opts: DeskBuildOpts): DeskPartition {
   const { config } = opts;
   const now = opts.now ?? Date.now();
@@ -471,10 +464,7 @@ function assembleDesk(
   };
 }
 
-/**
- * Build a volcanic desk model from live catalog + optional official alerts.
- * Sync / main-thread path — pure frozen probe per zone.
- */
+/** Sync / main-thread path — pure frozen probe per zone. */
 export function buildVolcanicDesk(opts: DeskBuildOpts): VolcanicDeskModel {
   const part = partitionDesk(opts);
   const zoneScores = new Map<string, ResonanceScore | null>();
@@ -491,41 +481,33 @@ export function buildVolcanicDesk(opts: DeskBuildOpts): VolcanicDeskModel {
 }
 
 /**
- * Async multi-zone desk build — each zone + desk-wide spacing runs through
- * resonanceScoreAsync (transferred Float64Array, isolated worker).
- *
- * Promise.all fans the independent score nodes out; the single worker processes
- * them off the main thread (main UI stays responsive). Results are bit-identical
- * to buildVolcanicDesk when the worker path is available.
+ * Async multi-zone desk build.
+ * All zone + desk-wide scores go through one resonanceScoreBatchAsync call
+ * (single message, N transferred Float64Arrays, one worker turn).
+ * Falls back to sync per job if the worker path fails.
  */
 export async function buildVolcanicDeskAsync(
   opts: DeskBuildOpts,
 ): Promise<VolcanicDeskModel> {
   const part = partitionDesk(opts);
 
-  type Job = { id: string; gaps: number[] };
-  const jobs: Job[] = [];
+  const jobs: { jobId: string; gaps: number[]; nShuffle: number }[] = [];
   for (const r of part.raws) {
-    if (r.gaps.length >= 3) jobs.push({ id: r.def.id, gaps: r.gaps });
+    if (r.gaps.length >= 3) {
+      jobs.push({ jobId: r.def.id, gaps: r.gaps, nShuffle: DESK_SHUFFLE });
+    }
   }
   if (part.deskGaps.length >= 3) {
-    jobs.push({ id: "__desk__", gaps: part.deskGaps });
+    jobs.push({ jobId: "__desk__", gaps: part.deskGaps, nShuffle: DESK_SHUFFLE });
   }
 
-  const scored = await Promise.all(
-    jobs.map(async (j) => {
-      const score = await resonanceScoreAsync(j.gaps, DESK_SHUFFLE);
-      return [j.id, score] as const;
-    }),
-  );
+  const scored = await resonanceScoreBatchAsync(jobs);
 
   const zoneScores = new Map<string, ResonanceScore | null>();
-  for (const r of part.raws) zoneScores.set(r.def.id, null);
-  let deskSpacing: ResonanceScore | null = null;
-  for (const [id, score] of scored) {
-    if (id === "__desk__") deskSpacing = score;
-    else zoneScores.set(id, score);
+  for (const r of part.raws) {
+    zoneScores.set(r.def.id, scored.get(r.def.id) ?? null);
   }
+  const deskSpacing = scored.get("__desk__") ?? null;
 
   return assembleDesk(part, zoneScores, deskSpacing);
 }
