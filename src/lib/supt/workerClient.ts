@@ -1,17 +1,19 @@
 /**
  * Main-thread facade for deterministic SUPT Web Worker isolation.
  *
- * Design rules:
+ * Performance:
+ * - Heavy numeric payloads are packed into a fresh Float64Array and *transferred*
+ *   (zero-copy inbound). The caller’s original number[] / EtasEvent[] are never
+ *   neutered — only the temporary transfer buffer is.
+ * - Results stay structured-clone (tiny score objects).
+ * - Offload only when input size makes compute worth the pack + message cost.
+ *
+ * Isolation rules (unchanged):
  * - Sync pure functions remain the source of truth and the fallback.
- * - Offload only when input size makes the null battery / ETAS integral worth
- *   the structured-clone + message cost.
  * - Single reusable worker; recreate on crash.
  * - Request-id matching so concurrent calls never cross.
  * - Hard timeout so a stuck worker never blocks a refresh forever.
- * - SSR / restricted contexts fall back cleanly (typeof Worker === "undefined").
- *
- * Graph node isolation: each call is an independent node with immutable input
- * and a fully determined output. No shared mutable state across the boundary.
+ * - SSR / restricted contexts fall back cleanly.
  */
 
 import type { ResonanceScore } from "./probe";
@@ -23,7 +25,7 @@ import type { EtasEvent, EtasWhitenResult } from "./etasWhiten";
 import { etasWhitenResiduals as etasWhitenSync } from "./etasWhiten";
 import type { SuptWorkerRequest, SuptWorkerResponse } from "./workerTypes";
 
-/** Offload thresholds — below these the clone cost usually exceeds the compute. */
+/** Offload thresholds — below these pack+transfer cost usually exceeds compute. */
 const OFFLOAD_GAPS = 40;
 const OFFLOAD_SHUFFLE = 40;
 const OFFLOAD_EVENTS = 30;
@@ -61,7 +63,6 @@ function getWorker(): Worker | null {
   if (worker) return worker;
 
   try {
-    // Vite module worker — same pure modules as main thread → identical results.
     worker = new Worker(new URL("./supt.worker.ts", import.meta.url), {
       type: "module",
     });
@@ -106,7 +107,32 @@ function getWorker(): Worker | null {
   }
 }
 
-function callWorker<T>(req: Omit<SuptWorkerRequest, "id">): Promise<T> {
+/** Copy number[] into a contiguous Float64Array (caller array stays intact). */
+function toF64(values: number[]): Float64Array {
+  const out = new Float64Array(values.length);
+  for (let i = 0; i < values.length; i++) out[i] = values[i]!;
+  return out;
+}
+
+/** Pack EtasEvent[] as interleaved [tMs, mag, …] for a single transfer. */
+function packEvents(events: EtasEvent[]): Float64Array {
+  const out = new Float64Array(events.length * 2);
+  for (let i = 0; i < events.length; i++) {
+    out[i * 2] = events[i]!.tMs;
+    out[i * 2 + 1] = events[i]!.mag;
+  }
+  return out;
+}
+
+/**
+ * Post a request and transfer the listed ArrayBuffers (zero-copy inbound).
+ * After transfer the buffers are neutered on this side — only pass *fresh*
+ * buffers allocated for the message, never caller-owned storage.
+ */
+function callWorkerTransfer<T>(
+  req: Omit<SuptWorkerRequest, "id">,
+  transfer: Transferable[],
+): Promise<T> {
   const w = getWorker();
   if (!w) return Promise.reject(new Error("no worker"));
 
@@ -124,14 +150,13 @@ function callWorker<T>(req: Omit<SuptWorkerRequest, "id">): Promise<T> {
       timer,
     });
 
-    // Structured clone of number[] / plain objects only — main thread keeps its copy.
-    w.postMessage({ ...req, id } as SuptWorkerRequest);
+    w.postMessage({ ...req, id } as SuptWorkerRequest, transfer);
   });
 }
 
 /**
  * Async resonanceScore with true process isolation when beneficial.
- * Falls back to the pure sync path for small inputs or worker failure.
+ * Packs gaps into a transferable Float64Array; original number[] is untouched.
  */
 export async function resonanceScoreAsync(
   gaps: number[],
@@ -142,44 +167,51 @@ export async function resonanceScoreAsync(
   if (!useWorker) return resonanceScoreSync(gaps, nShuffle);
 
   try {
-    return await callWorker<ResonanceScore>({
-      op: "resonanceScore",
-      gaps,
-      nShuffle,
-    });
+    const buf = toF64(gaps);
+    return await callWorkerTransfer<ResonanceScore>(
+      { op: "resonanceScore", gaps: buf, nShuffle },
+      [buf.buffer],
+    );
   } catch {
     return resonanceScoreSync(gaps, nShuffle);
   }
 }
 
-/** Async probe — usually not worth offloading; kept for symmetry / large series. */
+/** Async probe — transfer path for large series only. */
 export async function probeAsync(values: number[]): Promise<number | null> {
   if (values.length < OFFLOAD_GAPS) return probeSync(values);
   try {
-    return await callWorker<number | null>({ op: "probe", values });
+    const buf = toF64(values);
+    return await callWorkerTransfer<number | null>(
+      { op: "probe", values: buf },
+      [buf.buffer],
+    );
   } catch {
     return probeSync(values);
   }
 }
 
 /**
- * Async ETAS residual whitening. Offloads the nested lambda + trapezoid integrate
- * when the event list is large enough to matter on mobile main threads.
+ * Async ETAS residual whitening. Packs events into one interleaved Float64Array
+ * and transfers it — one allocation, zero-copy inbound.
  */
 export async function etasWhitenResidualsAsync(
   events: EtasEvent[],
 ): Promise<EtasWhitenResult> {
   if (events.length < OFFLOAD_EVENTS) return etasWhitenSync(events);
   try {
-    return await callWorker<EtasWhitenResult>({ op: "etasWhiten", events });
+    const packed = packEvents(events);
+    return await callWorkerTransfer<EtasWhitenResult>(
+      { op: "etasWhiten", packed },
+      [packed.buffer],
+    );
   } catch {
     return etasWhitenSync(events);
   }
 }
 
 /**
- * Smoke / determinism check — prove worker path matches sync pure path.
- * Useful in About / diagnostic panels or unit-style runtime checks.
+ * Smoke / determinism check — prove worker transfer path matches sync pure path.
  */
 export async function workerSmoke(
   gaps: number[],
