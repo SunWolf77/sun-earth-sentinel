@@ -14,6 +14,7 @@
  */
 
 import { cacheSoftLimitBytes, historyCap, isMobileViewport } from "@/lib/device";
+import { idbDeleteFeed, idbSetFeed, isIdbPreferredKey } from "@/lib/cache/idbCache";
 
 const PREFIX = "ww_";
 /** Bump wipes legacy ww_* so bad prune order / fat caches cannot stick. */
@@ -389,12 +390,17 @@ export function setCache<T>(key: string, data: T): void {
         try {
           localStorage.setItem(PREFIX + key, payload);
         } catch {
-          /* give up */
+          /* give up — still try IDB below */
         }
       }
     }
   }
   if (approxBytes() > cacheSoftLimitBytes()) pruneCache(true);
+
+  // Dual-write fat keys to IndexedDB (async, non-blocking). Survives LS prune.
+  if (isIdbPreferredKey(key)) {
+    void idbSetFeed(key, prepared);
+  }
 }
 
 export function removeCache(key: string): void {
@@ -402,6 +408,9 @@ export function removeCache(key: string): void {
     localStorage.removeItem(PREFIX + key);
   } catch {
     /* ignore */
+  }
+  if (isIdbPreferredKey(key)) {
+    void idbDeleteFeed(key);
   }
 }
 
@@ -502,4 +511,24 @@ export function clearFeedCaches(): void {
     /* ignore */
   }
   pruneCache(true);
+}
+
+/**
+ * Async get: IndexedDB first for preferred keys, then localStorage.
+ * Use when hydrate can wait a tick (boot / background refresh).
+ */
+export async function getCacheAsync<T>(
+  key: string,
+  maxAgeMs = 4 * 60 * 1000,
+): Promise<T | null> {
+  if (isIdbPreferredKey(key)) {
+    try {
+      const { idbGetFeed } = await import("@/lib/cache/idbCache");
+      const hit = await idbGetFeed<T>(key, maxAgeMs);
+      if (hit != null) return hit;
+    } catch {
+      /* fall through */
+    }
+  }
+  return getCache<T>(key, maxAgeMs);
 }

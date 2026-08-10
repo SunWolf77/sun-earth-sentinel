@@ -119,8 +119,14 @@ export function CacheAndSwpcDocs() {
             Storage (stale storm data is unsafe).
           </li>
           <li>
-            <strong className="text-fg">localStorage soft limit</strong> — separate layer (~1.2 MB
-            mobile / ~3.5 MB desktop) with age prune on feed keys.
+            <strong className="text-fg">localStorage soft limit</strong> — feed layer (~2.4 MB
+            mobile / ~4.5 MB desktop) with ranked prune on <code className="text-primary">ww_*</code>{" "}
+            keys.
+          </li>
+          <li>
+            <strong className="text-fg">IndexedDB (idbCache)</strong> — dual-write for fat keys
+            (eq windows, densify catalogs, solar series). Soft budget ~28 MB mobile / ~96 MB desktop;
+            prefs and visit baseline stay on localStorage.
           </li>
         </ul>
         <CodeBlock title="True LRU + algorithm notes" code={CACHE_SNIPPETS.swLruEviction} />

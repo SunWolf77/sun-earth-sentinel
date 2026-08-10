@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.25.0: Since-last-visit pulse strip — observational diff vs last open baseline.
+ * 1.26.0: IndexedDB idbCache wrapper + dual-write for fat feed keys.
  */
-export const APP_VERSION = "1.25.0";
+export const APP_VERSION = "1.26.0";
 
 
 
