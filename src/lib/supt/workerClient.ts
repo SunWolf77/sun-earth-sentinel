@@ -1,19 +1,17 @@
 /**
  * Main-thread facade for deterministic SUPT Web Worker isolation.
  *
- * Performance:
- * - Heavy numeric payloads are packed into a fresh Float64Array and *transferred*
- *   (zero-copy inbound). The caller’s original number[] / EtasEvent[] are never
- *   neutered — only the temporary transfer buffer is.
- * - Results stay structured-clone (tiny score objects).
- * - Offload only when input size makes compute worth the pack + message cost.
+ * Efficiency:
+ * - Transferable Float64Array for heavy inbound payloads (zero-copy).
+ * - resonanceScoreBatchAsync — one message for N zone scores (queue-depth win).
+ * - MAX_PENDING depth cap — excess work falls back to sync instead of flooding.
+ * - Size thresholds — small inputs stay on pure sync path.
+ * - Per-request timeout + crash recovery + sync fallback on any failure.
  *
- * Isolation rules (unchanged):
+ * Isolation:
  * - Sync pure functions remain the source of truth and the fallback.
  * - Single reusable worker; recreate on crash.
  * - Request-id matching so concurrent calls never cross.
- * - Hard timeout so a stuck worker never blocks a refresh forever.
- * - SSR / restricted contexts fall back cleanly.
  */
 
 import type { ResonanceScore } from "./probe";
@@ -23,7 +21,12 @@ import {
 } from "./probe";
 import type { EtasEvent, EtasWhitenResult } from "./etasWhiten";
 import { etasWhitenResiduals as etasWhitenSync } from "./etasWhiten";
-import type { SuptWorkerRequest, SuptWorkerResponse } from "./workerTypes";
+import type {
+  ResonanceBatchJob,
+  ResonanceBatchResult,
+  SuptWorkerRequest,
+  SuptWorkerResponse,
+} from "./workerTypes";
 
 /** Offload thresholds — below these pack+transfer cost usually exceeds compute. */
 const OFFLOAD_GAPS = 40;
@@ -32,6 +35,12 @@ const OFFLOAD_EVENTS = 30;
 
 /** Hard ceiling so a hung worker cannot stall the observatory. */
 const WORKER_TIMEOUT_MS = 8_000;
+
+/**
+ * Max in-flight worker requests. Beyond this, new work runs sync on main
+ * (keeps queue depth bounded on multi-zone desks + concurrent panels).
+ */
+const MAX_PENDING = 4;
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -107,14 +116,12 @@ function getWorker(): Worker | null {
   }
 }
 
-/** Copy number[] into a contiguous Float64Array (caller array stays intact). */
 function toF64(values: number[]): Float64Array {
   const out = new Float64Array(values.length);
   for (let i = 0; i < values.length; i++) out[i] = values[i]!;
   return out;
 }
 
-/** Pack EtasEvent[] as interleaved [tMs, mag, …] for a single transfer. */
 function packEvents(events: EtasEvent[]): Float64Array {
   const out = new Float64Array(events.length * 2);
   for (let i = 0; i < events.length; i++) {
@@ -124,15 +131,14 @@ function packEvents(events: EtasEvent[]): Float64Array {
   return out;
 }
 
-/**
- * Post a request and transfer the listed ArrayBuffers (zero-copy inbound).
- * After transfer the buffers are neutered on this side — only pass *fresh*
- * buffers allocated for the message, never caller-owned storage.
- */
 function callWorkerTransfer<T>(
   req: Omit<SuptWorkerRequest, "id">,
   transfer: Transferable[],
 ): Promise<T> {
+  if (pending.size >= MAX_PENDING) {
+    return Promise.reject(new Error("worker queue full"));
+  }
+
   const w = getWorker();
   if (!w) return Promise.reject(new Error("no worker"));
 
@@ -150,13 +156,18 @@ function callWorkerTransfer<T>(
       timer,
     });
 
-    w.postMessage({ ...req, id } as SuptWorkerRequest, transfer);
+    try {
+      w.postMessage({ ...req, id } as SuptWorkerRequest, transfer);
+    } catch (e) {
+      clearPending(id);
+      reject(e instanceof Error ? e : new Error(String(e)));
+    }
   });
 }
 
 /**
- * Async resonanceScore with true process isolation when beneficial.
- * Packs gaps into a transferable Float64Array; original number[] is untouched.
+ * Async resonanceScore with transfer isolation when beneficial.
+ * Falls back to pure sync for small inputs, full queue, or any worker failure.
  */
 export async function resonanceScoreAsync(
   gaps: number[],
@@ -177,7 +188,59 @@ export async function resonanceScoreAsync(
   }
 }
 
-/** Async probe — transfer path for large series only. */
+/**
+ * Batch many resonance scores into one worker message.
+ * One pack + one transfer list + one reply — preferred for multi-zone desks.
+ * Returns a Map keyed by jobId. Any failure falls back to per-job sync.
+ */
+export async function resonanceScoreBatchAsync(
+  jobs: { jobId: string; gaps: number[]; nShuffle?: number }[],
+): Promise<Map<string, ResonanceScore>> {
+  const out = new Map<string, ResonanceScore>();
+  if (jobs.length === 0) return out;
+
+  // Single light job → individual path (or sync via thresholds inside).
+  if (jobs.length === 1) {
+    const j = jobs[0]!;
+    out.set(j.jobId, await resonanceScoreAsync(j.gaps, j.nShuffle ?? 80));
+    return out;
+  }
+
+  try {
+    const packed: ResonanceBatchJob[] = [];
+    const transfer: Transferable[] = [];
+    for (const j of jobs) {
+      const buf = toF64(j.gaps);
+      packed.push({
+        jobId: j.jobId,
+        gaps: buf,
+        nShuffle: j.nShuffle ?? 80,
+      });
+      transfer.push(buf.buffer);
+    }
+
+    const results = await callWorkerTransfer<ResonanceBatchResult[]>(
+      { op: "resonanceScoreBatch", jobs: packed },
+      transfer,
+    );
+
+    for (const r of results) out.set(r.jobId, r.score);
+
+    // Any job missing from the reply → sync fill
+    for (const j of jobs) {
+      if (!out.has(j.jobId)) {
+        out.set(j.jobId, resonanceScoreSync(j.gaps, j.nShuffle ?? 80));
+      }
+    }
+    return out;
+  } catch {
+    for (const j of jobs) {
+      out.set(j.jobId, resonanceScoreSync(j.gaps, j.nShuffle ?? 80));
+    }
+    return out;
+  }
+}
+
 export async function probeAsync(values: number[]): Promise<number | null> {
   if (values.length < OFFLOAD_GAPS) return probeSync(values);
   try {
@@ -191,10 +254,6 @@ export async function probeAsync(values: number[]): Promise<number | null> {
   }
 }
 
-/**
- * Async ETAS residual whitening. Packs events into one interleaved Float64Array
- * and transfers it — one allocation, zero-copy inbound.
- */
 export async function etasWhitenResidualsAsync(
   events: EtasEvent[],
 ): Promise<EtasWhitenResult> {
@@ -210,9 +269,6 @@ export async function etasWhitenResidualsAsync(
   }
 }
 
-/**
- * Smoke / determinism check — prove worker transfer path matches sync pure path.
- */
 export async function workerSmoke(
   gaps: number[],
   nShuffle = 40,
@@ -228,7 +284,11 @@ export async function workerSmoke(
   return { sync, async, match };
 }
 
-/** Terminate the worker (e.g. on low-memory mobile or explicit cleanup). */
+/** In-flight worker request count (diagnostics). */
+export function workerPendingCount(): number {
+  return pending.size;
+}
+
 export function terminateSuptWorker() {
   rejectAll("worker terminated");
   try {
