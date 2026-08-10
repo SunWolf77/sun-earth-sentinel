@@ -16,7 +16,7 @@ import {
   eventPageUrl,
 } from "@/lib/seismology/shakemap";
 import { BASEMAP_STYLES } from "@/lib/feeds/mapStyles";
-import { pointInBounds, boundsToLeafletRects } from "@/lib/geo/bounds";
+import { pointInBounds, boundsToPacificLeaflet, toPacificLon, fromPacificLon, pacificLatLng } from "@/lib/geo/bounds";
 import {
   createQuakeHeatLayer,
   featuresToHeatPoints,
@@ -71,10 +71,11 @@ function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
     className: "ww-basemap",
     updateWhenIdle: true,
     updateWhenZooming: false,
-    keepBuffer: 1,
+    keepBuffer: 2,
     crossOrigin: true,
-    noWrap: true,
-    bounds: L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180)),
+    // Pacific frame is 0…360 — allow tile wrap so basemap continues past ±180
+    noWrap: false,
+    // Don’t clamp tiles to Greenwich world; continuous RoF needs full mercator span
   };
   if (style.subdomains) opts.subdomains = style.subdomains;
   return L.tileLayer(style.url, opts);
@@ -280,8 +281,9 @@ export function LiveMap() {
       zoom: WORLD_MAP_INIT.zoom,
       minZoom: WORLD_MAP_INIT.minZoom,
       maxZoom: WORLD_MAP_INIT.maxZoom,
-      maxBounds: L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180)),
-      maxBoundsViscosity: 1.0,
+      // Pacific display frame (0…360) — seam in Atlantic, RoF continuous
+      maxBounds: L.latLngBounds(L.latLng(-85, 0), L.latLng(85, 360)),
+      maxBoundsViscosity: 0.85,
       worldCopyJump: false,
       zoomControl: false,
       attributionControl: false,
@@ -312,7 +314,8 @@ export function LiveMap() {
       doubleTapZoomDelta: 1,
       longPressMs: 500,
       onLongPress: (lat, lon) => {
-        setPressLabel(`${lat.toFixed(2)}°, ${lon.toFixed(2)}° · long-press`);
+        const canon = fromPacificLon(lon);
+        setPressLabel(`${lat.toFixed(2)}°, ${canon.toFixed(2)}° · long-press`);
       },
     });
 
@@ -461,7 +464,7 @@ export function LiveMap() {
       return;
     }
     // Custom easeOutCubic flight (same curve as 3D globe aim)
-    flyToEased(map, [lat, lon], zoom, {
+    flyToEased(map, pacificLatLng(lat, lon), zoom, {
       duration: 0.85,
       ease: easeOutCubic,
     });
@@ -504,28 +507,15 @@ export function LiveMap() {
       }
       return;
     }
-    const rects = boundsToLeafletRects(node.bounds);
-    if (rects.length === 1) {
-      const [[latMin, lonMin], [latMax, lonMax]] = rects[0]!;
-      map.fitBounds(
-        [
-          [latMin, lonMin],
-          [latMax, lonMax],
-        ],
-        { padding: [40, 40], maxZoom: 6, animate: true },
-      );
-    } else if (node.center) {
-      map.setView(node.center, 5, { animate: true });
-    } else {
-      const [[latMin, lonMin], [latMax, lonMax]] = rects[0]!;
-      map.fitBounds(
-        [
-          [latMin, lonMin],
-          [latMax, lonMax],
-        ],
-        { padding: [40, 40], maxZoom: 5, animate: true },
-      );
-    }
+    // Pacific-frame single rect so dateline desks (Tonga) stay one continuous box
+    const [[latMin, lonMin], [latMax, lonMax]] = boundsToPacificLeaflet(node.bounds);
+    map.fitBounds(
+      [
+        [latMin, lonMin],
+        [latMax, lonMax],
+      ],
+      { padding: [40, 40], maxZoom: 6, animate: true },
+    );
   }, [focusNodeId, mapView]);
 
   useEffect(() => {
@@ -702,9 +692,9 @@ export function LiveMap() {
           shareHref,
         });
 
-        // SVG circle on exact epicenter — never drifts from basemap (no DivIcon/anchor)
+        // SVG circle on exact epicenter — Pacific frame so RoF is continuous
         const r = eqCircleRadius(mag);
-        const pin = L.circleMarker([lat, lon], {
+        const pin = L.circleMarker(pacificLatLng(lat, lon), {
           renderer,
           radius: r,
           color: isSig || isMmiSource ? "#fbbf24" : "rgba(248,250,252,0.95)",
@@ -766,7 +756,7 @@ export function LiveMap() {
         const [lon, lat] = f.geometry.coordinates;
         const mag = f.properties.mag ?? 0;
         const sig = (f.properties.sig ?? 0) >= 600 || mag >= 6;
-        const marker = L.circleMarker([lat, lon], {
+        const marker = L.circleMarker(pacificLatLng(lat, lon), {
           renderer,
           radius: sig ? 8 : 5,
           color: sig ? "#fbbf24" : "#64748b",
@@ -798,8 +788,9 @@ export function LiveMap() {
       const st = nodeStatus(all, node, { timeWindow });
       const [[latMin, lonMin], [latMax, lonMax]] = node.bounds;
       const clat = node.center?.[0] ?? (latMin + latMax) / 2;
-      const clon =
-        node.center?.[1] ?? (lonMin <= lonMax ? (lonMin + lonMax) / 2 : -175);
+      const clon = toPacificLon(
+        node.center?.[1] ?? (lonMin <= lonMax ? (lonMin + lonMax) / 2 : -175),
+      );
       const isFocus = focusNodeId === node.id;
       const isPublished = !!node.publishedFocus;
       const isVolc = node.kind === "volcano";
@@ -935,36 +926,34 @@ export function LiveMap() {
       }
 
       if (overlays.corridors && (isFocus || isPublished || isPriority)) {
-        for (const rectBounds of boundsToLeafletRects(node.bounds)) {
-          const [[rLatMin, rLonMin], [rLatMax, rLonMax]] = rectBounds;
-          const rect = L.rectangle(
-            [
-              [rLatMin, rLonMin],
-              [rLatMax, rLonMax],
-            ],
-            {
-              renderer,
-              color: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
-              weight: isFocus ? 2.5 : isVolc ? 2 : 1.75,
-              dashArray: isFocus ? undefined : "6 4",
-              fillColor: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
-              fillOpacity: isFocus ? 0.12 : isVolc ? 0.08 : 0.07,
-              opacity: dimmed ? 0.25 : 0.95,
-              interactive: true,
-              bubblingMouseEvents: false,
-            },
-          );
-          rect.bindTooltip(
-            `${node.name} · ${nodeMarkChip(node)} — click to focus`,
-            { sticky: true, direction: "top", opacity: 0.95, className: "ww-node-tip" },
-          );
-          rect.on("click", (e) => {
-            L.DomEvent.stopPropagation(e);
-            if (isFocus) exitToHomeView();
-            else setFocusNode(node.id);
-          });
-          nodeLayer.current.addLayer(rect);
-        }
+        const [[rLatMin, rLonMin], [rLatMax, rLonMax]] = boundsToPacificLeaflet(node.bounds);
+        const rect = L.rectangle(
+          [
+            [rLatMin, rLonMin],
+            [rLatMax, rLonMax],
+          ],
+          {
+            renderer,
+            color: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
+            weight: isFocus ? 2.5 : isVolc ? 2 : 1.75,
+            dashArray: isFocus ? undefined : "6 4",
+            fillColor: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
+            fillOpacity: isFocus ? 0.12 : isVolc ? 0.08 : 0.07,
+            opacity: dimmed ? 0.25 : 0.95,
+            interactive: true,
+            bubblingMouseEvents: false,
+          },
+        );
+        rect.bindTooltip(
+          `${node.name} · ${nodeMarkChip(node)} — click to focus`,
+          { sticky: true, direction: "top", opacity: 0.95, className: "ww-node-tip" },
+        );
+        rect.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          if (isFocus) exitToHomeView();
+          else setFocusNode(node.id);
+        });
+        nodeLayer.current.addLayer(rect);
       }
     }
   }, [
@@ -1011,7 +1000,7 @@ export function LiveMap() {
       const [lon, lat] = f.geometry.coordinates;
       const mag = f.properties.mag ?? 0;
       const place = f.properties.place ?? "Volcanic activity";
-      const marker = L.circleMarker([lat, lon], {
+      const marker = L.circleMarker(pacificLatLng(lat, lon), {
         renderer,
         radius: 10,
         color: "#fff",
@@ -1041,7 +1030,7 @@ export function LiveMap() {
             : v.colorCode === "YELLOW"
               ? "#fbbf24"
               : "#34d399";
-      const marker = L.circleMarker([v.lat, v.lon], {
+      const marker = L.circleMarker(pacificLatLng(v.lat, v.lon), {
         renderer,
         radius: 11,
         color: "#0f172a",
@@ -1108,7 +1097,7 @@ export function LiveMap() {
     const renderer = vectorRenderer.current ?? undefined;
     for (const v of gvpVolcanoes) {
       const isFocus = focusNodeId === v.id || focusNodeId === `gvp-${v.vnum}`;
-      const marker = L.circleMarker([v.lat, v.lon], {
+      const marker = L.circleMarker(pacificLatLng(v.lat, v.lon), {
         renderer,
         radius: isFocus ? 10 : 5,
         color: isFocus ? "#fff" : "#7c3aed",

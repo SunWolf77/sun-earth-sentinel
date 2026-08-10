@@ -516,7 +516,9 @@ export function featuresToHeatPoints(
       const mag = f.properties.mag ?? 3;
       const time = f.properties.time ?? null;
       const w = heatWeight(mag, time, { timeDecay, halfLifeHours, now });
-      return { lat, lon, mag, time, weight: w };
+      // Pacific display frame (0…360) — keep RoF continuous on heat canvas
+      const displayLon = lon < 0 ? lon + 360 : lon;
+      return { lat, lon: displayLon, mag, time, weight: w };
     });
 
   // Normalize weights → intensity 0–1 for GPU

@@ -8,6 +8,7 @@ import { useObservatory } from "@/store/observatory";
 import { issTrailPoints } from "@/lib/feeds/iss";
 import { buildAuroraOval, latestKp } from "@/lib/feeds/auroraOval";
 import { formatUtc } from "@/lib/utils";
+import { toPacificLon } from "@/lib/geo/bounds";
 
 export function useAmbientMapLayers(map: L.Map | null) {
   const groupRef = useRef<L.LayerGroup | null>(null);
@@ -67,7 +68,7 @@ export function useAmbientMapLayers(map: L.Map | null) {
       const color =
         oval.level === "storm" ? "#34d399" : oval.level === "elevated" ? "#6ee7b7" : "#2dd4bf";
       for (const ring of [oval.northRing, oval.southRing]) {
-        const latlngs = ring.map((p) => [p.lat, p.lon] as [number, number]);
+        const latlngs = ring.map((p) => [p.lat, toPacificLon(p.lon)] as [number, number]);
         L.polygon(latlngs, {
           color,
           weight: 1.5,
@@ -85,7 +86,7 @@ export function useAmbientMapLayers(map: L.Map | null) {
     if (overlays.iss && iss) {
       const trail = issTrailPoints(iss.lat, iss.lon, 18, 3);
       L.polyline(
-        trail.map((p) => [p.lat, p.lon] as [number, number]),
+        trail.map((p) => [p.lat, toPacificLon(p.lon)] as [number, number]),
         { color: "#38bdf8", weight: 2, opacity: 0.55, dashArray: "4 6" },
       ).addTo(g);
       const icon = L.divIcon({
@@ -94,7 +95,7 @@ export function useAmbientMapLayers(map: L.Map | null) {
         iconSize: [14, 14],
         iconAnchor: [7, 7],
       });
-      L.marker([iss.lat, iss.lon], { icon, zIndexOffset: 800 })
+      L.marker([iss.lat, toPacificLon(iss.lon)], { icon, zIndexOffset: 800 })
         .bindPopup(
           `<strong>ISS</strong><br/>${iss.lat.toFixed(2)}°, ${iss.lon.toFixed(2)}°<br/>Alt ${iss.altitudeKm.toFixed(0)} km · ${iss.velocityKms.toFixed(1)} km/s<br/><span style="color:#94a3b8;font-size:11px">${formatUtc(iss.timestamp)} · where-the-iss.at</span>`,
         )
@@ -109,7 +110,7 @@ export function useAmbientMapLayers(map: L.Map | null) {
           iconSize: [8, 8],
           iconAnchor: [4, 4],
         });
-        L.marker([f.lat, f.lon], { icon, zIndexOffset: 400 })
+        L.marker([f.lat, toPacificLon(f.lon)], { icon, zIndexOffset: 400 })
           .bindPopup(
             `<strong>${f.title}</strong><br/>${f.date ? formatUtc(f.date) : "Open"}<br/>${
               f.link

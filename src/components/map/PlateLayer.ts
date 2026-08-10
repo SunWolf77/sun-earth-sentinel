@@ -8,6 +8,7 @@ import {
   type MotionArrow,
   type PlateBoundaryCollection,
 } from "@/lib/tectonics/plates";
+import { toPacificLon } from "@/lib/geo/bounds";
 
 export type PlateLayerHandle = {
   group: L.LayerGroup;
@@ -64,6 +65,12 @@ export function createPlateLayer(map: L.Map): PlateLayerHandle {
     const geo = L.geoJSON(collection as GeoJSON.GeoJsonObject, {
       renderer: svgRenderer,
       interactive: true,
+      // Pacific display frame (0…360) — continuous RoF plate lines
+      coordsToLatLng: (coords: number[]) => {
+        const lng = coords[0]!;
+        const lat = coords[1]!;
+        return L.latLng(lat, toPacificLon(lng));
+      },
       style: (feat) => {
         const kind = boundaryKind(feat as never);
         return {
@@ -105,7 +112,7 @@ export function createPlateLayer(map: L.Map): PlateLayerHandle {
     for (let i = 0; i < arrows.length; i += step) {
       const a = arrows[i]!;
       // Visual only — must not steal clicks from canvas EQ markers underneath.
-      const m = L.marker([a.lat, a.lon], {
+      const m = L.marker([a.lat, toPacificLon(a.lon)], {
         icon: arrowIcon(a),
         interactive: false,
         keyboard: false,

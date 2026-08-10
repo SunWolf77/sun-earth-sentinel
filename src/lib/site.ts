@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.22.2: Unique desk networkOrder 1–8 (KM was duplicate #3).
+ * 1.23.0: Pacific-centered 2D map — continuous Ring of Fire (Atlantic seam).
  */
-export const APP_VERSION = "1.22.2";
+export const APP_VERSION = "1.23.0";
 
 
 
