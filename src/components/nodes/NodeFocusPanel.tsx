@@ -265,6 +265,9 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1">
                     {isVolc && <Mountain className="h-3 w-3 text-warn" />}
+                    {nodePub && (
+                      <DeskGlyph sesNodeId={node.id} className="h-3 w-3 text-gold" />
+                    )}
                     <span className="text-[0.75rem] font-medium text-fg">{node.name}</span>
                     {nodePub && (
                       <span className="rounded border border-gold/40 px-1 text-[0.55rem] uppercase text-gold">
