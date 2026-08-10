@@ -1,15 +1,21 @@
 /**
  * Generic SUPT volcanic analytics desk — shown when a desk with zone packs is focused.
  * Calm language · per-zone rate vs peer median · per-zone SUPT spacing.
+ *
+ * Spacing scores run through buildVolcanicDeskAsync (parallel resonanceScoreAsync
+ * with transferred Float64Arrays) so multi-zone null batteries stay off the main thread.
  */
 
 import { ExternalLink, Mountain, Radar } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useObservatory, filteredEq } from "@/store/observatory";
 import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 import { getVolcanicDeskConfig } from "@/lib/feeds/volcanicZones";
-import { buildVolcanicDesk } from "@/lib/supt/volcanicDesk";
-import type { ZoneActivityTone } from "@/lib/supt/volcanicDesk";
+import {
+  buildVolcanicDeskAsync,
+  type VolcanicDeskModel,
+  type ZoneActivityTone,
+} from "@/lib/supt/volcanicDesk";
 import type { GlobalVolcAlert } from "@/lib/feeds/globalVolcanoAlerts";
 import { DeskGlyph } from "@/components/nodes/DeskGlyph";
 
@@ -57,14 +63,26 @@ export function VolcanicDesk({ className = "" }: { className?: string }) {
   // Prefer full catalog slice (microseismicity below global minMag) when available
   const deskFeatures = useMemo(() => eq?.features ?? [], [eq?.features]);
 
-  const desk = useMemo(() => {
-    if (!config) return null;
-    return buildVolcanicDesk({
+  const [desk, setDesk] = useState<VolcanicDeskModel | null>(null);
+
+  useEffect(() => {
+    if (!config) {
+      setDesk(null);
+      return;
+    }
+    let cancelled = false;
+    const features = deskFeatures.length ? deskFeatures : filtered;
+    buildVolcanicDeskAsync({
       config,
-      features: deskFeatures.length ? deskFeatures : filtered,
+      features,
       volcAlerts: usgsVolcAlerts as GlobalVolcAlert[],
       timeWindow,
+    }).then((model) => {
+      if (!cancelled) setDesk(model);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [config, deskFeatures, filtered, usgsVolcAlerts, timeWindow]);
 
   if (!config || !desk || !focused) return null;
