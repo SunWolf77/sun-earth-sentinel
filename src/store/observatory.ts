@@ -16,6 +16,7 @@ import {
   type EqFeature,
 } from "@/lib/feeds/usgs";
 import { fetchGeofonWeek, mergeGeofonIntoCollection } from "@/lib/feeds/geofon";
+import { resolveFieldCatalog } from "@/lib/seismology/sameEvent";
 
 import { fetchJmaQuakes, mergeJmaIntoCollection } from "@/lib/feeds/jma";
 import {
@@ -1511,6 +1512,23 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       } catch (e) {
         fail("boards", e instanceof Error ? e.message : "Board merge failed");
       }
+      // Field identity hard stop — pairwise agency merges can still leak twins.
+      // One rupture → one row before window clip / cap / UI.
+      if (eqFinal?.features?.length) {
+        const resolved = resolveFieldCatalog(eqFinal.features);
+        eqFinal = {
+          ...eqFinal,
+          features: resolved,
+          metadata: {
+            ...eqFinal.metadata,
+            generated: Date.now(),
+            count: resolved.length,
+            title: eqFinal.metadata?.title
+              ? `${eqFinal.metadata.title} · field-resolved`
+              : "Field-resolved catalog",
+          },
+        };
+      }
       // Hard clip: GEOFON week / pulse / stale cache cannot outrun the time control
       eqFinal = clipCollectionToWindow(eqFinal, timeWindow) ?? eqFinal;
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {
@@ -1750,6 +1768,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
 
       // Re-apply authority feeds from cache (no network on pulse tick)
       eqFinal = mergePublishedNodeFeedsFromCache(eqFinal, get().timeWindow);
+      if (eqFinal?.features?.length) {
+        const resolved = resolveFieldCatalog(eqFinal.features);
+        eqFinal = {
+          ...eqFinal,
+          features: resolved,
+          metadata: {
+            ...eqFinal.metadata,
+            count: resolved.length,
+          },
+        };
+      }
       eqFinal = clipCollectionToWindow(eqFinal, get().timeWindow) ?? eqFinal;
       const cfg = MODES[get().mode];
       if (eqFinal?.features && eqFinal.features.length > cfg.maxMarkers) {

@@ -25,6 +25,7 @@ import {
   collapseFieldTwins,
   PROFILE_STORY,
 } from "@/lib/seismology/sameEvent";
+import { formatMagField } from "@/lib/seismology/magResolution";
 
 export type StoryKind = "node" | "global" | "volcano" | "solar" | "quiet";
 /** now = standout signal; watch = worth a look; elevated = mild above baseline; context = ordinary */
@@ -419,22 +420,19 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
       typeof f.properties.geofonMag === "number"
         ? (f.properties.geofonMag as number)
         : null;
-    const magNote =
-      secondaryMag != null && Math.abs(secondaryMag - mag) >= 0.15
-        ? ` Secondary agency ~M${secondaryMag.toFixed(1)}.`
-        : "";
+    const magLabel = formatMagField(mag, secondaryMag);
 
     stories.push({
       id: `global-${f.id ?? `${lat}_${lon}_${t}`}`,
       kind: "global",
       urgency,
       score,
-      headline: `M${mag.toFixed(1)} · ${place.length > 42 ? `${place.slice(0, 40)}…` : place}`,
-      summary: `Catalog M${mag.toFixed(1)} near ${place}${
+      headline: `${magLabel} · ${place.length > 42 ? `${place.slice(0, 40)}…` : place}`,
+      summary: `Catalog ${magLabel} near ${place}${
         age != null ? ` · ${ageLabel(age)}` : ""
-      }. Agency product on the event card — recorded signal, not a warning.${magNote}`,
+      }. Agency product on the event card — recorded signal, not a warning.`,
       stats: [
-        `M${mag.toFixed(1)}`,
+        magLabel,
         age != null ? ageLabel(age) : null,
         typeof depth === "number" ? `${Math.abs(depth).toFixed(0)} km` : null,
       ]

@@ -399,6 +399,12 @@ export function AboutPanel() {
                 <strong className="text-fg">GFZ GEOFON</strong> — optional multi-agency merge
               </li>
               <li>
+                <strong className="text-fg">Field identity</strong> — one rupture = one row.
+                Agencies may disagree on mag/place/depth; SES collapses twins by space + time +
+                mag range (not by feed ID). Magnitude is a network solution rounded to ~0.1;
+                cross-agency scatter of 0.2–0.5 on the same event is expected, not two quakes.
+              </li>
+              <li>
                 <strong className="text-fg">INTERMAGNET</strong> / NOAA GOES — magnetic series (via
                 Cordaro public endpoints where used)
               </li>
