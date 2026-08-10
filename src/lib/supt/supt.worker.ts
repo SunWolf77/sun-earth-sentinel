@@ -2,18 +2,38 @@
 /**
  * SUPT compute worker — true process isolation for the frozen probe graph nodes.
  *
- * Imports the identical pure modules used on the main thread so results are
- * bit-identical (same α, same mulberry32 seed, same Omori control params).
+ * Inbound heavy payloads arrive as transferred Float64Arrays (zero-copy).
+ * We unpack once into plain number[] / EtasEvent[] for the pure modules, then
+ * run the identical probe / ETAS logic used on the main thread.
  *
- * Never mutates caller data. Never touches the DOM or the Zustand store.
- * Structured clone only — no SharedArrayBuffer.
+ * Never mutates caller-owned data (main thread kept its originals).
+ * Never touches the DOM or the Zustand store.
+ * Results are small structured-clone objects only.
  */
 
 import { probe, resonanceScore } from "./probe";
-import { etasWhitenResiduals } from "./etasWhiten";
+import { etasWhitenResiduals, type EtasEvent } from "./etasWhiten";
 import type { SuptWorkerRequest, SuptWorkerResponse } from "./workerTypes";
 
 const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
+
+/** Fast Float64Array → number[] (one pass; pure functions expect number[]). */
+function toNumberArray(a: Float64Array): number[] {
+  const n = a.length;
+  const out = new Array<number>(n);
+  for (let i = 0; i < n; i++) out[i] = a[i]!;
+  return out;
+}
+
+/** Interleaved [tMs, mag, …] → EtasEvent[]. */
+function unpackEvents(packed: Float64Array): EtasEvent[] {
+  const n = packed.length >> 1;
+  const out = new Array<EtasEvent>(n);
+  for (let i = 0; i < n; i++) {
+    out[i] = { tMs: packed[i * 2]!, mag: packed[i * 2 + 1]! };
+  }
+  return out;
+}
 
 ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
   const msg = ev.data;
@@ -28,7 +48,16 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
 
   try {
     if (msg.op === "resonanceScore") {
-      const result = resonanceScore(msg.gaps, msg.nShuffle ?? 80);
+      if (!(msg.gaps instanceof Float64Array)) {
+        ctx.postMessage({
+          id: msg.id,
+          ok: false,
+          error: "resonanceScore expects transferred Float64Array gaps",
+        } satisfies SuptWorkerResponse);
+        return;
+      }
+      const gaps = toNumberArray(msg.gaps);
+      const result = resonanceScore(gaps, msg.nShuffle ?? 80);
       const res: SuptWorkerResponse = {
         id: msg.id,
         ok: true,
@@ -40,7 +69,16 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
     }
 
     if (msg.op === "probe") {
-      const result = probe(msg.values);
+      if (!(msg.values instanceof Float64Array)) {
+        ctx.postMessage({
+          id: msg.id,
+          ok: false,
+          error: "probe expects transferred Float64Array values",
+        } satisfies SuptWorkerResponse);
+        return;
+      }
+      const values = toNumberArray(msg.values);
+      const result = probe(values);
       const res: SuptWorkerResponse = {
         id: msg.id,
         ok: true,
@@ -52,7 +90,16 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
     }
 
     if (msg.op === "etasWhiten") {
-      const result = etasWhitenResiduals(msg.events);
+      if (!(msg.packed instanceof Float64Array) || msg.packed.length % 2 !== 0) {
+        ctx.postMessage({
+          id: msg.id,
+          ok: false,
+          error: "etasWhiten expects transferred interleaved Float64Array packed",
+        } satisfies SuptWorkerResponse);
+        return;
+      }
+      const events = unpackEvents(msg.packed);
+      const result = etasWhitenResiduals(events);
       const res: SuptWorkerResponse = {
         id: msg.id,
         ok: true,
