@@ -13,6 +13,7 @@ export type BenchRow = {
   multiPerOpUs?: number;
   atomicPerOpUs?: number;
   victimCount?: number;
+  fullAtomicPerOpUs?: number;
 };
 
 export type CacheBenchResults = {
