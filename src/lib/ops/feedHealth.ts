@@ -252,7 +252,7 @@ export function buildFeedHealth(opts: {
       label: "Nodes",
       status: boards.status,
       detail: boards.detail,
-      hint: "Published boards: Tonga · Campi · Japan · Kamchatka · Iceland · S.Sandwich",
+      hint: "Published: TK · CF · JP · KM · IS · SS · CL",
     },
     {
       id: "volc",

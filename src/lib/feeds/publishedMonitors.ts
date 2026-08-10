@@ -140,6 +140,27 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     focusNote:
       "SES node #5 — South Sandwich trench / Scotia Arc / Drake approach. Remote; USGS primary. No dense national catalog (islands uninhabited). Tsunami source potential South Atlantic. Not a forecast.",
   },
+  {
+    sesNodeId: "andes",
+    name: "Chile–Andes / Nazca",
+    networkOrder: 6,
+    shortCode: "CL",
+    role: "Published focus · SES #6 · Nazca megathrust · USGS",
+    monitorUrl: "https://www.csn.uchile.cl/",
+    authority: "USGS FDSN / realtime · CSN Chile national",
+    aliases: [
+      "andes",
+      "chile",
+      "nazca",
+      "csn",
+      "chile-andes",
+      "cl",
+      "south-america",
+      "sa",
+    ],
+    focusNote:
+      "SES node #6 — Chile–Andes / Nazca megathrust corridor. USGS for global realtime; CSN (Centro Sismológico Nacional, U. Chile) is dense national authority — densify feed when API path is stable. Tsunami source potential Pacific. Not a forecast.",
+  },
 ];
 
 const ALIAS_TO_SES = (() => {

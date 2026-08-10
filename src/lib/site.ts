@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.18.1: SES #5 South Sandwich / Drake published + coverage map.
+ * 1.18.2: SES #6 Chile–Andes / Nazca published focus.
  */
-export const APP_VERSION = "1.18.1";
+export const APP_VERSION = "1.18.2";
 
 
 

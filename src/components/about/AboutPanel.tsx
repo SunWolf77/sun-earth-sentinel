@@ -107,7 +107,8 @@ export function AboutPanel() {
           <code className="text-primary">?tab=live&node=tonga</code> or{" "}
           <code className="text-primary">node=mediterranean</code> (aliases: campi, cf) or{" "}
           <code className="text-primary">node=iceland</code> (IS · IMO) or{" "}
-          <code className="text-primary">node=southsandwich</code> (SS · Drake).
+          <code className="text-primary">node=southsandwich</code> (SS) or{" "}
+          <code className="text-primary">node=andes</code> (CL · Nazca).
         </p>
       </Section>
 

@@ -467,17 +467,31 @@ export const DRAGON_NODES: DragonNode[] = [
   {
     id: "andes",
     name: "Chile–Andes / Nazca",
-    role: "Corridor · Nazca subduction (not yet published board)",
+    role: "Published focus · SES #6 · Nazca megathrust · USGS",
     kind: "seismic",
+    /**
+     * Central–south Chile Nazca subduction corridor (megathrust + outer rise).
+     * CSN densify can come later; USGS/EMSC/GEOFON for realtime now.
+     */
     bounds: [
       [-45, -80],
       [-15, -65],
     ],
-    center: [-30, -72],
+    center: [-30.0, -72.0],
+    monitorUrl: "https://www.csn.uchile.cl/",
+    publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "Chile–Andes / Nazca megathrust corridor — dragon node only for now. USGS + CSN Chile links in agency panel. Promote to published board when ready. Not a forecast.",
-    aliases: ["chile", "andes", "nazca", "csn"],
+      "SES node #6 — Chile–Andes / Nazca megathrust. USGS primary realtime; CSN (Centro Sismológico Nacional) is national authority for dense local catalog. High tsunami source potential Pacific. Not a forecast.",
+    aliases: [
+      "chile",
+      "andes",
+      "nazca",
+      "csn",
+      "chile-andes",
+      "south-america",
+      "sa",
+    ],
   },
   {
     id: "mediterranean",
