@@ -1,8 +1,7 @@
 /**
- * Header row 3 — WolfWatch Network desk hops.
- * Mobile: code-only chips + scroll + “All desks” sheet (names + boards).
- * Desktop: codes + short names + kbd + board ↗.
- * SES home chip always first; details stay in FocusedNodeCard.
+ * Header row 3 — WolfWatch desks as a clean segmented strip.
+ * Strip shows: wolf mark · SES · glyph+code desks · All
+ * Names / boards / keys live in tooltips + the All sheet — not in the chrome.
  */
 
 import { useEffect, useId, useState } from "react";
@@ -16,9 +15,9 @@ import {
   resolveNodeId,
   type PublishedMonitor,
 } from "@/lib/feeds/publishedMonitors";
-import { BackToSesButton } from "@/components/nodes/BackToSesButton";
 import { WolfFaceIcon } from "@/components/nodes/WolfFaceIcon";
 import { DeskGlyph } from "@/components/nodes/DeskGlyph";
+import { getDeskGlyph } from "@/lib/feeds/deskGlyphs";
 
 const SHORTCUT_HINT: Record<string, string> = {
   tonga: "T",
@@ -38,6 +37,10 @@ const REGION_LABEL: Record<NonNullable<PublishedMonitor["region"]>, string> = {
   europe: "Europe",
   polar: "Southern",
 };
+
+function chipCaption(m: PublishedMonitor): string {
+  return m.chipName || m.name.split(/[–—,/]/)[0]?.trim() || m.shortCode;
+}
 
 export function PublishedNodesNav({ className = "" }: { className?: string }) {
   const focusNodeId = useObservatory((s) => s.focusNodeId);
@@ -83,7 +86,6 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [sheetOpen]);
 
-  // Group for sheet
   const byRegion = (() => {
     const map = new Map<string, PublishedMonitor[]>();
     for (const m of monitors) {
@@ -101,96 +103,63 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
       role="navigation"
       aria-label={`${WOLFWATCH_NETWORK.name} desks`}
     >
-      <span
-        className="ww-header-row__label ww-header-row__label--ww"
-        title={WOLFWATCH_NETWORK.tagline}
-      >
-        <WolfFaceIcon className="ww-header-row__label-icon" title="WolfWatch" />
-        <span className="ww-header-row__label-full">{WOLFWATCH_NETWORK.shortName}</span>
-        <span className="ww-header-row__label-short">{WOLFWATCH_NETWORK.code}</span>
-      </span>
-
-      <div className="ww-nodes-nav">
-        {/* Inline back only on sm+ — mobile uses SES chip + map float */}
-        {anyFocused && (
-          <span className="ww-nodes-nav__back-wrap">
-            <BackToSesButton variant="inline" />
-          </span>
-        )}
-
-        <button
-          type="button"
-          className={`ww-nodes-nav__chip ww-nodes-nav__chip--home ${
-            !anyFocused ? "ww-nodes-nav__chip--on" : ""
-          }`}
-          title="Sun-Earth Sentinel home — full world (H)"
-          aria-pressed={!anyFocused}
-          onClick={goHome}
-        >
-          <Home className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
-          <span>SES</span>
-        </button>
-
-        <span className="ww-nodes-nav__sep" aria-hidden>
-          ·
+      <div className="ww-nodes-rail">
+        <span className="ww-nodes-rail__brand" title={WOLFWATCH_NETWORK.tagline}>
+          <WolfFaceIcon className="ww-nodes-rail__wolf" title="WolfWatch" />
+          <span className="ww-nodes-rail__brand-text">WolfWatch</span>
         </span>
 
-        {monitors.map((m) => {
-          const on = focused === m.sesNodeId;
-          const board = monitorHandoffUrl(m.sesNodeId) || m.monitorUrl;
-          const hint = SHORTCUT_HINT[m.sesNodeId];
-          const code = monitorNavLabel(m);
-          return (
-            <span key={m.sesNodeId} className="ww-nodes-nav__pair">
+        <div className="ww-nodes-seg" role="group" aria-label="Desk focus">
+          <button
+            type="button"
+            className={`ww-nodes-seg__btn ww-nodes-seg__btn--home ${
+              !anyFocused ? "ww-nodes-seg__btn--on" : ""
+            }`}
+            title="SES world · clear desk focus (H)"
+            aria-pressed={!anyFocused}
+            onClick={goHome}
+          >
+            <Home className="ww-nodes-seg__ico" aria-hidden />
+            <span className="ww-nodes-seg__code">SES</span>
+          </button>
+
+          {monitors.map((m) => {
+            const on = focused === m.sesNodeId;
+            const hint = SHORTCUT_HINT[m.sesNodeId];
+            const code = monitorNavLabel(m);
+            const glyph = getDeskGlyph(m.sesNodeId);
+            const caption = chipCaption(m);
+            return (
               <button
+                key={m.sesNodeId}
                 type="button"
-                className={`ww-nodes-nav__chip ${on ? "ww-nodes-nav__chip--on" : ""}`}
-                title={`${m.name} · focus on map${hint ? ` (${hint})` : ""}. Tap again for home.`}
+                className={`ww-nodes-seg__btn ${on ? "ww-nodes-seg__btn--on" : ""}`}
+                title={`${m.name}${glyph ? ` · ${glyph.label}` : ""}${
+                  hint ? ` · key ${hint}` : ""
+                }. Tap again for SES home.`}
                 aria-pressed={on}
                 aria-label={`Focus ${m.name}${hint ? `, shortcut ${hint}` : ""}`}
                 onClick={() => goNode(m.sesNodeId)}
               >
-                <DeskGlyph sesNodeId={m.sesNodeId} className="ww-nodes-nav__glyph" />
-                <span className="ww-nodes-nav__code">{code}</span>
-                <span className="ww-nodes-nav__name">{m.name.split(/[–—-]/)[0]?.trim()}</span>
-                {hint && (
-                  <kbd className="ww-nodes-nav__kbd" aria-hidden>
-                    {hint}
-                  </kbd>
-                )}
+                <DeskGlyph sesNodeId={m.sesNodeId} className="ww-nodes-seg__glyph" titled={false} />
+                <span className="ww-nodes-seg__code">{code}</span>
+                <span className="ww-nodes-seg__name">{caption}</span>
               </button>
-              {board && (
-                <a
-                  href={board}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ww-nodes-nav__ext"
-                  title={`Open ${m.name} board (new tab)`}
-                  aria-label={`Open ${m.shortCode} board in new tab`}
-                  onClick={() => {
-                    if (focused !== m.sesNodeId) setFocusNode(m.sesNodeId);
-                  }}
-                >
-                  <ExternalLink className="h-3 w-3" aria-hidden />
-                </a>
-              )}
-            </span>
-          );
-        })}
+            );
+          })}
+        </div>
 
         <button
           type="button"
-          className={`ww-nodes-nav__chip ww-nodes-nav__chip--all ${
-            sheetOpen ? "ww-nodes-nav__chip--on" : ""
-          }`}
+          className={`ww-nodes-rail__all ${sheetOpen ? "ww-nodes-rail__all--on" : ""}`}
           aria-expanded={sheetOpen}
           aria-controls={sheetTitleId}
-          title="All WolfWatch desks — names & boards"
+          title="All desks — names & boards"
           onClick={() => setSheetOpen((v) => !v)}
         >
-          <span className="ww-nodes-nav__code">All</span>
+          <span>All</span>
           <ChevronDown
-            className={`h-3.5 w-3.5 shrink-0 transition-transform ${sheetOpen ? "rotate-180" : ""}`}
+            className={`ww-nodes-rail__chev ${sheetOpen ? "ww-nodes-rail__chev--open" : ""}`}
             aria-hidden
           />
         </button>
@@ -208,7 +177,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
             <header className="ww-ww-sheet__head">
               <div className="min-w-0">
                 <h2 id={sheetTitleId} className="ww-ww-sheet__title">
-                  <WolfFaceIcon className="inline-block h-4 w-4 align-[-0.15em] mr-1.5" />
+                  <WolfFaceIcon className="ww-ww-sheet__title-ico" />
                   {WOLFWATCH_NETWORK.name}
                 </h2>
                 <p className="ww-ww-sheet__sub">{WOLFWATCH_NETWORK.tagline}</p>
@@ -229,7 +198,9 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
                 className={`ww-ww-sheet__row ${!anyFocused ? "ww-ww-sheet__row--on" : ""}`}
                 onClick={goHome}
               >
-                <Home className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="ww-ww-sheet__glyph-wrap">
+                  <Home className="h-4 w-4" aria-hidden />
+                </span>
                 <span className="min-w-0 flex-1 text-left">
                   <span className="block font-semibold">SES world</span>
                   <span className="block text-[0.65rem] text-dim">Full globe · clear desk focus</span>
@@ -247,6 +218,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
                     const on = focused === m.sesNodeId;
                     const board = monitorHandoffUrl(m.sesNodeId) || m.monitorUrl;
                     const hint = SHORTCUT_HINT[m.sesNodeId];
+                    const glyph = getDeskGlyph(m.sesNodeId);
                     return (
                       <li key={m.sesNodeId}>
                         <div className={`ww-ww-sheet__row ${on ? "ww-ww-sheet__row--on" : ""}`}>
@@ -256,14 +228,15 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
                             onClick={() => goNode(m.sesNodeId)}
                           >
                             <span className="ww-ww-sheet__glyph-wrap">
-                              <DeskGlyph sesNodeId={m.sesNodeId} className="h-5 w-5" />
+                              <DeskGlyph sesNodeId={m.sesNodeId} className="h-4 w-4" />
                             </span>
                             <span className="ww-ww-sheet__code">{monitorNavLabel(m)}</span>
                             <span className="min-w-0 flex-1 text-left">
                               <span className="block truncate font-semibold text-fg">{m.name}</span>
                               <span className="block truncate text-[0.62rem] text-dim">
                                 #{m.networkOrder}
-                                {hint ? ` · key ${hint}` : ""}
+                                {glyph ? ` · ${glyph.label}` : ""}
+                                {hint ? ` · ${hint}` : ""}
                                 {" · "}
                                 {m.authority.split(/[·(]/)[0]?.trim()}
                               </span>
@@ -294,7 +267,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
 
             {focusedMon && (
               <p className="ww-ww-sheet__foot">
-                Focused: <strong>{focusedMon.shortCode}</strong> · {focusedMon.name}. Tap again or SES
+                Focused <strong>{focusedMon.shortCode}</strong> · {focusedMon.name}. Tap again or SES
                 to leave.
               </p>
             )}

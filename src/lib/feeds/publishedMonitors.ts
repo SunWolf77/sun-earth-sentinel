@@ -34,6 +34,8 @@ export type PublishedMonitor = {
    * Prefer 2–3 chars — never full place names in the header strip.
    */
   navLabel?: string;
+  /** Optional 1-word chip caption (desktop only) — keep ≤10 chars */
+  chipName?: string;
   /** Optional region bucket for “All desks” grouping */
   region?: "pacific" | "ring" | "atlantic" | "europe" | "polar";
   role: string;
@@ -59,6 +61,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 1,
     shortCode: "TK",
     navLabel: "TK",
+    chipName: "Tonga",
     region: "pacific",
     role: "Published focus · SES #1 · Swarm corridor",
     monitorUrl: "https://tonga-kermadec-monitor.vercel.app/",
@@ -75,6 +78,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 2,
     shortCode: "CF",
     navLabel: "CF",
+    chipName: "Campi",
     region: "europe",
     role: "Published focus · SES #2 · INGV authority",
     monitorUrl: "https://campi-flegrei-monitor.vercel.app/",
@@ -91,6 +95,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 3,
     shortCode: "JP",
     navLabel: "JP",
+    chipName: "Japan",
     region: "ring",
     role: "Published focus · SES #3 · JMA + tsunami",
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/",
@@ -107,6 +112,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 4,
     shortCode: "KM",
     navLabel: "KM",
+    chipName: "Kamchatka",
     region: "ring",
     role: "Published focus · SES #4 · Japan companion · USGS",
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/?node=kamchatka",
@@ -123,6 +129,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 5,
     shortCode: "IS",
     navLabel: "IS",
+    chipName: "Iceland",
     region: "atlantic",
     role: "Published focus · SES #5 · IMO densify",
     monitorUrl: "https://skjalftalisa.vedur.is/",
@@ -146,6 +153,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 6,
     shortCode: "SS",
     navLabel: "SS",
+    chipName: "Scotia",
     region: "polar",
     role: "Published focus · SES #6 · Scotia Arc · USGS",
     /** USGS 30-day M2.5+ satellite · Scotia Sea / Drake / SS swarm (ops screenshot view) */
@@ -170,6 +178,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 7,
     shortCode: "CL",
     navLabel: "CL",
+    chipName: "Andes",
     region: "pacific",
     role: "Published focus · SES #7 · Nazca megathrust · CSN densify",
     monitorUrl: "https://www.sismologia.cl/",
@@ -197,6 +206,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 8,
     shortCode: "NZ",
     navLabel: "NZ",
+    chipName: "NZ",
     region: "pacific",
     role: "Published focus · SES #8 · GeoNet densify",
     monitorUrl: "https://www.geonet.org.nz/",

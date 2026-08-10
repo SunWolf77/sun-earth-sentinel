@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.23.0: Pacific-centered 2D map — continuous Ring of Fire (Atlantic seam).
+ * 1.23.1: WolfWatch rail polish — segmented strip, short chip names, boards in All only.
  */
-export const APP_VERSION = "1.23.0";
+export const APP_VERSION = "1.23.1";
 
 
 
