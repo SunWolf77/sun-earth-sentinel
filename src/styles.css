@@ -1819,7 +1819,39 @@
 
 /* Compact map dock (phones) */
 .ww-map-dock--compact {
-  max-width: min(100vw - 0.75rem, 22rem);
+  max-width: min(100vw - 0.75rem, 20rem);
+}
+/* Minimized FAB — leaves event cards readable */
+.ww-map-dock--min {
+  max-width: min(100vw - 1rem, 11rem);
+}
+.ww-map-dock__fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  max-width: 100%;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--color-primary) 35%, var(--color-border));
+  background: color-mix(in oklab, var(--color-surface) 94%, transparent);
+  color: var(--color-primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+.ww-map-dock__fab:hover {
+  border-color: var(--color-primary);
+  color: var(--color-fg);
+}
+.ww-map-dock__fab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 .ww-map-view-toggle__btn--sm {
   min-height: 2rem !important;

@@ -1,5 +1,7 @@
 /**
  * Edge dock — compact on mobile, clear labels for tilt & help.
+ * Mobile: 3 levels — minimized FAB → compact (2D/3D + window) → full controls.
+ * Auto-minimizes when an event is selected so the detail card stays readable.
  */
 
 import { useEffect, useState } from "react";
@@ -14,6 +16,7 @@ import {
   Undo2,
   X,
   History,
+  ChevronUp,
 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { timeWindowChip, timeWindowTitle, TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
@@ -21,6 +24,8 @@ import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { HelpGuide } from "@/components/ops/HelpGuide";
 
 type TiltPreset = "equator" | "north" | "oblique";
+/** Mobile chrome density */
+type DockLevel = "min" | "compact" | "full";
 
 type Props = {
   onPriorView?: (() => void) | null;
@@ -52,14 +57,23 @@ export function MapChromeDock({
   const setGlobeAutoSpin = useObservatory((s) => s.setGlobeAutoSpin);
   const setReplayActive = useObservatory((s) => s.setReplayActive);
   const replayActive = useObservatory((s) => s.replayActive);
+  const pickedEvent = useObservatory((s) => s.pickedEvent);
   const mobile = useIsMobile();
-  const [expanded, setExpanded] = useState(false);
+  const [level, setLevel] = useState<DockLevel>("compact");
   const [helpOpen, setHelpOpen] = useState(false);
 
+  // Mobile defaults: compact idle; collapse hard when reading an event
   useEffect(() => {
-    if (!mobile) setExpanded(true);
-    else setExpanded(false);
-  }, [mobile, mapView, mapImmersive]);
+    if (!mobile) {
+      setLevel("full");
+      return;
+    }
+    if (pickedEvent) {
+      setLevel("min");
+      return;
+    }
+    setLevel((prev) => (prev === "full" ? "compact" : prev === "min" ? "min" : "compact"));
+  }, [mobile, mapView, mapImmersive, pickedEvent?.id]);
 
   const home = () => {
     exitToHomeView();
@@ -67,16 +81,53 @@ export function MapChromeDock({
   };
 
   const showTilt = mapView === "3d" && (onTiltUp || onTiltDown || onTiltPreset);
+  const ViewIcon = mapView === "3d" ? Globe2 : MapIcon;
 
-  // Mobile collapsed — single bar, no mystery tilt glyphs
-  if (mobile && !expanded) {
+  // ── Mobile minimized: single FAB — frees the map / event card ──
+  if (mobile && level === "min") {
+    return (
+      <div
+        className={`ww-map-dock ww-map-dock--min pointer-events-auto flex flex-col items-end gap-1 ${className}`}
+        role="toolbar"
+        aria-label="Map controls collapsed"
+      >
+        <button
+          type="button"
+          className="ww-map-dock__fab"
+          onClick={() => setLevel("compact")}
+          title="Map controls — 2D/3D, catalog window"
+          aria-expanded={false}
+          aria-label={`Expand map controls (currently ${mapView === "3d" ? "3D globe" : "2D map"}, ${timeWindowChip(timeWindow)})`}
+        >
+          <ViewIcon className="h-4 w-4 shrink-0" aria-hidden />
+          <span className="ww-map-dock__fab-label">
+            {mapView === "3d" ? "3D" : "2D"} · {timeWindowChip(timeWindow)}
+          </span>
+          <ChevronUp className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+        </button>
+        <HelpGuide open={helpOpen} onOpenChange={setHelpOpen} compact className="hidden" />
+      </div>
+    );
+  }
+
+  // ── Mobile compact: 2D/3D + window + open full ──
+  if (mobile && level === "compact") {
     return (
       <div
         className={`ww-map-dock ww-map-dock--compact pointer-events-auto flex flex-col items-end gap-1 ${className}`}
         role="toolbar"
         aria-label="Map controls"
       >
-        <div className="flex max-w-[min(100vw-0.75rem,22rem)] flex-wrap items-center justify-end gap-1 rounded-xl border border-border bg-surface/95 p-1 shadow-lg backdrop-blur">
+        <div className="flex max-w-[min(100vw-0.75rem,20rem)] flex-wrap items-center justify-end gap-1 rounded-xl border border-border bg-surface/95 p-1 shadow-lg backdrop-blur">
+          <button
+            type="button"
+            className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
+            title="Collapse controls"
+            aria-label="Collapse map controls"
+            onClick={() => setLevel("min")}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
           <div className="ww-map-view-toggle flex overflow-hidden rounded-lg border border-border/80">
             <button
               type="button"
@@ -124,7 +175,7 @@ export function MapChromeDock({
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
             title="More controls (replay, home, help)"
-            onClick={() => setExpanded(true)}
+            onClick={() => setLevel("full")}
             aria-expanded={false}
           >
             <Settings2 className="h-3.5 w-3.5" />
@@ -135,21 +186,22 @@ export function MapChromeDock({
     );
   }
 
+  // ── Full (desktop always; mobile when expanded) ──
   return (
     <div
-      className={`ww-map-dock pointer-events-auto flex flex-col gap-1.5 ${mobile ? "ww-map-dock--expanded max-h-[min(50dvh,20rem)] overflow-y-auto overscroll-contain" : ""} ${className}`}
+      className={`ww-map-dock pointer-events-auto flex flex-col gap-1.5 ${mobile ? "ww-map-dock--expanded max-h-[min(42dvh,18rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface/95 p-1.5 shadow-lg backdrop-blur" : ""} ${className}`}
       role="toolbar"
       aria-label="Map controls"
     >
       {mobile && (
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 px-0.5">
           <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-dim">
             Controls
           </span>
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
-            onClick={() => setExpanded(false)}
+            onClick={() => setLevel(pickedEvent ? "min" : "compact")}
             title="Collapse"
           >
             <X className="h-3.5 w-3.5" />
