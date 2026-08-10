@@ -4,6 +4,10 @@
  * Phase A: per-zone rate + peer-baseline relative rate + per-zone SUPT spacing.
  * Phase B: same builder for any desk pack (Iceland, NZ, Japan, Andes, Kamchatka).
  *
+ * Sync path: buildVolcanicDesk (pure, main-thread).
+ * Async path: buildVolcanicDeskAsync — parallel resonanceScoreAsync per zone +
+ * desk-wide via the isolated worker (transferred Float64Array per job).
+ *
  * Not a forecast. Official aviation / VALS colors are badges only.
  */
 
@@ -17,6 +21,7 @@ import {
   resonanceVerdict,
   type ResonanceScore,
 } from "@/lib/supt/probe";
+import { resonanceScoreAsync } from "@/lib/supt/workerClient";
 
 export type ZoneActivityTone = "quiet" | "background" | "elevated" | "swarm";
 
@@ -93,6 +98,9 @@ export type VolcanicDeskModel = {
   links: VolcDeskLink[];
 };
 
+/** Default null-shuffle count for desk spacing (sync + async). */
+const DESK_SHUFFLE = 60;
+
 function interEventSeconds(features: EqFeature[]): number[] {
   const times = features
     .map((f) => f.properties.time)
@@ -134,7 +142,6 @@ function zoneTone(
   days: number,
 ): ZoneActivityTone {
   if (count === 0) return "quiet";
-  // Dense burst: high absolute rate OR strongly elevated vs peer median
   if (
     maxMag >= 4.5 ||
     (ratePerDay >= 40 && days <= 7) ||
@@ -233,22 +240,49 @@ function matchVolcAlert(
   return pool.find((a) => a.name.toLowerCase().includes(key));
 }
 
-/**
- * Build a volcanic desk model from live catalog + optional official alerts.
- */
-export function buildVolcanicDesk(opts: {
+type DeskBuildOpts = {
   config: VolcDeskConfig;
   features: EqFeature[];
   volcAlerts?: GlobalVolcAlert[] | null;
   timeWindow?: string;
   now?: number;
-}): VolcanicDeskModel {
+};
+
+type ZoneRaw = {
+  def: VolcZoneDef;
+  feats: EqFeature[];
+  count: number;
+  maxMag: number;
+  m2: number;
+  m3: number;
+  lastMs: number | null;
+  ratePerDay: number;
+  gaps: number[];
+};
+
+type DeskPartition = {
+  config: VolcDeskConfig;
+  now: number;
+  days: number;
+  windowLabel: string;
+  probeMin: number;
+  inBox: EqFeature[];
+  boxMax: number;
+  raws: ZoneRaw[];
+  peerMedian: number;
+  deskGaps: number[];
+  alerts: GlobalVolcAlert[];
+};
+
+/** Shared catalog partition — pure, no scoring. */
+function partitionDesk(opts: DeskBuildOpts): DeskPartition {
   const { config } = opts;
   const now = opts.now ?? Date.now();
   const days = windowDays(opts.timeWindow || "week");
   const windowLabel =
     days < 1 ? "1h" : days <= 1 ? "24h" : days <= 7 ? "7d" : "30d";
   const probeMin = config.probeMinMag;
+  const alerts = opts.volcAlerts ?? [];
 
   const inBox = featuresInBounds(opts.features, config.nodeBounds, 0);
   let boxMax = 0;
@@ -257,7 +291,6 @@ export function buildVolcanicDesk(opts: {
     if (m > boxMax) boxMax = m;
   }
 
-  // Zone defs + synthetic "other" for in-box unassigned
   const zoneDefs: VolcZoneDef[] = [
     ...config.zones,
     {
@@ -272,18 +305,7 @@ export function buildVolcanicDesk(opts: {
     },
   ];
 
-  type Raw = {
-    def: VolcZoneDef;
-    feats: EqFeature[];
-    count: number;
-    maxMag: number;
-    m2: number;
-    m3: number;
-    lastMs: number | null;
-    ratePerDay: number;
-  };
-
-  const raws: Raw[] = zoneDefs.map((def) => {
+  const raws: ZoneRaw[] = zoneDefs.map((def) => {
     const feats =
       def.id === "other"
         ? inBox.filter((f) => {
@@ -307,68 +329,95 @@ export function buildVolcanicDesk(opts: {
       if (typeof t === "number" && (lastMs == null || t > lastMs)) lastMs = t;
     }
     const ratePerDay = days > 0 ? feats.length / days : feats.length;
-    return { def, feats, count: feats.length, maxMag, m2, m3, lastMs, ratePerDay };
+    const probeFeats = feats.filter((f) => (f.properties.mag ?? 0) >= probeMin);
+    const gaps = interEventSeconds(probeFeats);
+    return {
+      def,
+      feats,
+      count: feats.length,
+      maxMag,
+      m2,
+      m3,
+      lastMs,
+      ratePerDay,
+      gaps,
+    };
   });
 
-  // Peer baseline = median rate among zones with at least one event (exclude empty)
   const peerRates = raws
     .filter((r) => r.count >= 1 && r.def.id !== "other")
     .map((r) => r.ratePerDay);
-  const baselineFloor = 0.5; // /d — avoid divide-by-near-zero
   const peerMedian = peerRates.length ? median(peerRates) : 0;
 
-  const zones: VolcZoneSnapshot[] = raws.map((r) => {
-    const base = Math.max(peerMedian, baselineFloor * 0.25);
-    const relativeRate =
-      r.ratePerDay <= 0 ? 0 : r.ratePerDay / Math.max(base, baselineFloor * 0.25);
-    const tone = zoneTone(r.count, r.maxMag, r.ratePerDay, relativeRate, days);
-
-    const probeFeats = r.feats.filter((f) => (f.properties.mag ?? 0) >= probeMin);
-    const gaps = interEventSeconds(probeFeats);
-    const spacing = gaps.length >= 3 ? resonanceScore(gaps, 60) : null;
-    const spPlain = spacingPlainFor(spacing, probeMin);
-    const v = resonanceVerdict(spacing);
-
-    const volc = matchVolcAlert(
-      r.def,
-      opts.volcAlerts ?? [],
-      config.matchAlert,
-    );
-
-    return {
-      id: r.def.id,
-      name: r.def.name,
-      agencyCode: r.def.agencyCode,
-      role: r.def.role,
-      gvpUrl: r.def.gvpUrl,
-      count: r.count,
-      maxMag: r.maxMag,
-      m2: r.m2,
-      m3: r.m3,
-      lastMs: r.lastMs,
-      ratePerDay: r.ratePerDay,
-      baselineRatePerDay: peerMedian,
-      relativeRate,
-      relativePlain: relativePlain(relativeRate, r.ratePerDay, peerMedian),
-      tone,
-      plain: tonePlain(tone, r.count, r.maxMag),
-      spacing,
-      spacingPlain: `${v.title} · ${spPlain}`,
-      volcColor: volc?.colorCode,
-      volcNative: volc?.officialNative,
-    };
-  }).sort((a, b) => {
-    const rank = { swarm: 0, elevated: 1, background: 2, quiet: 3 } as const;
-    if (rank[a.tone] !== rank[b.tone]) return rank[a.tone] - rank[b.tone];
-    return b.count - a.count;
-  });
-
-  // Desk-wide spacing
   const forProbe = inBox.filter((f) => (f.properties.mag ?? 0) >= probeMin);
-  const gaps = interEventSeconds(forProbe);
-  const spacing = gaps.length >= 3 ? resonanceScore(gaps, 60) : null;
-  const v = resonanceVerdict(spacing);
-  const spacingPlain = `${v.title} · ${spacingPlainFor(spacing, probeMin)}`;
+  const deskGaps = interEventSeconds(forProbe);
+
+  return {
+    config,
+    now,
+    days,
+    windowLabel,
+    probeMin,
+    inBox,
+    boxMax,
+    raws,
+    peerMedian,
+    deskGaps,
+    alerts,
+  };
+}
+
+function assembleDesk(
+  part: DeskPartition,
+  zoneScores: Map<string, ResonanceScore | null>,
+  deskSpacing: ResonanceScore | null,
+): VolcanicDeskModel {
+  const { config, now, days, windowLabel, probeMin, inBox, boxMax, raws, peerMedian, alerts } =
+    part;
+  const baselineFloor = 0.5;
+
+  const zones: VolcZoneSnapshot[] = raws
+    .map((r) => {
+      const base = Math.max(peerMedian, baselineFloor * 0.25);
+      const relativeRate =
+        r.ratePerDay <= 0 ? 0 : r.ratePerDay / Math.max(base, baselineFloor * 0.25);
+      const tone = zoneTone(r.count, r.maxMag, r.ratePerDay, relativeRate, days);
+      const spacing = zoneScores.get(r.def.id) ?? null;
+      const spPlain = spacingPlainFor(spacing, probeMin);
+      const v = resonanceVerdict(spacing);
+      const volc = matchVolcAlert(r.def, alerts, config.matchAlert);
+
+      return {
+        id: r.def.id,
+        name: r.def.name,
+        agencyCode: r.def.agencyCode,
+        role: r.def.role,
+        gvpUrl: r.def.gvpUrl,
+        count: r.count,
+        maxMag: r.maxMag,
+        m2: r.m2,
+        m3: r.m3,
+        lastMs: r.lastMs,
+        ratePerDay: r.ratePerDay,
+        baselineRatePerDay: peerMedian,
+        relativeRate,
+        relativePlain: relativePlain(relativeRate, r.ratePerDay, peerMedian),
+        tone,
+        plain: tonePlain(tone, r.count, r.maxMag),
+        spacing,
+        spacingPlain: `${v.title} · ${spPlain}`,
+        volcColor: volc?.colorCode,
+        volcNative: volc?.officialNative,
+      };
+    })
+    .sort((a, b) => {
+      const rank = { swarm: 0, elevated: 1, background: 2, quiet: 3 } as const;
+      if (rank[a.tone] !== rank[b.tone]) return rank[a.tone] - rank[b.tone];
+      return b.count - a.count;
+    });
+
+  const v = resonanceVerdict(deskSpacing);
+  const spacingPlain = `${v.title} · ${spacingPlainFor(deskSpacing, probeMin)}`;
 
   const hot = zones.filter((z) => z.tone === "swarm" || z.tone === "elevated");
   const volcElevated = zones.filter(
@@ -415,9 +464,68 @@ export function buildVolcanicDesk(opts: {
     zones,
     headline,
     plain,
-    spacing,
+    spacing: deskSpacing,
     spacingPlain,
     disclaimer: config.disclaimer,
     links: config.links,
   };
+}
+
+/**
+ * Build a volcanic desk model from live catalog + optional official alerts.
+ * Sync / main-thread path — pure frozen probe per zone.
+ */
+export function buildVolcanicDesk(opts: DeskBuildOpts): VolcanicDeskModel {
+  const part = partitionDesk(opts);
+  const zoneScores = new Map<string, ResonanceScore | null>();
+  for (const r of part.raws) {
+    const spacing =
+      r.gaps.length >= 3 ? resonanceScore(r.gaps, DESK_SHUFFLE) : null;
+    zoneScores.set(r.def.id, spacing);
+  }
+  const deskSpacing =
+    part.deskGaps.length >= 3
+      ? resonanceScore(part.deskGaps, DESK_SHUFFLE)
+      : null;
+  return assembleDesk(part, zoneScores, deskSpacing);
+}
+
+/**
+ * Async multi-zone desk build — each zone + desk-wide spacing runs through
+ * resonanceScoreAsync (transferred Float64Array, isolated worker).
+ *
+ * Promise.all fans the independent score nodes out; the single worker processes
+ * them off the main thread (main UI stays responsive). Results are bit-identical
+ * to buildVolcanicDesk when the worker path is available.
+ */
+export async function buildVolcanicDeskAsync(
+  opts: DeskBuildOpts,
+): Promise<VolcanicDeskModel> {
+  const part = partitionDesk(opts);
+
+  type Job = { id: string; gaps: number[] };
+  const jobs: Job[] = [];
+  for (const r of part.raws) {
+    if (r.gaps.length >= 3) jobs.push({ id: r.def.id, gaps: r.gaps });
+  }
+  if (part.deskGaps.length >= 3) {
+    jobs.push({ id: "__desk__", gaps: part.deskGaps });
+  }
+
+  const scored = await Promise.all(
+    jobs.map(async (j) => {
+      const score = await resonanceScoreAsync(j.gaps, DESK_SHUFFLE);
+      return [j.id, score] as const;
+    }),
+  );
+
+  const zoneScores = new Map<string, ResonanceScore | null>();
+  for (const r of part.raws) zoneScores.set(r.def.id, null);
+  let deskSpacing: ResonanceScore | null = null;
+  for (const [id, score] of scored) {
+    if (id === "__desk__") deskSpacing = score;
+    else zoneScores.set(id, score);
+  }
+
+  return assembleDesk(part, zoneScores, deskSpacing);
 }
