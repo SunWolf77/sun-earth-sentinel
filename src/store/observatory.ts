@@ -15,7 +15,8 @@ import {
   type EqCollection,
   type EqFeature,
 } from "@/lib/feeds/usgs";
-import { fetchGeofonWeek } from "@/lib/feeds/geofon";
+import { fetchGeofonWeek, mergeGeofonIntoCollection } from "@/lib/feeds/geofon";
+
 import { fetchJmaQuakes, mergeJmaIntoCollection } from "@/lib/feeds/jma";
 import {
   fetchEmscWeek,
@@ -1467,9 +1468,6 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       await Promise.allSettled(tasks); /* each task should be timeout-wrapped */
 
       let eqFinal = mergeEqCollections(eq ?? get().eq, pulse);
-      if (useGeofon && geofon) {
-        eqFinal = mergeEqCollections(eqFinal, geofon);
-      }
       const age =
         timeWindow === "hour"
           ? 3_600_000
@@ -1478,6 +1476,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             : timeWindow === "week"
               ? 7 * 86_400_000
               : 30 * 86_400_000;
+      if (useGeofon && geofon) {
+        eqFinal = mergeGeofonIntoCollection(eqFinal, geofon, { maxAgeMs: age });
+      }
       if (emsc) {
         eqFinal = mergeEmscIntoCollection(eqFinal, emsc, { maxAgeMs: age });
       }
@@ -1733,8 +1734,20 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let eqFinal = mergeEqCollections(get().eq, pulse);
       if (get().useGeofon) {
         const g = getCache<EqCollection>("geofon", 600_000);
-        if (g) eqFinal = mergeEqCollections(eqFinal, g);
+        if (g) {
+          const tw = get().timeWindow;
+          const age =
+            tw === "hour"
+              ? 3_600_000
+              : tw === "day"
+                ? 86_400_000
+                : tw === "week"
+                  ? 7 * 86_400_000
+                  : 30 * 86_400_000;
+          eqFinal = mergeGeofonIntoCollection(eqFinal, g, { maxAgeMs: age });
+        }
       }
+
       // Re-apply authority feeds from cache (no network on pulse tick)
       eqFinal = mergePublishedNodeFeedsFromCache(eqFinal, get().timeWindow);
       eqFinal = clipCollectionToWindow(eqFinal, get().timeWindow) ?? eqFinal;

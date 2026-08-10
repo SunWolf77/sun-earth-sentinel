@@ -376,10 +376,12 @@ function storyForZone(p: ZonePulse): ActivityStory | null {
 
 function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
   const stories: ActivityStory[] = [];
-  // Prefer fresh strong events — old M6 in a month window is context, not a red siren
-  const strong = features
+  // Prefer fresh strong events — old M6 in a month window is context, not a red siren.
+  // Collapse multi-agency twins first (USGS M7.4 + GEOFON Mw 7.5 same origin).
+  const strongRaw = features
     .filter((f) => (f.properties.mag ?? 0) >= 6)
     .sort((a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0));
+  const strong = collapseAgencyTwins(strongRaw);
 
   for (const f of strong.slice(0, 4)) {
     const mag = f.properties.mag ?? 0;
@@ -407,6 +409,15 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
       score = 15 + mag;
     }
 
+    const secondaryMag =
+      typeof f.properties.geofonMag === "number"
+        ? (f.properties.geofonMag as number)
+        : null;
+    const magNote =
+      secondaryMag != null && Math.abs(secondaryMag - mag) >= 0.15
+        ? ` Secondary agency ~M${secondaryMag.toFixed(1)}.`
+        : "";
+
     stories.push({
       id: `global-${f.id ?? `${lat}_${lon}_${t}`}`,
       kind: "global",
@@ -415,7 +426,7 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
       headline: `M${mag.toFixed(1)} · ${place.length > 42 ? `${place.slice(0, 40)}…` : place}`,
       summary: `Catalog M${mag.toFixed(1)} near ${place}${
         age != null ? ` · ${ageLabel(age)}` : ""
-      }. Agency product on the event card — recorded signal, not a warning.`,
+      }. Agency product on the event card — recorded signal, not a warning.${magNote}`,
       stats: [
         `M${mag.toFixed(1)}`,
         age != null ? ageLabel(age) : null,
@@ -465,6 +476,61 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
   }
 
   return stories;
+}
+
+/**
+ * Drop multi-agency twins of the same strong event.
+ * Prefer USGS / primary ids; match by space + time + mag range.
+ */
+function collapseAgencyTwins(features: EqFeature[]): EqFeature[] {
+  const kept: EqFeature[] = [];
+  const isSecondary = (f: EqFeature) => {
+    const id = String(f.id || "");
+    return (
+      id.startsWith("geofon:") ||
+      id.startsWith("emsc:") ||
+      f.properties.detail === "geofon" ||
+      f.properties.net === "geofon" ||
+      f.properties.net === "emsc"
+    );
+  };
+  const prefer = (a: EqFeature, b: EqFeature): EqFeature => {
+    if (isSecondary(a) && !isSecondary(b)) return b;
+    if (isSecondary(b) && !isSecondary(a)) return a;
+    return a;
+  };
+
+  for (const f of features) {
+    const [lon, lat] = f.geometry.coordinates;
+    const t = f.properties.time;
+    const mag = f.properties.mag ?? 0;
+    let twinIdx = -1;
+    for (let i = 0; i < kept.length; i++) {
+      const k = kept[i]!;
+      const [klon, klat] = k.geometry.coordinates;
+      const kt = k.properties.time;
+      const kmag = k.properties.mag ?? 0;
+      if (!Number.isFinite(lat) || !Number.isFinite(klat)) continue;
+      if (Math.abs(lat - klat) > 0.7 || Math.abs(lon - klon) > 0.8) continue;
+      if (
+        typeof t === "number" &&
+        typeof kt === "number" &&
+        Math.abs(t - kt) > 30 * 60_000
+      ) {
+        continue;
+      }
+      // Mag range: agencies often differ 0.2–0.5 on M6+
+      if (Math.abs(mag - kmag) > 1.0) continue;
+      twinIdx = i;
+      break;
+    }
+    if (twinIdx < 0) {
+      kept.push(f);
+    } else {
+      kept[twinIdx] = prefer(kept[twinIdx]!, f);
+    }
+  }
+  return kept;
 }
 
 function volcanoBeats(alerts: UsgsVolcanoAlert[]): ActivityStory[] {

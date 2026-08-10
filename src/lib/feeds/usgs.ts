@@ -36,6 +36,9 @@ export type EqFeature = {
     emscEnriched?: boolean;
     imoEnriched?: boolean;
     geonetEnriched?: boolean;
+    geofonEnriched?: boolean;
+    /** Secondary GEOFON Mw when USGS primary kept after spatial match */
+    geofonMag?: number | null;
   };
   geometry: {
     type: "Point";
