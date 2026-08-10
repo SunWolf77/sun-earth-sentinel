@@ -5,6 +5,10 @@
  */
 
 import type { EqCollection, EqFeature } from "@/lib/feeds/usgs";
+import {
+  PROFILE_COMPACT,
+  samePhysicalFeature,
+} from "@/lib/seismology/sameEvent";
 
 const IMO_EVENTS = "https://api.vedur.is/quakes/events";
 
@@ -160,25 +164,11 @@ export function mergeImoIntoCollection(
   for (const jf of imoFeats) {
     const jt = jf.properties.time;
     if (typeof jt === "number" && now - jt > maxAge) continue;
-    const [jlon, jlat] = jf.geometry.coordinates;
-    const jmag = jf.properties.mag ?? 0;
 
     let matched = false;
     for (const bf of enriched) {
       if (isImoFeature(bf)) continue;
-      const [blon, blat] = bf.geometry.coordinates;
-      const bt = bf.properties.time;
-      const bmag = bf.properties.mag ?? 0;
-      if (!Number.isFinite(blat) || !Number.isFinite(blon)) continue;
-      // Iceland is compact — tight spatial match
-      if (Math.abs(blat - jlat) > 0.25 || Math.abs(blon - jlon) > 0.35) continue;
-      if (
-        typeof bt === "number" &&
-        typeof jt === "number" &&
-        Math.abs(bt - jt) > 12 * 60_000
-      )
-        continue;
-      if (Math.abs(bmag - jmag) > 1.0 && jmag >= 2) continue;
+      if (!samePhysicalFeature(bf, jf, PROFILE_COMPACT)) continue;
       bf.properties.imoEnriched = true;
       if (!bf.properties.detail || bf.properties.detail === "usgs") {
         bf.properties.detail = bf.properties.detail || "usgs+imo";

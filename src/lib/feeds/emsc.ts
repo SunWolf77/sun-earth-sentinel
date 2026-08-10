@@ -6,6 +6,10 @@
  */
 
 import type { EqCollection, EqFeature } from "@/lib/feeds/usgs";
+import {
+  PROFILE_GLOBAL,
+  samePhysicalFeature,
+} from "@/lib/seismology/sameEvent";
 
 const EMSC_QUERY = "https://www.seismicportal.eu/fdsnws/event/1/query";
 
@@ -186,24 +190,11 @@ export function mergeEmscIntoCollection(
   for (const ef of emscFeats) {
     const et = ef.properties.time;
     if (typeof et === "number" && now - et > maxAge) continue;
-    const [elon, elat] = ef.geometry.coordinates;
-    const emag = ef.properties.mag ?? 0;
 
     let matched = false;
     for (const bf of enriched) {
       if (isEmscFeature(bf)) continue;
-      const [blon, blat] = bf.geometry.coordinates;
-      const bt = bf.properties.time;
-      const bmag = bf.properties.mag ?? 0;
-      if (!Number.isFinite(blat) || !Number.isFinite(blon)) continue;
-      if (Math.abs(blat - elat) > 0.5 || Math.abs(blon - elon) > 0.6) continue;
-      if (
-        typeof bt === "number" &&
-        typeof et === "number" &&
-        Math.abs(bt - et) > 15 * 60_000
-      )
-        continue;
-      if (Math.abs(bmag - emag) > 1.2 && emag >= 3) continue;
+      if (!samePhysicalFeature(bf, ef, PROFILE_GLOBAL)) continue;
       bf.properties.emscEnriched = true;
       matched = true;
       break;

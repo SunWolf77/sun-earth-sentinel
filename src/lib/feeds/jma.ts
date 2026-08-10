@@ -6,6 +6,10 @@
 
 import type { EqCollection, EqFeature } from "@/lib/feeds/usgs";
 import { jmaLinksForEvent } from "@/lib/seismology/agencyLinks";
+import {
+  PROFILE_NATIONAL,
+  samePhysicalFeature,
+} from "@/lib/seismology/sameEvent";
 
 const JMA_LIST = "https://www.jma.go.jp/bosai/quake/data/list.json";
 const JMA_DETAIL_BASE = "https://www.jma.go.jp/bosai/quake/data/";
@@ -241,28 +245,13 @@ export function mergeJmaIntoCollection(
   for (const jf of jmaFeats) {
     const jt = jf.properties.time;
     if (typeof jt === "number" && now - jt > maxAge) continue;
-    const [jlon, jlat] = jf.geometry.coordinates;
-    const jmag = jf.properties.mag ?? 0;
     const jmaxi = jf.properties.jmaMaxi;
     const jeid = jf.properties.jmaEid;
 
     let matched = false;
     for (const bf of enriched) {
       if (isJmaFeature(bf)) continue;
-      const [blon, blat] = bf.geometry.coordinates;
-      const bt = bf.properties.time;
-      const bmag = bf.properties.mag ?? 0;
-      if (!Number.isFinite(blat) || !Number.isFinite(blon)) continue;
-      const dLat = Math.abs(blat - jlat);
-      const dLon = Math.abs(blon - jlon);
-      if (dLat > 0.4 || dLon > 0.5) continue;
-      if (
-        typeof bt === "number" &&
-        typeof jt === "number" &&
-        Math.abs(bt - jt) > 15 * 60_000
-      )
-        continue;
-      if (Math.abs(bmag - jmag) > 1.2 && jmag >= 3) continue;
+      if (!samePhysicalFeature(bf, jf, PROFILE_NATIONAL)) continue;
       if (jmaxi) bf.properties.jmaMaxi = jmaxi;
       if (jeid) bf.properties.jmaEid = jeid;
       bf.properties.jmaEnriched = true;

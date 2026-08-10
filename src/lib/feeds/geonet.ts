@@ -10,6 +10,10 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import type { EqCollection, EqFeature } from "@/lib/feeds/usgs";
+import {
+  PROFILE_NATIONAL,
+  samePhysicalFeature,
+} from "@/lib/seismology/sameEvent";
 
 const GEONET_API = "https://api.geonet.org.nz/quake";
 const GEONET_FDSN = "https://service.geonet.org.nz/fdsnws/event/1/query";
@@ -353,24 +357,11 @@ export function mergeGeonetIntoCollection(
   for (const gf of gnFeats) {
     const gt = gf.properties.time;
     if (typeof gt === "number" && now - gt > maxAge) continue;
-    const [glon, glat] = gf.geometry.coordinates;
-    const gmag = gf.properties.mag ?? 0;
 
     let matched = false;
     for (const bf of enriched) {
       if (isGeonetFeature(bf)) continue;
-      const [blon, blat] = bf.geometry.coordinates;
-      const bt = bf.properties.time;
-      const bmag = bf.properties.mag ?? 0;
-      if (!Number.isFinite(blat) || !Number.isFinite(blon)) continue;
-      if (Math.abs(blat - glat) > 0.4 || Math.abs(blon - glon) > 0.5) continue;
-      if (
-        typeof bt === "number" &&
-        typeof gt === "number" &&
-        Math.abs(bt - gt) > 15 * 60_000
-      )
-        continue;
-      if (Math.abs(bmag - gmag) > 1.0 && gmag >= 3) continue;
+      if (!samePhysicalFeature(bf, gf, PROFILE_NATIONAL)) continue;
       bf.properties.geonetEnriched = true;
       matched = true;
       break;
