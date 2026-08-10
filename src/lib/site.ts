@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.26.2: atomic IDB prune (single readwrite tx) + set-making-room path.
+ * 1.26.3: cache prune micro-benchmark results (npm run bench:cache) in About.
  */
-export const APP_VERSION = "1.26.2";
+export const APP_VERSION = "1.26.3";
 
 
 

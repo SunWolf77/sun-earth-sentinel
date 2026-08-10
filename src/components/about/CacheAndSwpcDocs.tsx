@@ -11,6 +11,7 @@ import { MANIFEST_FIELD_NOTES } from "@/lib/pwa/manifestMeta";
 import { APP_SHORTCUTS } from "@/lib/pwa/shortcuts";
 import { probeCacheQuota, formatBytes, type QuotaSnapshot } from "@/lib/sw/cacheQuota";
 import { classifyAssetUrl, swrStrategyFor } from "@/lib/sw/lru";
+import { CACHE_BENCH_RESULTS } from "@/lib/cache/benchResults";
 
 export function CacheAndSwpcDocs() {
   const [sw, setSw] = useState<SwStatus | "idle">("idle");
@@ -130,6 +131,68 @@ export function CacheAndSwpcDocs() {
           </li>
         </ul>
         <CodeBlock title="True LRU + algorithm notes" code={CACHE_SNIPPETS.swLruEviction} />
+      </section>
+
+      <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
+        <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-primary">
+          <Layers className="h-4 w-4" />
+          Cache prune micro-benchmarks
+        </h3>
+        <p className="mb-2 text-[0.72rem] leading-relaxed text-muted">
+          Node CPU benches for atomic IDB victim selection (not browser IDB I/O). Re-run{" "}
+          <code className="text-primary">npm run bench:cache</code>. Captured{" "}
+          <span className="font-mono text-fg">
+            {CACHE_BENCH_RESULTS.generatedAt.slice(0, 19).replace("T", " ")}Z
+          </span>
+          {" · "}
+          {String(CACHE_BENCH_RESULTS.env.cpuModel)} · Node{" "}
+          {String(CACHE_BENCH_RESULTS.env.node)}.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[20rem] border-collapse text-left text-[0.65rem]">
+            <thead>
+              <tr className="border-b border-border text-dim">
+                <th className="py-1 pr-2 font-medium">Bench</th>
+                <th className="py-1 pr-2 font-medium">µs/op</th>
+                <th className="py-1 pr-2 font-medium">ops/s</th>
+                <th className="py-1 font-medium">iters</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CACHE_BENCH_RESULTS.benches
+                .filter((b) => b.perOpUs != null)
+                .map((b) => (
+                  <tr key={b.name} className="border-b border-border/50 text-muted">
+                    <td className="py-1 pr-2 font-mono text-fg">{b.name}</td>
+                    <td className="py-1 pr-2 tabular-nums">{b.perOpUs?.toFixed(2)}</td>
+                    <td className="py-1 pr-2 tabular-nums">
+                      {b.opsPerSec?.toLocaleString() ?? "—"}
+                    </td>
+                    <td className="py-1 tabular-nums">{b.iters ?? "—"}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        {(() => {
+          const ratio = CACHE_BENCH_RESULTS.benches.find(
+            (b) => b.name === "atomic_batch_vs_multi_ratio",
+          );
+          if (!ratio) return null;
+          return (
+            <p className="mt-2 text-[0.65rem] leading-snug text-dim">
+              Atomic batch vs multi-delete CPU ratio{" "}
+              <strong className="text-fg">{ratio.ratio?.toFixed(2)}×</strong> on{" "}
+              {ratio.victimCount} victims — real IDB win is{" "}
+              <strong className="text-fg">1 commit vs N</strong>, not sort cost. Sample slimmed
+              EQ×400 JSON ≈{" "}
+              {CACHE_BENCH_RESULTS.samplePayloadBytes
+                ? `${(CACHE_BENCH_RESULTS.samplePayloadBytes / 1024).toFixed(1)} KB`
+                : "—"}
+              .
+            </p>
+          );
+        })()}
       </section>
 
       <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
