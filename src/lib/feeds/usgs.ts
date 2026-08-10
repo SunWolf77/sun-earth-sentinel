@@ -35,6 +35,7 @@ export type EqFeature = {
     jmaEnriched?: boolean;
     emscEnriched?: boolean;
     imoEnriched?: boolean;
+    geonetEnriched?: boolean;
   };
   geometry: {
     type: "Point";
@@ -598,6 +599,36 @@ export const DRAGON_NODES: DragonNode[] = [
       [72, -140],
     ],
   },
+  {
+    id: "newzealand",
+    name: "New Zealand",
+    role: "Published focus · SES #7 · GeoNet densify",
+    kind: "seismic",
+    /**
+     * Aotearoa main islands + near offshore (+ Chatham via densify pad).
+     * GeoNet FDSN is exclusive dense catalog; USGS under-samples heavily.
+     * North of −33° is TK / Kermadec board territory.
+     */
+    bounds: [
+      [-48, 165],
+      [-33, 180],
+    ],
+    center: [-41.0, 174.0],
+    monitorUrl: "https://www.geonet.org.nz/",
+    publishedFocus: true,
+    watchPriority: true,
+    focusNote:
+      "SES node #7 — New Zealand (Aotearoa). GeoNet / GNS Science is exclusive dense catalog (FDSN + API). USGS under-samples here. Hikurangi / Alpine Fault / volcanic zones are educational context — not a forecast.",
+    aliases: [
+      "nz",
+      "new-zealand",
+      "aotearoa",
+      "geonet",
+      "hikurangi",
+      "wellington",
+      "taupo",
+    ],
+  },
 ];
 
 export const FOCUSED_MONITORS = DRAGON_NODES.filter((n) => n.publishedFocus);
@@ -651,7 +682,9 @@ function seismicNodeStatus(
       ? 1.5
       : node.id === "andes"
         ? 2.5
-        : 3.5;
+        : node.id === "newzealand"
+          ? 1.5
+          : 3.5;
   const inBounds = features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
     const mag = f.properties.mag ?? 0;
@@ -726,6 +759,26 @@ function seismicNodeStatus(
     if (m6 >= 1 || m5_72h >= 3) return "watch";
     if (m5 >= 2 || maxMag >= 5.5 || m3 >= 40) return "active";
     if (m5 >= 1 || maxMag >= 4.5 || m3 >= 15 || inBounds.length >= 80) return "elevated";
+    return "quiet";
+  }
+
+  // New Zealand — dense M1.5–3 GeoNet is baseline
+  if (node.id === "newzealand") {
+    if (win === "hour") {
+      if (maxMag >= 5 || m5 >= 1) return "watch";
+      if (maxMag >= 4 || m3 >= 4) return "active";
+      if (maxMag >= 3 || inBounds.length >= 6) return "elevated";
+      return "quiet";
+    }
+    if (win === "day") {
+      if (maxMag >= 5.5 || m5 >= 2) return "watch";
+      if (maxMag >= 4.5 || m5 >= 1 || m3 >= 12) return "active";
+      if (maxMag >= 3.5 || m3 >= 5 || inBounds.length >= 30) return "elevated";
+      return "quiet";
+    }
+    if (m6 >= 1 || m5_72h >= 2) return "watch";
+    if (m5 >= 1 || maxMag >= 5 || m3 >= 25) return "active";
+    if (maxMag >= 4 || m3 >= 10 || inBounds.length >= 60) return "elevated";
     return "quiet";
   }
 

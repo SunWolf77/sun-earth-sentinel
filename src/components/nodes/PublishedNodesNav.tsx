@@ -29,6 +29,7 @@ const SHORTCUT_HINT: Record<string, string> = {
   iceland: "I",
   southsandwich: "S",
   andes: "A",
+  newzealand: "N",
 };
 
 export function PublishedNodesNav({ className = "" }: { className?: string }) {

@@ -48,6 +48,7 @@ export type FeedTimestampInput = {
   jma?: number | null;
   emsc?: number | null;
   imo?: number | null;
+  geonet?: number | null;
   global?: number | null;
   pulse?: number | null;
   donki?: number | null;
@@ -63,6 +64,7 @@ export type FeedSourceErrors = Partial<
     | "geofon"
     | "emsc"
     | "imo"
+    | "geonet"
     | "solar"
     | "volc"
     | "boards"
@@ -115,6 +117,7 @@ export function buildFeedHealth(opts: {
   hasGeofon?: boolean;
   hasEmsc?: boolean;
   hasImo?: boolean;
+  hasGeonet?: boolean;
   hasBoards?: boolean;
   useGeofon?: boolean;
   error: string | null;
@@ -131,6 +134,7 @@ export function buildFeedHealth(opts: {
   const geoTs = ft?.geofon ?? null;
   const emscTs = ft?.emsc ?? null;
   const imoTs = ft?.imo ?? null;
+  const geonetTs = ft?.geonet ?? null;
   const solarTs = ft?.solar ?? null;
   const volcTs = ft?.volc ?? null;
   const boardsTs = ft?.boards ?? null;
@@ -171,6 +175,13 @@ export function buildFeedHealth(opts: {
     loading: opts.loading,
     hasData: !!opts.hasImo || !!imoTs,
     error: err.imo,
+    now,
+    staleMs: 20 * 60_000,
+  });
+  const geonet = layerStatus(geonetTs, {
+    loading: opts.loading,
+    hasData: !!opts.hasGeonet || !!geonetTs,
+    error: err.geonet,
     now,
     staleMs: 20 * 60_000,
   });
@@ -232,6 +243,13 @@ export function buildFeedHealth(opts: {
       hint: "Iceland Met Office · dense national catalog + volcanoes",
     },
     {
+      id: "geonet",
+      label: "GeoNet",
+      status: geonet.status,
+      detail: geonet.detail,
+      hint: "GeoNet NZ · GNS Science FDSN densify",
+    },
+    {
       id: "geofon",
       label: "GEOFON",
       status: geofon.status,
@@ -252,7 +270,7 @@ export function buildFeedHealth(opts: {
       label: "Nodes",
       status: boards.status,
       detail: boards.detail,
-      hint: "Published: TK · CF · JP · KM · IS · SS · CL",
+      hint: "Published: TK · CF · JP · KM · IS · SS · CL · NZ",
     },
     {
       id: "volc",

@@ -184,12 +184,18 @@ export function agencyLinksForEvent(opts: {
   if (
     inBox(lat, lon, -48, -33, 165, 180) ||
     inBox(lat, lon, -48, -33, -180, -175) ||
-    /new zealand|kermadec|auckland|wellington|christchurch|taupo/i.test(placeL)
+    id.startsWith("geonet:") ||
+    /new zealand|kermadec|auckland|wellington|christchurch|taupo|aotearoa|fiordland|hikurangi/i.test(
+      placeL,
+    )
   ) {
-    links.push({
+    links.unshift({
       id: "geonet",
       label: "GeoNet NZ",
-      url: "https://www.geonet.org.nz/earthquake",
+      url: id.startsWith("geonet:")
+        ? `https://www.geonet.org.nz/earthquake/${encodeURIComponent(id.replace(/^geonet:/, ""))}`
+        : "https://www.geonet.org.nz/earthquake",
+      primary: id.startsWith("geonet:"),
     });
   }
 

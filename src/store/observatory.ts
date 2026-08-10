@@ -25,6 +25,10 @@ import {
   fetchImoQuakes,
   mergeImoIntoCollection,
 } from "@/lib/feeds/imoQuakes";
+import {
+  fetchGeonetQuakes,
+  mergeGeonetIntoCollection,
+} from "@/lib/feeds/geonet";
 import { alertNewEvents } from "@/lib/audio/alerts";
 import {
   fetchKp,
@@ -123,6 +127,7 @@ export type FeedTimestamps = {
   jma: number | null;
   emsc: number | null;
   imo: number | null;
+  geonet: number | null;
   global: number | null;
   pulse: number | null;
   donki: number | null;
@@ -139,6 +144,7 @@ export const EMPTY_FEED_TIMESTAMPS: FeedTimestamps = {
   jma: null,
   emsc: null,
   imo: null,
+  geonet: null,
   global: null,
   pulse: null,
   donki: null,
@@ -153,6 +159,7 @@ export type FeedSourceErrors = {
   geofon: string | null;
   emsc: string | null;
   imo: string | null;
+  geonet: string | null;
   solar: string | null;
   volc: string | null;
   boards: string | null;
@@ -168,6 +175,7 @@ export const EMPTY_FEED_ERRORS: FeedSourceErrors = {
   geofon: null,
   emsc: null,
   imo: null,
+  geonet: null,
   solar: null,
   volc: null,
   boards: null,
@@ -1172,6 +1180,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       let jma: EqCollection | null = null;
       let emsc: EqCollection | null = null;
       let imo: EqCollection | null = null;
+      let geonet: EqCollection | null = null;
       const stamps: Partial<FeedTimestamps> = {};
       const errs: Partial<FeedSourceErrors> = {};
       const stamp = (k: keyof FeedTimestamps) => {
@@ -1294,6 +1303,35 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             .catch((e) => {
               imo = getCache<EqCollection>("imo", 300_000);
               if (!imo) fail("imo", e instanceof Error ? e.message : "IMO failed");
+            }),
+        );
+      }
+      // GeoNet NZ densify — FDSN via server proxy (CORS)
+      {
+        const gnDays =
+          timeWindow === "hour"
+            ? 1
+            : timeWindow === "day"
+              ? 2
+              : timeWindow === "week"
+                ? 7
+                : 14;
+        const gnMin = Math.min(cfg.minMag, 1.5);
+        tasks.push(
+          withTimeout(
+            fetchGeonetQuakes({ days: gnDays, minMag: gnMin }),
+            22_000,
+            "geonet",
+          )
+            .then((d) => {
+              geonet = d;
+              setCache("geonet", d);
+              stamp("geonet");
+            })
+            .catch((e) => {
+              geonet = getCache<EqCollection>("geonet", 300_000);
+              if (!geonet)
+                fail("geonet", e instanceof Error ? e.message : "GeoNet failed");
             }),
         );
       }
@@ -1449,7 +1487,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       if (imo) {
         eqFinal = mergeImoIntoCollection(eqFinal, imo, { maxAgeMs: age });
       }
-      // Authority boards (CF / INGV): strip bbox USGS → inject catalogFeedUrl
+      if (geonet) {
+        eqFinal = mergeGeonetIntoCollection(eqFinal, geonet, { maxAgeMs: age });
+      }
+      // Authority boards (CF / INGV / IS / CL / NZ): strip bbox → inject
       // Never dual-read — see src/lib/feeds/nodeCatalogFeed.ts
       try {
         const merged = await mergePublishedNodeFeeds(eqFinal, {
@@ -1796,7 +1837,9 @@ export function viewEvents(
         ? Math.min(minMag, 1.5)
         : node?.id === "andes"
           ? Math.min(minMag, 2.0)
-          : minMag;
+          : node?.id === "newzealand"
+            ? Math.min(minMag, 1.5)
+            : minMag;
   let list = filteredEq(features, floor, maxMag);
   if (node) {
     list = list.filter((f) => {

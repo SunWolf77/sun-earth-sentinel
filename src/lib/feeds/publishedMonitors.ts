@@ -166,6 +166,28 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     focusNote:
       "SES node #6 — Chile–Andes / Nazca. Dense CSN catalog replaces USGS in-box (never dual-read). Phase A EMSC-CSN + Phase B sismologia.cl daily HTML. Attribution: Centro Sismológico Nacional de la Universidad de Chile. Not a forecast.",
   },
+  {
+    sesNodeId: "newzealand",
+    name: "New Zealand",
+    networkOrder: 7,
+    shortCode: "NZ",
+    role: "Published focus · SES #7 · GeoNet densify",
+    monitorUrl: "https://www.geonet.org.nz/",
+    catalogFeedUrl: "geonet://newzealand/catalog",
+    authority: "GeoNet / GNS Science (FDSN + API)",
+    aliases: [
+      "newzealand",
+      "nz",
+      "new-zealand",
+      "aotearoa",
+      "geonet",
+      "hikurangi",
+      "wellington",
+      "taupo",
+    ],
+    focusNote:
+      "SES node #7 — New Zealand. GeoNet FDSN densify replaces USGS in-box (never dual-read). Attribution: GeoNet / GNS Science. Not a forecast.",
+  },
 ];
 
 const ALIAS_TO_SES = (() => {

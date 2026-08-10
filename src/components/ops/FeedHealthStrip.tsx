@@ -62,6 +62,9 @@ export function FeedHealthStrip({
     const hasImo =
       !!feedTimestamps.imo ||
       feats.some((f) => String(f.id ?? "").startsWith("imo:"));
+    const hasGeonet =
+      !!feedTimestamps.geonet ||
+      feats.some((f) => String(f.id ?? "").startsWith("geonet:"));
     const hasBoards =
       !!feedTimestamps.boards ||
       feats.some((f) => {
@@ -78,6 +81,7 @@ export function FeedHealthStrip({
       hasJma,
       hasEmsc,
       hasImo,
+      hasGeonet,
       hasGeofon: !!feedTimestamps.geofon,
       hasBoards,
       useGeofon,

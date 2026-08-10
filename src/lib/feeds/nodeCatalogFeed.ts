@@ -22,6 +22,7 @@ import {
 import { DRAGON_NODES, type EqCollection, type EqFeature } from "@/lib/feeds/usgs";
 import { fetchImoQuakes } from "@/lib/feeds/imoQuakes";
 import { fetchChileAuthorityCatalog } from "@/lib/feeds/csnChile";
+import { fetchGeonetQuakes } from "@/lib/feeds/geonet";
 
 export type SesTimeWindow = "hour" | "day" | "week" | "month";
 
@@ -48,7 +49,9 @@ export function isAuthorityOverrideMonitor(p: PublishedMonitor): boolean {
     /imo/i.test(p.authority) ||
     p.sesNodeId === "iceland" ||
     /csn/i.test(p.authority) ||
-    p.sesNodeId === "andes"
+    p.sesNodeId === "andes" ||
+    /geonet/i.test(p.authority) ||
+    p.sesNodeId === "newzealand"
   );
 }
 
@@ -99,7 +102,9 @@ export function normalizeBoardFeature(raw: unknown, sesNodeId: string): EqFeatur
         ? "imo"
         : sesNodeId === "andes"
           ? "csn"
-          : "ingv";
+          : sesNodeId === "newzealand"
+            ? "geonet"
+            : "ingv";
   const id =
     f.id != null
       ? String(f.id)
@@ -204,8 +209,24 @@ export async function fetchNodeCatalogFeed(
     }
   }
 
+  // New Zealand: GeoNet FDSN densify
+  if (sesNodeId === "newzealand") {
+    try {
+      const days =
+        boardWindow === "24h" ? 2 : boardWindow === "30d" ? 14 : boardWindow === "7d" ? 7 : 7;
+      const col = await fetchGeonetQuakes({ days, minMag: 1.5 });
+      if (col?.features?.length) {
+        setCache(key, col);
+        return col;
+      }
+      return getCache<EqCollection>(key, 600_000);
+    } catch {
+      return getCache<EqCollection>(key, 600_000);
+    }
+  }
+
   const url = catalogFeedUrl(sesNodeId, boardWindow);
-  if (!url || url.startsWith("imo:") || url.startsWith("csn:"))
+  if (!url || url.startsWith("imo:") || url.startsWith("csn:") || url.startsWith("geonet:"))
     return getCache<EqCollection>(key, 600_000);
 
   try {

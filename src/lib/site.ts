@@ -13,9 +13,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
- * 1.19.0: CSN Chile densify (HTML+EMSC) + SS USGS 30d satellite deep-link.
+ * 1.20.0: GeoNet NZ densify + SES #7 New Zealand published node.
  */
-export const APP_VERSION = "1.19.0";
+export const APP_VERSION = "1.20.0";
 
 
 
