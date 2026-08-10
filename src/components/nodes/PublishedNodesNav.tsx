@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useId, useState } from "react";
-import { ChevronDown, ExternalLink, Home, Network, X } from "lucide-react";
+import { ChevronDown, ExternalLink, Home, X } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import {
   WOLFWATCH_NETWORK,
@@ -17,6 +17,7 @@ import {
   type PublishedMonitor,
 } from "@/lib/feeds/publishedMonitors";
 import { BackToSesButton } from "@/components/nodes/BackToSesButton";
+import { WolfFaceIcon } from "@/components/nodes/WolfFaceIcon";
 
 const SHORTCUT_HINT: Record<string, string> = {
   tonga: "T",
@@ -103,7 +104,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
         className="ww-header-row__label ww-header-row__label--ww"
         title={WOLFWATCH_NETWORK.tagline}
       >
-        <Network className="ww-header-row__label-icon" aria-hidden />
+        <WolfFaceIcon className="ww-header-row__label-icon" title="WolfWatch" />
         <span className="ww-header-row__label-full">{WOLFWATCH_NETWORK.shortName}</span>
         <span className="ww-header-row__label-short">{WOLFWATCH_NETWORK.code}</span>
       </span>
@@ -205,6 +206,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
             <header className="ww-ww-sheet__head">
               <div className="min-w-0">
                 <h2 id={sheetTitleId} className="ww-ww-sheet__title">
+                  <WolfFaceIcon className="inline-block h-4 w-4 align-[-0.15em] mr-1.5" />
                   {WOLFWATCH_NETWORK.name}
                 </h2>
                 <p className="ww-ww-sheet__sub">{WOLFWATCH_NETWORK.tagline}</p>

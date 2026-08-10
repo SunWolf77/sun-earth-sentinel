@@ -1,4 +1,4 @@
-import { ExternalLink, Network } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import {
   FOCUSED_MONITORS,
   nodeEventStats,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/feeds/publishedMonitors";
 import { useObservatory } from "@/store/observatory";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import { WolfFaceIcon } from "@/components/nodes/WolfFaceIcon";
 
 const STATUS_LABEL: Record<NodeStatus, string> = {
   quiet: "Quiet",
@@ -50,7 +51,7 @@ export function FocusedNodeCard({ features }: { features: EqFeature[] }) {
   return (
     <section className="space-y-2">
       <h3 className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-gold">
-        <Network className="h-3.5 w-3.5" />
+        <WolfFaceIcon className="h-3.5 w-3.5" />
         {WOLFWATCH_NETWORK.name}
       </h3>
       <p className="text-[0.62rem] leading-snug text-dim">

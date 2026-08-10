@@ -220,10 +220,17 @@
   opacity: 1;
 }
 .ww-header-row__label-icon {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 0.95rem;
+  height: 0.95rem;
   flex-shrink: 0;
-  opacity: 0.9;
+  opacity: 1;
+  color: var(--color-gold);
+}
+@media (min-width: 768px) {
+  .ww-header-row__label-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
 }
 .ww-header-row__label-short {
   display: inline;
