@@ -19,7 +19,10 @@ import {
   List,
   Satellite,
   Orbit,
-  Rocket,
+  Wind,
+  Cloud,
+  Crosshair,
+  CloudRain,
 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import {
@@ -55,6 +58,12 @@ const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   aurora: Sparkles,
   wildfires: Flame,
   neos: Orbit,
+  windParticles: Wind,
+  radar: CloudRain,
+  clouds: Cloud,
+  cape: Zap,
+  waves: Waves,
+  wxProbe: Crosshair,
 };
 
 export function MapStyleControl() {
@@ -75,7 +84,6 @@ export function MapStyleControl() {
     (id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId),
   );
 
-
   const onCount = useMemo(
     () => OVERLAY_META.filter(({ id }) => overlays[id]).length,
     [overlays],
@@ -90,7 +98,6 @@ export function MapStyleControl() {
     });
   };
 
-  // Product: ISS + aurora off the map (user request — calm basemap)
   useEffect(() => {
     if (overlays.iss) setOverlay("iss", false);
     if (overlays.aurora) setOverlay("aurora", false);
@@ -214,6 +221,12 @@ export function MapStyleControl() {
             {LAYER_GROUPS.map((g) => (
               <div key={g.id} className="mt-3">
                 <div className="ww-style-panel__label">{g.label}</div>
+                {g.id === "atmosphere" && (
+                  <p className="mb-1.5 text-[0.58rem] leading-snug text-dim">
+                    Free model/radar context (Open-Meteo · RainViewer). Not official forecasts.
+                    Best on 2D · keep seismic layers readable.
+                  </p>
+                )}
                 <ul className="space-y-1">
                   {g.ids.filter((id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId)).map((id) => {
                     const meta = OVERLAY_META.find((m) => m.id === id);
@@ -262,7 +275,6 @@ export function MapStyleControl() {
         </div>
       )}
 
-      {/* Mobile: 3 actions only (Filters · Events · More). Desktop: layer chips + More. */}
       <div
         className={`ww-toggle-bar pointer-events-auto mx-auto sm:mx-0 ${
           mobile ? "ww-toggle-bar--mobile ww-toggle-bar--dock3" : ""

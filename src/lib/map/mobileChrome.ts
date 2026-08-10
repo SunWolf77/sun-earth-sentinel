@@ -63,9 +63,14 @@ export const LAYER_GROUPS: {
     ids: ["plates", "depthColor", "timeDecay", "volcanoes", "globalVolcanoes", "corridors"],
   },
   {
+    id: "atmosphere",
+    label: "Atmosphere (opt-in · 2D)",
+    ids: ["windParticles", "radar", "clouds", "cape", "waves", "wxProbe"],
+  },
+  {
     id: "space",
     label: "Space (opt-in)",
-    ids: ["neos"], // ISS + aurora removed from product default chrome
+    ids: ["neos"],
   },
   {
     id: "ambient",

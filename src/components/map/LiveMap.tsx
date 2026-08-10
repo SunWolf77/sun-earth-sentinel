@@ -34,6 +34,7 @@ import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
+import { AtmosphereChrome } from "@/components/map/AtmosphereLayers";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
@@ -1143,6 +1144,7 @@ export function LiveMap() {
           <MapLegend />
           <MapStyleControl />
           <EventReplayBar hideIdleOnMobile />
+          <AtmosphereChrome map={mapInstance} />
         </>
       )}
 

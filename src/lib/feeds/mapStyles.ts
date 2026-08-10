@@ -18,7 +18,14 @@ export type MapOverlayId =
   | "iss"
   | "aurora"
   | "wildfires"
-  | "neos";
+  | "neos"
+  /** Atmosphere (Windy-inspired, opt-in) */
+  | "windParticles"
+  | "radar"
+  | "clouds"
+  | "cape"
+  | "waves"
+  | "wxProbe";
 
 export type MapStyleConfig = {
   id: BasemapStyleId;
@@ -76,12 +83,12 @@ export const BASEMAP_STYLES: Record<BasemapStyleId, MapStyleConfig> = {
 /**
  * Startup defaults — map readable first, layers opt-in.
  * Quakes on (filtered by minMag M4.5+), nodes on; plates/depth/zones off.
+ * Atmosphere always off.
  */
 export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   quakes: true,
-  heatmap: false,  // density — opt-in only
+  heatmap: false,
   nodes: true,
-  /** Elevated world (USGS + GVP + GT Phase A) — lean cap, not Holocene catalog */
   volcanoes: true,
   globalVolcanoes: false,
   corridors: false,
@@ -95,6 +102,12 @@ export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   aurora: false,
   wildfires: false,
   neos: false,
+  windParticles: false,
+  radar: false,
+  clouds: false,
+  cape: false,
+  waves: false,
+  wxProbe: false,
 };
 
 /** Mobile first-open: even leaner */
@@ -106,7 +119,7 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     corridors: false,
     volcanoes: true,
     globalVolcanoes: false,
-    heatmap: false,  // density — opt-in only
+    heatmap: false,
     timeDecay: false,
     mmiContours: true,
     nodes: true,
@@ -116,6 +129,12 @@ export function mobileLeanOverlays(): Record<MapOverlayId, boolean> {
     aurora: false,
     wildfires: false,
     neos: false,
+    windParticles: false,
+    radar: false,
+    clouds: false,
+    cape: false,
+    waves: false,
+    wxProbe: false,
   };
 }
 
@@ -197,7 +216,7 @@ export const OVERLAY_META: {
     short: "Zones",
     hint: "Focus zones",
   },
-{
+  {
     id: "iss",
     label: "ISS track",
     short: "ISS",
@@ -221,6 +240,42 @@ export const OVERLAY_META: {
     short: "NEO",
     hint: "NeoWs today",
   },
+  {
+    id: "windParticles",
+    label: "Wind particles",
+    short: "Wind",
+    hint: "Open-Meteo 10 m · animated streamlines · 2D only",
+  },
+  {
+    id: "radar",
+    label: "Precipitation radar",
+    short: "Radar",
+    hint: "RainViewer global radar · free tiles",
+  },
+  {
+    id: "clouds",
+    label: "Cloud cover",
+    short: "Clouds",
+    hint: "Open-Meteo cloud % grid",
+  },
+  {
+    id: "cape",
+    label: "CAPE (instability)",
+    short: "CAPE",
+    hint: "Convective available potential energy · model",
+  },
+  {
+    id: "waves",
+    label: "Ocean waves",
+    short: "Waves",
+    hint: "Open-Meteo marine wave height",
+  },
+  {
+    id: "wxProbe",
+    label: "Weather probe",
+    short: "Probe",
+    hint: "Click map for point wind / temp / CAPE / waves",
+  },
 ];
 
 export function loadBasemapStyle(): BasemapStyleId {
@@ -235,7 +290,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v6";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v7";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
@@ -243,11 +298,10 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
     const raw = localStorage.getItem(OVERLAY_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Record<MapOverlayId, boolean>>;
-      // Keep user toggles, but never inherit a stuck M6+ filter from corrupt prefs
       return { ...DEFAULT_OVERLAYS, ...parsed };
     }
-    // Migrate older prefs → calm defaults (M6+ OFF, no ISS / aurora / heat)
     for (const k of [
+      "wolfwatch_overlays_v6",
       "wolfwatch_overlays_v5",
       "wolfwatch_overlays_v4",
       "wolfwatch_overlays_v3",
@@ -265,8 +319,13 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
           iss: false,
           aurora: false,
           heatmap: false,
-          // First open of v6: map shows full catalog, M6+ is opt-in
           significant: false,
+          windParticles: false,
+          radar: false,
+          clouds: false,
+          cape: false,
+          waves: false,
+          wxProbe: false,
         };
         localStorage.removeItem(k);
         try {
