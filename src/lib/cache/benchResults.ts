@@ -26,7 +26,7 @@ export type CacheBenchResults = {
 };
 
 export const CACHE_BENCH_RESULTS: CacheBenchResults = {
-  "generatedAt": "2026-08-10T10:06:22.024Z",
+  "generatedAt": "2026-08-10T10:07:22.340Z",
   "env": {
     "platform": "linux",
     "arch": "x64",
@@ -34,81 +34,81 @@ export const CACHE_BENCH_RESULTS: CacheBenchResults = {
     "cpus": 2,
     "cpuModel": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
     "totalMemMb": 4121,
-    "freeMemMb": 2703
+    "freeMemMb": 2716
   },
   "note": "Node micro-benchmarks for prune selection & dual-write policy. Not browser IDB I/O latency (that needs Playwright).",
   "benches": [
     {
       "name": "pickVictims_n32",
       "iters": 5000,
-      "totalMs": 12.374,
-      "perOpUs": 2.475,
-      "opsPerSec": 404082
+      "totalMs": 12.523,
+      "perOpUs": 2.505,
+      "opsPerSec": 399259
     },
     {
       "name": "pickVictims_n128",
       "iters": 5000,
-      "totalMs": 50.649,
-      "perOpUs": 10.13,
-      "opsPerSec": 98718
+      "totalMs": 50.854,
+      "perOpUs": 10.171,
+      "opsPerSec": 98320
     },
     {
       "name": "pickVictims_n512",
       "iters": 5000,
-      "totalMs": 225.49,
-      "perOpUs": 45.098,
-      "opsPerSec": 22174
+      "totalMs": 223.714,
+      "perOpUs": 44.743,
+      "opsPerSec": 22350
     },
     {
       "name": "pickVictims_n2048",
       "iters": 1500,
-      "totalMs": 319.827,
-      "perOpUs": 213.218,
-      "opsPerSec": 4690
+      "totalMs": 296.276,
+      "perOpUs": 197.518,
+      "opsPerSec": 5063
     },
     {
       "name": "isIdbPreferredKey_1200",
       "iters": 3000,
-      "totalMs": 69.274,
-      "perOpUs": 23.091,
-      "opsPerSec": 43306
+      "totalMs": 63.935,
+      "perOpUs": 21.312,
+      "opsPerSec": 46923
     },
     {
       "name": "sim_multi_tx_deletes",
       "iters": 8000,
-      "totalMs": 3.875,
-      "perOpUs": 0.484,
-      "opsPerSec": 2064457
+      "totalMs": 3.716,
+      "perOpUs": 0.464,
+      "opsPerSec": 2152906
     },
     {
       "name": "sim_atomic_delete_batch",
       "iters": 8000,
-      "totalMs": 2.542,
-      "perOpUs": 0.318,
-      "opsPerSec": 3147472
+      "totalMs": 2.52,
+      "perOpUs": 0.315,
+      "opsPerSec": 3174409
     },
     {
       "name": "sim_full_atomic_prune_256",
       "iters": 4000,
-      "totalMs": 89.655,
-      "perOpUs": 22.414,
-      "opsPerSec": 44616
+      "totalMs": 90.046,
+      "perOpUs": 22.511,
+      "opsPerSec": 44422
     },
     {
       "name": "atomic_batch_vs_multi_ratio",
       "note": "perOpUs(atomic_batch) / perOpUs(multi) on same victim list — ~1.0 means batch ≈ multi CPU; real win is 1 IDB commit vs N",
-      "ratio": 0.657,
-      "multiPerOpUs": 0.484,
-      "atomicPerOpUs": 0.318,
+      "ratio": 0.679,
+      "multiPerOpUs": 0.464,
+      "atomicPerOpUs": 0.315,
       "victimCount": 237,
-      "fullAtomicPerOpUs": 22.414
+      "fullAtomicPerOpUs": 22.511
     },
     {
       "name": "json_stringify_eq400",
       "iters": 200,
-      "totalMs": 45.303,
-      "perOpUs": 226.517,
-      "opsPerSec": 4415
+      "totalMs": 44.923,
+      "perOpUs": 224.614,
+      "opsPerSec": 4452
     }
   ],
   "correctness": [
