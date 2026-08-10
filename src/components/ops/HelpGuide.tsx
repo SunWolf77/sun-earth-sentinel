@@ -86,7 +86,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "All (header) — full WolfWatch desk list with names & boards (mobile-friendly).",
       "Esc — leave full-screen map, or clear focus / close sheet.",
       "? — open this how-to. Shortcuts ignore keys while typing in fields.",
-      "Header layout: brand/tools → Views (tabs) → Nodes (SES + published hops + Back).",
+      "Header layout: brand/tools → Views → WolfWatch desks (SES + codes + All).",
     ],
   },
   {
