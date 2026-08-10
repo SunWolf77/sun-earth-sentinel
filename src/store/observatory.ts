@@ -114,7 +114,7 @@ import {
 type AlertItem = { message?: string; issue_datetime?: string };
 
 export type TabId = "live" | "solar" | "resonance" | "analytics" | "about";
-export type MobileSheet = "closed" | "filters" | "events";
+export type MobileSheet = "closed" | "filters" | "events" | "map" | "event";
 export type MapView = "2d" | "3d";
 export type TimeWindow = "hour" | "day" | "week" | "month";
 

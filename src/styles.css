@@ -958,6 +958,57 @@
   white-space: nowrap;
 }
 
+/* Map · Filters · Events · Layers */
+.ww-toggle-bar--dock4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  width: min(100%, 24rem);
+  max-width: calc(100vw - 0.75rem);
+  margin-inline: auto;
+  overflow: hidden;
+}
+.ww-toggle-bar--dock4 .ww-toggle--dock {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  justify-content: center;
+  min-height: 2.7rem;
+  padding: 0.3rem 0.2rem;
+  font-size: 0.62rem;
+  gap: 0.2rem;
+}
+.ww-toggle-bar--dock4 .ww-toggle--dock span:not(.ww-toggle-badge) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile event sheet above dock */
+.ww-mobile-event-sheet {
+  animation: ww-sheet-up 0.18s ease;
+}
+
+/* Leaflet popups: don't cover the whole phone when detail sheet owns the story */
+@media (max-width: 640px) {
+  .leaflet-popup-content-wrapper {
+    max-width: min(88vw, 17rem) !important;
+  }
+  .leaflet-popup-content {
+    margin: 8px 10px !important;
+    max-height: 28vh;
+    overflow-y: auto;
+    font-size: 12px !important;
+    line-height: 1.35;
+  }
+  .ww-eq-popup .leaflet-popup-content a {
+    word-break: break-word;
+  }
+  /* Keep popup below header / above bottom dock */
+  .leaflet-popup {
+    margin-bottom: 0.5rem;
+  }
+}
+
 .ww-toggle-badge {
   display: inline-flex;
   min-width: 1.1rem;

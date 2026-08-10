@@ -29,6 +29,7 @@ import {
 } from "@/lib/seismology/shakemap";
 import { formatUtc } from "@/lib/utils";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { MapChromeDock } from "@/components/map/MapChromeDock";
 import {
   nodeWhyLine,
@@ -63,6 +64,7 @@ import {
  * 30fps, context-loss → 2D fallback) so phones do not crash out of WebGL.
  */
 export function Globe3D() {
+  const isMobileGlobe = useIsMobile();
   const containerRef = useRef<HTMLDivElement>(null);
   const eq = useObservatory((s) => s.eq);
   const minMag = useObservatory((s) => s.minMag);
@@ -2232,7 +2234,7 @@ export function Globe3D() {
         </div>
       )}
 
-      {pickedEvent && (
+      {pickedEvent && !isMobileGlobe && (
         <div className="pointer-events-none absolute left-3 top-12 z-20 max-w-[min(300px,78vw)]">
           <div className="pointer-events-auto rounded-md border border-border bg-surface/95 px-2.5 py-2 text-[0.72rem] shadow-lg">
           <div className="flex items-start justify-between gap-2">
@@ -2399,6 +2401,7 @@ export function Globe3D() {
           {spinResumeHint}
         </div>
       )}
+      {!isMobileGlobe && (
       <div className="pointer-events-none absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] right-[max(0.35rem,env(safe-area-inset-right))] z-30 sm:bottom-4 sm:right-3">
         <MapChromeDock
           className="items-end"
@@ -2410,6 +2413,7 @@ export function Globe3D() {
           onTiltPreset={(k) => tiltPresetRef.current?.(k)}
         />
       </div>
+      )}
 
     </div>
   );

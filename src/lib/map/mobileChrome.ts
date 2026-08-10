@@ -1,12 +1,17 @@
 /**
  * Mobile map chrome patterns (collapse strategy).
  *
+ * Zones (portrait ~390px) — nothing free-floats over Earth mid-screen:
+ *  TOP:    app header + WolfWatch rail + single Pulse strip (expandable)
+ *  CENTER: map only (+ leaflet marker; event detail is a bottom sheet)
+ *  BOTTOM: one dock — Map · Filters · Events · Layers (mutual exclusive sheets)
+ *
  * Principles:
- *  1. Map is the hero — overlays chrome starts collapsed / minimal.
- *  2. Progressive disclosure: quick bar (few) → sheet (full) → legend Key chip.
- *  3. Mutually exclusive expand: opening Layers sheet closes Legend, and vice versa.
- *  4. Persist only explicit user expands (legend open key); sheets stay session-ephemeral.
- *  5. Touch targets ≥ 36–44px; avoid wrapping a second full row of toggles on ~390px.
+ *  1. Map is the hero — chrome starts collapsed / minimal.
+ *  2. Progressive disclosure: dock → one sheet at a time.
+ *  3. Mutually exclusive expand: Map | Filters | Events | Layers | Event detail.
+ *  4. Persist only explicit user expands; sheets stay session-ephemeral.
+ *  5. Touch targets ≥ 36–44px; no second row of toggles on ~390px.
  */
 
 export const MAP_CHROME_EVENT = "ww-map-chrome";
@@ -15,7 +20,9 @@ export type MapChromeMessage =
   | { type: "open-layers" }
   | { type: "close-layers" }
   | { type: "open-legend" }
-  | { type: "close-legend" };
+  | { type: "close-legend" }
+  | { type: "open-map-tools" }
+  | { type: "close-map-tools" };
 
 export function emitMapChrome(msg: MapChromeMessage): void {
   if (typeof window === "undefined") return;
@@ -33,8 +40,8 @@ export function onMapChrome(handler: (msg: MapChromeMessage) => void): () => voi
 }
 
 /**
- * Mobile bottom bar: NO layer chips here — only Filters / Events / More.
- * Layer toggles live inside the More sheet (avoids dock overflow on ~390px).
+ * Mobile bottom bar: NO layer chips here — only Map / Filters / Events / Layers.
+ * Layer toggles live inside the Layers sheet (avoids dock overflow on ~390px).
  */
 export const MOBILE_QUICK_LAYERS = [] as const;
 

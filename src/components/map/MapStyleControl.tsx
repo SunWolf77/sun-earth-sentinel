@@ -24,6 +24,7 @@ import {
   Crosshair,
   CloudRain,
   Droplets,
+  Map as MapIcon,
 } from "lucide-react";
 
 import { useObservatory } from "@/store/observatory";
@@ -42,6 +43,8 @@ import {
   emitMapChrome,
   onMapChrome,
 } from "@/lib/map/mobileChrome";
+import { MobileMapToolsPanel } from "@/components/map/MobileMapToolsPanel";
+import { timeWindowChip } from "@/lib/map/timeWindowLabel";
 
 const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   quakes: Activity,
@@ -81,6 +84,8 @@ export function MapStyleControl() {
   const mobile = useIsMobile();
   const mobileSheet = useObservatory((s) => s.mobileSheet);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
+  const mapView = useObservatory((s) => s.mapView);
+  const timeWindow = useObservatory((s) => s.timeWindow);
 
   const HIDDEN_OVERLAYS = new Set<MapOverlayId>(["iss", "aurora"]);
   const quickIds = (mobile ? MOBILE_QUICK_LAYERS : DESKTOP_QUICK_LAYERS).filter(
@@ -95,8 +100,10 @@ export function MapStyleControl() {
   const setOpenSafe = (next: boolean | ((v: boolean) => boolean)) => {
     setOpen((prev) => {
       const v = typeof next === "function" ? next(prev) : next;
-      if (v) emitMapChrome({ type: "open-layers" });
-      else emitMapChrome({ type: "close-layers" });
+      if (v) {
+        emitMapChrome({ type: "open-layers" });
+        setMobileSheet("closed");
+      } else emitMapChrome({ type: "close-layers" });
       return v;
     });
   };
@@ -109,9 +116,14 @@ export function MapStyleControl() {
 
   useEffect(() => {
     return onMapChrome((msg) => {
-      if (msg.type === "open-legend") setOpen(false);
+      if (msg.type === "open-legend" || msg.type === "open-map-tools") setOpen(false);
     });
   }, []);
+
+  // One sheet at a time: layers panel closes when another sheet opens
+  useEffect(() => {
+    if (mobile && mobileSheet !== "closed") setOpen(false);
+  }, [mobile, mobileSheet]);
 
   useEffect(() => {
     if (!open) return;
@@ -145,12 +157,18 @@ export function MapStyleControl() {
     setOpenSafe(false);
   };
 
+  const openSheet = (id: "map" | "filters" | "events") => {
+    setOpenSafe(false);
+    setMobileSheet(mobileSheet === id ? "closed" : id);
+    if (id === "map") emitMapChrome({ type: "open-map-tools" });
+  };
+
   return (
     <div
       ref={panelRef}
       className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] flex flex-col items-stretch gap-1 p-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] sm:items-end sm:gap-2 sm:p-3 sm:pb-3"
     >
-      {mobile && onCount >= 7 && !open && (
+      {mobile && onCount >= 7 && !open && mobileSheet === "closed" && (
         <div className="pointer-events-auto mx-auto mb-1 flex max-w-[min(100%,20rem)] items-center gap-1.5 rounded-full border border-warn/40 bg-bg/95 px-2.5 py-1 text-[0.58rem] shadow-lg backdrop-blur">
           <span className="font-semibold text-warn">{onCount} layers</span>
           <span className="text-dim">busy map</span>
@@ -163,6 +181,8 @@ export function MapStyleControl() {
           </button>
         </div>
       )}
+
+      {/* Layers panel */}
       {open && (
         <div
           id="map-style-layers"
@@ -231,46 +251,48 @@ export function MapStyleControl() {
                   </p>
                 )}
                 <ul className="space-y-1">
-                  {g.ids.filter((id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId)).map((id) => {
-                    const meta = OVERLAY_META.find((m) => m.id === id);
-                    if (!meta) return null;
-                    const Icon = OVERLAY_ICONS[id as MapOverlayId];
-                    const on = overlays[id as MapOverlayId];
-                    const focusOnly = id === "mmiContours";
-                    return (
-                      <li key={id}>
-                        <button
-                          type="button"
-                          onClick={() => setOverlay(id as MapOverlayId, !on)}
-                          className={`ww-layer-row ${on ? "ww-layer-row--on" : ""} ${
-                            focusOnly && !focusNodeId ? "opacity-70" : ""
-                          }`}
-                          disabled={focusOnly && !focusNodeId}
-                          title={
-                            focusOnly && !focusNodeId
-                              ? "Select a focus node first"
-                              : meta.hint
-                          }
-                        >
-                          <Icon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="min-w-0 flex-1 text-left">
-                            <span className="block text-[0.72rem] font-medium">
-                              {meta.label}
-                            </span>
-                            <span className="block text-[0.58rem] text-dim">
-                              {meta.hint}
-                            </span>
-                          </span>
-                          <span
-                            className={`ww-layer-state ${on ? "ww-layer-state--on" : "ww-layer-state--off"}`}
-                            aria-hidden
+                  {g.ids
+                    .filter((id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId))
+                    .map((id) => {
+                      const meta = OVERLAY_META.find((m) => m.id === id);
+                      if (!meta) return null;
+                      const Icon = OVERLAY_ICONS[id as MapOverlayId];
+                      const on = overlays[id as MapOverlayId];
+                      const focusOnly = id === "mmiContours";
+                      return (
+                        <li key={id}>
+                          <button
+                            type="button"
+                            onClick={() => setOverlay(id as MapOverlayId, !on)}
+                            className={`ww-layer-row ${on ? "ww-layer-row--on" : ""} ${
+                              focusOnly && !focusNodeId ? "opacity-70" : ""
+                            }`}
+                            disabled={focusOnly && !focusNodeId}
+                            title={
+                              focusOnly && !focusNodeId
+                                ? "Select a focus node first"
+                                : meta.hint
+                            }
                           >
-                            {on ? "ON" : "OFF"}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                            <Icon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="min-w-0 flex-1 text-left">
+                              <span className="block text-[0.72rem] font-medium">
+                                {meta.label}
+                              </span>
+                              <span className="block text-[0.58rem] text-dim">
+                                {meta.hint}
+                              </span>
+                            </span>
+                            <span
+                              className={`ww-layer-state ${on ? "ww-layer-state--on" : "ww-layer-state--off"}`}
+                              aria-hidden
+                            >
+                              {on ? "ON" : "OFF"}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                 </ul>
               </div>
             ))}
@@ -278,9 +300,33 @@ export function MapStyleControl() {
         </div>
       )}
 
+      {/* Map tools sheet (mobile) */}
+      {mobile && mobileSheet === "map" && (
+        <div
+          className="ww-style-panel ww-style-panel--sheet pointer-events-auto w-full self-center"
+          role="dialog"
+          aria-label="Map tools"
+        >
+          <div className="mb-1 flex items-center justify-between gap-2 px-1 pt-1">
+            <div className="text-[0.65rem] font-semibold uppercase tracking-wider text-dim">
+              Map tools · {mapView === "3d" ? "3D" : "2D"} · {timeWindowChip(timeWindow)}
+            </div>
+            <button
+              type="button"
+              className="ww-btn ww-btn--icon h-9 w-9 min-h-0"
+              aria-label="Close map tools"
+              onClick={() => setMobileSheet("closed")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <MobileMapToolsPanel />
+        </div>
+      )}
+
       <div
         className={`ww-toggle-bar pointer-events-auto mx-auto sm:mx-0 ${
-          mobile ? "ww-toggle-bar--mobile ww-toggle-bar--dock3" : ""
+          mobile ? "ww-toggle-bar--mobile ww-toggle-bar--dock4" : ""
         }`}
       >
         {quickIds.map((id) => {
@@ -314,15 +360,29 @@ export function MapStyleControl() {
             <button
               type="button"
               className={`ww-toggle ww-toggle--dock ${
+                mobileSheet === "map" ? "ww-toggle--style" : ""
+              }`}
+              aria-pressed={mobileSheet === "map"}
+              aria-label="Map tools"
+              title="2D/3D · catalog window · home"
+              onClick={() => openSheet("map")}
+            >
+              {mapView === "3d" ? (
+                <Globe2 className="h-4 w-4 shrink-0" aria-hidden />
+              ) : (
+                <MapIcon className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              <span>Map</span>
+            </button>
+            <button
+              type="button"
+              className={`ww-toggle ww-toggle--dock ${
                 mobileSheet === "filters" ? "ww-toggle--style" : ""
               }`}
               aria-pressed={mobileSheet === "filters"}
               aria-label="Filters"
               title="Filters"
-              onClick={() => {
-                setOpenSafe(false);
-                setMobileSheet(mobileSheet === "filters" ? "closed" : "filters");
-              }}
+              onClick={() => openSheet("filters")}
             >
               <Filter className="h-4 w-4 shrink-0" aria-hidden />
               <span>Filters</span>
@@ -335,10 +395,7 @@ export function MapStyleControl() {
               aria-pressed={mobileSheet === "events"}
               aria-label="Events"
               title="Events"
-              onClick={() => {
-                setOpenSafe(false);
-                setMobileSheet(mobileSheet === "events" ? "closed" : "events");
-              }}
+              onClick={() => openSheet("events")}
             >
               <List className="h-4 w-4 shrink-0" aria-hidden />
               <span>Events</span>

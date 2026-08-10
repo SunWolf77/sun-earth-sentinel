@@ -20,6 +20,8 @@ import { useObservatory, filteredEq, viewEvents, getAllFocusNodes, type TabId } 
 import { TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 import { MapViewToggle } from "@/components/map/MapViewToggle";
 import { MapChromeDock } from "@/components/map/MapChromeDock";
+import { MobileEventSheet } from "@/components/map/MobileEventSheet";
+import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { HelpGuide, HelpTipBanner } from "@/components/ops/HelpGuide";
 import { MODES, MODE_ORDER, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
@@ -33,6 +35,7 @@ import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { SinceLastVisitStrip } from "@/components/ops/SinceLastVisitStrip";
+import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
@@ -519,6 +522,17 @@ function ObservatoryApp() {
     };
   }, [mapImmersive, mapView]);
 
+  // Mobile: selected EQ opens bottom event sheet (tools stay in dock)
+  useEffect(() => {
+    if (!isMobile || tab !== "live") return;
+    if (pickedEvent) {
+      setMobileSheet("event");
+    } else if (mobileSheet === "event") {
+      setMobileSheet("closed");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedEvent?.id, isMobile, tab]);
+
   const filtersBlock = (
     <div className="space-y-3 p-3">
       <div>
@@ -866,34 +880,38 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Map-first on phone: brief bar only; feed ages behind tap (saves vertical map space) */}
+      {/* Map-first on phone: one Pulse strip; desktop keeps full stack */}
       {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
         <div
           className={`ww-brief-strip shrink-0 border-b border-border/60 px-2 sm:px-3 ${
-            isMobile ? (tab === "live" ? "py-0.5" : "py-0.5") : "py-1 sm:py-1.5"
+            isMobile ? "py-0.5" : "py-1 sm:py-1.5"
           }`}
         >
-          <TodayBriefBar dense />
-          {tab === "live" && (
-            <div className="mt-0.5 min-w-0">
-              <SinceLastVisitStrip dense />
-            </div>
+          {isMobile && tab === "live" ? (
+            <MobilePulseStrip />
+          ) : (
+            <>
+              <TodayBriefBar dense />
+              {tab === "live" && (
+                <div className="mt-0.5 min-w-0">
+                  <SinceLastVisitStrip dense />
+                </div>
+              )}
+              {tab === "live" && (
+                <div className="mt-0.5 min-w-0">
+                  <ActivityStoryChip />
+                </div>
+              )}
+              {tab === "live" && !isMobile && (
+                <div className="mt-0.5 min-w-0">
+                  <CrossFeedChips />
+                </div>
+              )}
+              <div className={`mt-0.5 min-w-0`}>
+                <FeedHealthStrip compact />
+              </div>
+            </>
           )}
-          {tab === "live" && (
-            <div className="mt-0.5 min-w-0">
-              <ActivityStoryChip />
-            </div>
-          )}
-          {/* Cross-feed desktop only — mobile map stays clean */}
-          {tab === "live" && !isMobile && (
-            <div className="mt-0.5 min-w-0">
-              <CrossFeedChips />
-            </div>
-          )}
-          {/* Per-source health: always available; compact on mobile (toggle expands chips) */}
-          <div className={`mt-0.5 min-w-0 ${isMobile && tab === "live" ? "px-0.5" : ""}`}>
-            <FeedHealthStrip compact />
-          </div>
         </div>
       )}
 
@@ -1054,15 +1072,22 @@ function ObservatoryApp() {
                 </ClientOnly>
                 {/* Dedicated back-to-SES — only while a node/zone is focused */}
                 <BackToSesButton variant="float" />
-                {/* Edge chrome dock — out of the way of Earth / map center */}
-                {mapView === "2d" && (
+                {isMobile && <MobileEventSheet />}
+                {/* Shared mobile tool dock — works for 2D and 3D */}
+                {isMobile && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[500]">
+                    <MapStyleControl />
+                  </div>
+                )}
+                {/* Desktop edge dock; mobile 2D tools live in bottom Map tab */}
+                {mapView === "2d" && !isMobile && (
                   <div className="pointer-events-none absolute bottom-[4.25rem] right-1.5 z-[550] sm:bottom-4 sm:right-3">
                     <MapChromeDock className="items-end" />
                   </div>
                 )}
               </div>
             </div>
-            {mobileSheet !== "closed" && (
+            {mobileSheet !== "closed" && mobileSheet !== "map" && mobileSheet !== "event" && (
               <div className="absolute inset-x-0 bottom-0 z-[600] max-h-[min(55vh,calc(100%-4.5rem))] overflow-hidden rounded-t-xl border border-border bg-bg shadow-2xl lg:hidden">
                 <div className="flex items-center justify-between border-b border-border px-3 py-2">
                   <span className="text-xs font-semibold text-fg">

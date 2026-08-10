@@ -1147,27 +1147,29 @@ export function LiveMap() {
   useAmbientMapLayers(mapView === "2d" ? mapInstance : null);
 
   return (
-    <div
-      className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border sm:min-h-[280px]"
-      style={{ display: mapView === "2d" ? "block" : "none" }}
-    >
-      <div ref={mapRef} className="ww-map h-full min-h-0 w-full" />
-      <NodeFocusBanner />
-      <div className="pointer-events-none absolute right-2 top-14 z-[440] sm:top-16 sm:right-3">
-        <AuroraOfficialPanel />
-      </div>
-      <MmiFocusBanner />
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border sm:min-h-[280px]">
+      <div
+        ref={mapRef}
+        className="ww-map h-full min-h-0 w-full"
+        style={{ display: mapView === "2d" ? "block" : "none" }}
+      />
       {mapView === "2d" && (
         <>
+          <NodeFocusBanner />
+          <div className="pointer-events-none absolute right-2 top-14 z-[440] sm:top-16 sm:right-3">
+            <AuroraOfficialPanel />
+          </div>
+          <MmiFocusBanner />
           <MapLegend />
-          <MapStyleControl />
           <EventReplayBar hideIdleOnMobile />
           <AtmosphereChrome map={mapInstance} />
           <AuWeatherDeskChip map={mapInstance} />
         </>
       )}
+      {/* Desktop layer bar; mobile dock is mounted once in index for 2D+3D */}
+      {!isMobileMap && <MapStyleControl />}
 
-      {pressLabel && (
+      {pressLabel && mapView === "2d" && (
         <div className="pointer-events-none absolute left-1/2 top-3 z-[520] -translate-x-1/2 rounded-full border border-border bg-bg/95 px-3 py-1.5 font-mono text-[0.7rem] text-primary shadow-lg backdrop-blur">
           {pressLabel}
         </div>
