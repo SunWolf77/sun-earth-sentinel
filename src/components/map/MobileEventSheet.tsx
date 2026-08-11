@@ -6,7 +6,6 @@
 import { ExternalLink, List, X } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { magColor } from "@/lib/feeds/usgs";
-import { ShareEventCard } from "@/components/ops/ShareEventCard";
 
 function formatUtc(t: number | null | undefined): string {
   if (t == null || !Number.isFinite(t)) return "—";
@@ -77,7 +76,6 @@ export function MobileEventSheet() {
               Agency page
             </a>
           )}
-          <ShareEventCard event={pickedEvent} compact className="min-h-9" />
           <button
             type="button"
             className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-border px-2.5 text-[0.68rem] font-semibold text-muted"

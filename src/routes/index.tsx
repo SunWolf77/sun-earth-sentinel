@@ -60,8 +60,6 @@ import {
   shareOrCopy,
   softReplaceShareUrl,
 } from "@/lib/pwa/shareFocus";
-import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
-import { ShareEventCard } from "@/components/ops/ShareEventCard";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { Link2, Check } from "lucide-react";
@@ -647,15 +645,7 @@ function ObservatoryApp() {
         <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
           Events ({features.length})
         </h3>
-        {pickedEvent && (
-          <ShareEventCard event={pickedEvent} compact className="shrink-0" />
-        )}
       </div>
-      {focusNodeId && (
-        <div className="flex justify-end">
-          <ShareFocusButton target="node" nodeId={focusNodeId} compact label="Share zone" />
-        </div>
-      )}
       <ul className="scroll-thin max-h-[50vh] space-y-1 overflow-y-auto lg:max-h-none">
         {features.slice(0, 80).map((f) => {
           const [lon, lat] = f.geometry.coordinates;

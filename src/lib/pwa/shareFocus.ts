@@ -17,10 +17,11 @@ import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 import { viewFromLocation, type ViewDeepLink } from "@/lib/pwa/shortcuts";
 
 /**
- * Public share buttons / popup share — re-enabled after hydrate race fix
- * (syncViewToUrl no longer strips ?event=&lat=&lon= before focus applies).
+ * Public share buttons / popup share — OFF.
+ * Deep-link focus still not reliable enough (opens home map).
+ * Flip true only after open-in-new-tab QA: fly + pick event, not bare home.
  */
-export const SHARE_FOCUS_UI_ENABLED = true;
+export const SHARE_FOCUS_UI_ENABLED = false;
 
 export type ShareFocusKind = "event" | "node" | "volcano" | "view" | "replay";
 
