@@ -28,7 +28,6 @@ import {
 import { createPlateLayer, type PlateLayerHandle } from "@/components/map/PlateLayer";
 import { attachMapTouchGestures, type MapTouchHandle } from "@/lib/map/touchGestures";
 import { NodeFocusBanner } from "@/components/nodes/NodeFocusPanel";
-import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { AuroraOfficialPanel } from "@/components/map/AuroraOfficialPanel";
 import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
 import { MapLegend } from "@/components/map/MapLegend";
@@ -1238,7 +1237,7 @@ export function LiveMap() {
   useAmbientMapLayers(mapView === "2d" ? mapInstance : null);
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border sm:min-h-[280px]">
+    <div className="relative h-full min-h-0 w-full overflow-hidden sm:min-h-[280px]">
       <div
         ref={mapRef}
         className="ww-map h-full min-h-0 w-full"
@@ -1257,8 +1256,7 @@ export function LiveMap() {
           <AuWeatherDeskChip map={mapInstance} />
         </>
       )}
-      {/* Desktop layer bar; mobile dock is mounted once in index for 2D+3D */}
-      {!isMobileMap && <MapStyleControl />}
+      {/* Layer bar mounts in ww-map-stage__dock (grid) from index — not over canvas */}
 
       {pressLabel && mapView === "2d" && (
         <div className="pointer-events-none absolute left-1/2 top-3 z-[520] -translate-x-1/2 rounded-full border border-border bg-bg/95 px-3 py-1.5 font-mono text-[0.7rem] text-primary shadow-lg backdrop-blur">

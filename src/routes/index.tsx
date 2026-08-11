@@ -1077,22 +1077,19 @@ function ObservatoryApp() {
             <div
               className={
                 mapImmersive
-                  ? "relative min-h-0 flex-1"
-                  : "relative min-h-0 flex-1 ww-map-stage"
+                  ? "ww-map-stage ww-map-stage--immersive relative min-h-0 flex-1"
+                  : "ww-map-stage relative min-h-0 flex-1"
               }
             >
-              <div
-                className={
-                  mapImmersive
-                    ? "absolute inset-0 overflow-hidden"
-                    : "absolute inset-0 overflow-hidden lg:inset-2.5 lg:rounded-lg"
-                }
-              >
+              {/* Canvas track — map only; chrome cannot cover this area */}
+              <div className="ww-map-stage__canvas">
                 <ClientOnly
                   fallback={
                     <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 bg-bg px-4 text-center text-sm text-muted">
                       <span>Loading map…</span>
-                      <span className="text-[0.7rem] text-dim">Feeds bootstrap on first open — map appears as soon as the client mounts.</span>
+                      <span className="text-[0.7rem] text-dim">
+                        Feeds bootstrap on first open — map appears as soon as the client mounts.
+                      </span>
                     </div>
                   }
                 >
@@ -1106,21 +1103,20 @@ function ObservatoryApp() {
                     {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
                 </ClientOnly>
-                {/* Dedicated back-to-SES — only while a node/zone is focused */}
                 <BackToSesButton variant="float" />
                 {isMobile && <MobileEventSheet />}
-                {/* Shared mobile tool dock — works for 2D and 3D */}
-                {isMobile && (
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[500]">
-                    <MapStyleControl />
-                  </div>
-                )}
-                {/* Desktop edge dock; mobile 2D tools live in bottom Map tab */}
-                {mapView === "2d" && !isMobile && (
-                  <div className="pointer-events-none absolute bottom-[3.4rem] right-1.5 z-[550] sm:bottom-[3.6rem] sm:right-2">
-                    <MapChromeDock className="items-end" />
-                  </div>
-                )}
+              </div>
+
+              {/* Right tools track — reserved column; 2D dock lives here */}
+              {!isMobile && mapView === "2d" && (
+                <div className="ww-map-stage__tools">
+                  <MapChromeDock className="items-end" />
+                </div>
+              )}
+
+              {/* Bottom dock track — layer bar reserved under map */}
+              <div className="ww-map-stage__dock">
+                <MapStyleControl placement="grid" />
               </div>
             </div>
             {mobileSheet !== "closed" && mobileSheet !== "map" && mobileSheet !== "event" && (

@@ -1921,11 +1921,108 @@
 }
 
 .ww-map-stage {
-  /* Critical: stage fills remaining shell height without 52dvh overflow */
+  /* Named grid: map canvas never sits under chrome tracks */
+  display: grid;
+  grid-template-areas:
+    "canvas tools"
+    "dock   dock";
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.4rem;
   flex: 1 1 auto;
   min-height: 0;
-  /* Keep a usable map even if chrome is tall */
+  min-width: 0;
+  /* Usable map even if chrome is tall */
   min-height: min(42dvh, 100%);
+  padding: 0.35rem;
+  box-sizing: border-box;
+}
+.ww-map-stage__canvas {
+  grid-area: canvas;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: #050a14;
+}
+.ww-map-stage__tools {
+  grid-area: tools;
+  position: relative;
+  z-index: 20;
+  align-self: start;
+  justify-self: end;
+  max-width: min(100%, 14rem);
+  pointer-events: none;
+}
+.ww-map-stage__tools > * {
+  pointer-events: auto;
+}
+.ww-map-stage__dock {
+  grid-area: dock;
+  position: relative;
+  z-index: 20;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.ww-map-stage__dock > * {
+  pointer-events: auto;
+  max-width: 100%;
+}
+/* Grid-embedded layer bar — no absolute cover of map */
+.ww-map-stage__dock .ww-map-dock-host,
+.ww-style-host--grid {
+  position: relative !important;
+  inset: auto !important;
+  width: 100%;
+  max-width: min(36rem, 100%);
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+/* Immersive: edge-to-edge map, chrome still in tracks */
+.ww-map-stage--immersive {
+  padding: 0;
+  gap: 0.25rem;
+  border-radius: 0;
+}
+.ww-map-stage--immersive .ww-map-stage__canvas {
+  border-radius: 0;
+  border: none;
+}
+/* Mobile: single column — canvas then reserved dock track */
+@media (max-width: 639px) {
+  .ww-map-stage {
+    grid-template-areas:
+      "canvas"
+      "dock";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.25rem;
+    padding: 0.2rem 0.2rem 0.15rem;
+  }
+  .ww-map-stage__tools {
+    display: none; /* tools live in Map tab / mobile dock */
+  }
+  .ww-map-stage__canvas {
+    border-radius: 0.35rem;
+  }
+  .ww-map-stage__dock .ww-style-host--grid {
+    max-width: 100%;
+  }
+}
+/* Desktop padding when not map-focus mobile */
+@media (min-width: 1024px) {
+  .ww-map-stage {
+    padding: 0.55rem;
+    gap: 0.45rem 0.5rem;
+  }
 }
 
 .ww-feed-details > summary {
