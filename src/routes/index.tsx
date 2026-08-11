@@ -53,11 +53,11 @@ import {
   syncViewToUrl,
   shareableViewUrl,
 } from "@/lib/pwa/shortcuts";
-import { focusFromLocation } from "@/lib/pwa/shareFocus";
+import { focusFromLocation, shareOrCopy, canWebShare, softReplaceShareUrl } from "@/lib/pwa/shareFocus";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { Link2, Check } from "lucide-react";
+import { Link2, Check, Share2 } from "lucide-react";
 
 const LiveMap = lazy(() =>
   import("@/components/map/LiveMap").then((m) => ({ default: m.LiveMap })),
@@ -781,22 +781,39 @@ function ObservatoryApp() {
             <button
               type="button"
               className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile ? "hidden" : ""}`}
-              title="Copy shareable view link"
-              aria-label="Copy shareable view link"
+              title={
+                canWebShare()
+                  ? "Share current view (system share sheet)"
+                  : "Copy shareable view link"
+              }
+              aria-label={canWebShare() ? "Share current view" : "Copy shareable view link"}
               onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(shareableViewUrl());
+                const url = shareableViewUrl();
+                softReplaceShareUrl(url);
+                const r = await shareOrCopy(url, "Sun-Earth Sentinel · live view", {
+                  text: `Sun-Earth Sentinel live view\nFree observation · not a forecast\n${url}`,
+                });
+                if (r === "shared" || r === "copied") {
                   setCopiedShare(true);
-                  setToast("Shareable view link copied");
+                  setToast(r === "shared" ? "Shared" : "Shareable view link copied");
                   window.setTimeout(() => setCopiedShare(false), 1600);
                   window.setTimeout(() => setToast(null), 2000);
-                } catch {
-                  setToast("Could not copy link — copy the address bar URL");
+                } else if (r === "cancelled") {
+                  setToast("Share cancelled");
+                  window.setTimeout(() => setToast(null), 1500);
+                } else {
+                  setToast("Could not share — copy the address bar URL");
                   window.setTimeout(() => setToast(null), 2500);
                 }
               }}
             >
-              {copiedShare ? <Check className="h-4 w-4 text-ok" /> : <Link2 className="h-4 w-4" />}
+              {copiedShare ? (
+                <Check className="h-4 w-4 text-ok" />
+              ) : canWebShare() ? (
+                <Share2 className="h-4 w-4" />
+              ) : (
+                <Link2 className="h-4 w-4" />
+              )}
             </button>
             {!(isMobile && tab === "live") && (
             <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">

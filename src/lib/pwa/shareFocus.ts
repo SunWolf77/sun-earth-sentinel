@@ -1,6 +1,8 @@
 /**
  * Direct share of focused map/globe targets: earthquake, node/zone, volcano, replay.
  * Builds absolute URLs and hydrates store state from query params.
+ *
+ * Web Share API: use sharePayload / shareOrCopy — never navigate the SPA for share.
  */
 
 import type { TabId, TimeWindow, MapView, PickedEvent } from "@/store/observatory";
@@ -47,6 +49,18 @@ export type FocusDeepLink = ViewDeepLink & {
   zoom?: number;
   replay?: boolean;
   replayMs?: number | null;
+};
+
+export type ShareResult =
+  | "shared"
+  | "copied"
+  | "cancelled"
+  | "failed";
+
+export type SharePayload = {
+  title: string;
+  text?: string;
+  url: string;
 };
 
 /** Parse full focus deep-link including event / volcano / map / replay. */
@@ -125,7 +139,8 @@ export function buildShareFocusUrl(input: ShareFocusInput): string {
     if (on.length) u.searchParams.set("layers", on.join(","));
   }
 
-  if (input.replay || input.replayMs != null) {
+  // Only attach replay when explicitly requested — never from event time alone
+  if (input.replay) {
     u.searchParams.set("replay", "1");
     if (input.replayMs != null && Number.isFinite(input.replayMs)) {
       u.searchParams.set("t", String(Math.round(input.replayMs)));
@@ -168,10 +183,34 @@ export function shareUrlForPickedEvent(
     basemap: ctx.basemap,
     mode: ctx.mode,
     layers: ctx.layers,
-    replay: ctx.replay,
-    replayMs: ctx.replayMs ?? ev.time,
+    // Only when caller is in educational replay — not every EQ share
+    replay: !!ctx.replay,
+    replayMs: ctx.replay ? (ctx.replayMs ?? ev.time ?? null) : null,
     tab: "live",
   });
+}
+
+/** Title + body for Web Share / social paste */
+export function payloadForPickedEvent(ev: PickedEvent, url: string): SharePayload {
+  const mag = Number.isFinite(ev.mag) ? `M${ev.mag.toFixed(1)}` : "Quake";
+  const place = (ev.place || "event").trim();
+  const title = `${mag} · ${place} · Sun-Earth Sentinel`;
+  const when =
+    ev.time != null && Number.isFinite(ev.time)
+      ? new Date(ev.time).toISOString().replace(".000Z", "Z")
+      : null;
+  const depth =
+    ev.depth != null && Number.isFinite(ev.depth) ? `${Math.abs(ev.depth).toFixed(0)} km` : null;
+  const text = [
+    `${mag} earthquake — ${place}`,
+    when ? `Origin ${when}` : null,
+    depth ? `Depth ${depth}` : null,
+    "Live map · free observation · not a warning",
+    url,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return { title, text, url };
 }
 
 export function shareUrlForNode(
@@ -224,6 +263,33 @@ export function shareUrlForVolcano(
   });
 }
 
+/** Soft-update address bar to match share URL (no navigation / reload). */
+export function softReplaceShareUrl(url: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const next = new URL(url, window.location.origin);
+    // Same origin only — never push production URL over localhost mid-session
+    if (next.origin !== window.location.origin) {
+      // Still allow production share origin on prod; on preview keep local path
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          next.pathname + next.search + next.hash,
+        );
+        return;
+      }
+    }
+    window.history.replaceState(
+      window.history.state,
+      "",
+      next.pathname + next.search + next.hash,
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function copyText(text: string): Promise<boolean> {
   try {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
@@ -236,10 +302,14 @@ export async function copyText(text: string): Promise<boolean> {
   try {
     const ta = document.createElement("textarea");
     ta.value = text;
+    ta.setAttribute("readonly", "");
     ta.style.position = "fixed";
     ta.style.left = "-9999px";
+    ta.style.top = "0";
     document.body.appendChild(ta);
+    ta.focus();
     ta.select();
+    ta.setSelectionRange(0, text.length);
     const ok = document.execCommand("copy");
     document.body.removeChild(ta);
     return ok;
@@ -248,17 +318,66 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Web Share API when available; else clipboard. */
-export async function shareOrCopy(url: string, title = "Sun Earth Sentinel"): Promise<"shared" | "copied" | "failed"> {
+/** True when Level-1 Web Share can take a URL (mobile Safari/Chrome, some desktop). */
+export function canWebShare(url?: string, title = "Sun-Earth Sentinel"): boolean {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") return false;
   try {
-    if (typeof navigator !== "undefined" && navigator.share) {
-      await navigator.share({ title, url, text: title });
-      return "shared";
+    if (typeof navigator.canShare === "function") {
+      return navigator.canShare(url != null ? { title, url, text: title } : { title, url: "https://example.com" });
     }
-  } catch (e) {
-    // user cancel → still try copy only if AbortError not
-    if (e instanceof DOMException && e.name === "AbortError") return "failed";
+    return true;
+  } catch {
+    return false;
   }
+}
+
+/**
+ * Web Share API first (native sheet), clipboard fallback.
+ * Never full-navigates. Abort/cancel is "cancelled", not "failed".
+ */
+export async function shareOrCopy(
+  url: string,
+  title = "Sun-Earth Sentinel",
+  opts?: { text?: string; preferCopy?: boolean },
+): Promise<ShareResult> {
+  const text = opts?.text ?? title;
+
+  if (!opts?.preferCopy && canWebShare(url, title)) {
+    try {
+      const data: ShareData = { title, url, text };
+      // Some Android builds reject if canShare fails on combined fields — try url-only
+      if (typeof navigator.canShare === "function" && !navigator.canShare(data)) {
+        if (navigator.canShare({ url })) {
+          await navigator.share({ url });
+          return "shared";
+        }
+      } else {
+        await navigator.share(data);
+        return "shared";
+      }
+    } catch (e) {
+      if (e instanceof DOMException && (e.name === "AbortError" || e.name === "NotAllowedError")) {
+        // User dismissed sheet — do not silently copy (avoids surprise clipboard writes)
+        if (e.name === "AbortError") return "cancelled";
+      }
+      // Fall through to clipboard for TypeError / data not supported
+    }
+  }
+
   const ok = await copyText(url);
   return ok ? "copied" : "failed";
+}
+
+/** Event-aware share: richer text for Messages / WhatsApp / X. */
+export async function sharePickedEvent(
+  ev: PickedEvent,
+  url: string,
+  opts?: { preferCopy?: boolean },
+): Promise<ShareResult> {
+  const payload = payloadForPickedEvent(ev, url);
+  softReplaceShareUrl(url);
+  return shareOrCopy(payload.url, payload.title, {
+    text: payload.text,
+    preferCopy: opts?.preferCopy,
+  });
 }

@@ -61,14 +61,19 @@ import {
   nodeHoverTooltipHtml,
   eqHoverTooltipHtml,
 } from "@/lib/nodes/exportNodesCsv";
-import { shareUrlForPickedEvent, shareOrCopy } from "@/lib/pwa/shareFocus";
+import {
+  shareUrlForPickedEvent,
+  shareOrCopy,
+  softReplaceShareUrl,
+  canWebShare,
+} from "@/lib/pwa/shareFocus";
 
 /**
  * Popup "Share this EQ" is a plain <a href>. Without intercept, the browser
  * navigates → full SPA reload → map "refreshes" and the link never copies.
- * Bind once per popup open: preventDefault, replaceState, shareOrCopy.
+ * Bind once per popup open: preventDefault, soft replaceState, Web Share / copy.
  */
-function bindShareInPopup(layer: L.Layer, title: string) {
+function bindShareInPopup(layer: L.Layer, title: string, text?: string) {
   layer.on("popupopen", () => {
     const popup = (layer as L.CircleMarker).getPopup?.();
     const el = popup?.getElement?.();
@@ -77,24 +82,26 @@ function bindShareInPopup(layer: L.Layer, title: string) {
     if (!a || a.dataset.wwShareBound === "1") return;
     a.dataset.wwShareBound = "1";
     a.setAttribute("role", "button");
+    // Reflect capability in the control label
+    const web = canWebShare();
+    if (web && a.textContent?.includes("Share this EQ")) {
+      a.textContent = "Share this EQ →";
+      a.title = "Open system share sheet with deep link (no map reload)";
+    } else if (!web) {
+      a.textContent = "Copy EQ link →";
+      a.title = "Copy shareable deep link (does not reload the map)";
+    }
     a.addEventListener("click", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       const url = a.getAttribute("href") || "";
       if (!url || url === "#") return;
       void (async () => {
-        try {
-          const next = new URL(url, window.location.origin);
-          // Soft address-bar update only — never full navigation
-          window.history.replaceState(
-            window.history.state,
-            "",
-            next.pathname + next.search + next.hash,
-          );
-        } catch {
-          /* ignore */
-        }
-        const r = await shareOrCopy(url, title);
+        softReplaceShareUrl(url);
+        const body =
+          text ??
+          `${title}\nLive map · free observation · not a warning\n${url}`;
+        const r = await shareOrCopy(url, title, { text: body });
         const prev = a.textContent;
         if (r === "shared") {
           a.textContent = "Shared ✓";
@@ -102,8 +109,11 @@ function bindShareInPopup(layer: L.Layer, title: string) {
         } else if (r === "copied") {
           a.textContent = "Link copied ✓";
           a.style.color = "#4ade80";
+        } else if (r === "cancelled") {
+          a.textContent = "Cancelled";
+          a.style.color = "#94a3b8";
         } else {
-          a.textContent = "Copy failed — long-press URL";
+          a.textContent = "Copy failed";
           a.style.color = "#f87171";
         }
         window.setTimeout(() => {
@@ -764,7 +774,17 @@ export function LiveMap() {
         });
         bindShareInPopup(
           pin,
-          `M${mag.toFixed(1)} · ${place}`,
+          `M${mag.toFixed(1)} · ${place} · Sun-Earth Sentinel`,
+          [
+            `M${mag.toFixed(1)} earthquake — ${place}`,
+            typeof f.properties.time === "number"
+              ? `Origin ${new Date(f.properties.time).toISOString().replace(".000Z", "Z")}`
+              : null,
+            `Depth ${depth.toFixed(0)} km`,
+            "Live map · free observation · not a warning",
+          ]
+            .filter(Boolean)
+            .join("\n"),
         );
         pin.bindTooltip(
           eqHoverTooltipHtml({

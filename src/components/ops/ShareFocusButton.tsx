@@ -6,7 +6,11 @@ import {
   shareUrlForNode,
   shareUrlForVolcano,
   buildShareFocusUrl,
+  payloadForPickedEvent,
+  softReplaceShareUrl,
+  canWebShare,
   type ShareFocusInput,
+  type ShareResult,
 } from "@/lib/pwa/shareFocus";
 import { useObservatory, type PickedEvent } from "@/store/observatory";
 
@@ -26,10 +30,11 @@ type Props =
   | { target: "custom"; input: ShareFocusInput; className?: string; compact?: boolean; label?: string };
 
 /**
- * One-click share of focused entity (event / node / volcano) as a deep link.
+ * One-click Web Share (native sheet) or clipboard of focused entity deep link.
+ * Never full-navigates the SPA.
  */
 export function ShareFocusButton(props: Props) {
-  const [state, setState] = useState<"idle" | "ok" | "err">("idle");
+  const [state, setState] = useState<"idle" | "ok" | "err" | "cancel">("idle");
   const focusNodeId = useObservatory((s) => s.focusNodeId);
   const timeWindow = useObservatory((s) => s.timeWindow);
   const minMag = useObservatory((s) => s.minMag);
@@ -84,35 +89,47 @@ export function ShareFocusButton(props: Props) {
 
   const onShare = async () => {
     const url = buildUrl();
-    // Push into address bar so header "copy view" matches
-    try {
-      if (typeof window !== "undefined") {
-        const next = new URL(url);
-        window.history.replaceState(
-          window.history.state,
-          "",
-          next.pathname + next.search + next.hash,
-        );
-      }
-    } catch {
-      /* ignore */
+    softReplaceShareUrl(url);
+
+    let title = "Sun-Earth Sentinel";
+    let text: string | undefined;
+    if (props.target === "event") {
+      const p = payloadForPickedEvent(props.event, url);
+      title = p.title;
+      text = p.text;
+    } else if (props.target === "node") {
+      title = `Zone · ${props.nodeId} · Sun-Earth Sentinel`;
+      text = `Watch desk ${props.nodeId}\n${url}`;
+    } else if (props.target === "volcano") {
+      title = `Volcano · ${props.place || props.volcanoId} · Sun-Earth Sentinel`;
+      text = `${props.place || props.volcanoId}\n${url}`;
     }
-    const title =
-      props.target === "event"
-        ? `M${props.event.mag.toFixed(1)} · ${props.event.place}`
-        : props.target === "node"
-          ? `Node · ${props.nodeId}`
-          : props.target === "volcano"
-            ? `Volcano · ${props.place || props.volcanoId}`
-            : "Sun Earth Sentinel";
-    const r = await shareOrCopy(url, title);
-    setState(r === "failed" ? "err" : "ok");
+
+    const r: ShareResult = await shareOrCopy(url, title, { text });
+    if (r === "shared" || r === "copied") setState("ok");
+    else if (r === "cancelled") setState("cancel");
+    else setState("err");
     window.setTimeout(() => setState("idle"), 1800);
   };
 
+  const web = typeof navigator !== "undefined" && canWebShare();
   const label =
     props.label ??
-    (props.compact ? "Share" : state === "ok" ? "Link ready" : state === "err" ? "Failed" : "Share focus");
+    (props.compact
+      ? web
+        ? "Share"
+        : "Copy"
+      : state === "ok"
+        ? web
+          ? "Shared"
+          : "Link ready"
+        : state === "err"
+          ? "Failed"
+          : state === "cancel"
+            ? "Cancelled"
+            : web
+              ? "Share focus"
+              : "Copy link");
 
   return (
     <button
@@ -124,10 +141,16 @@ export function ShareFocusButton(props: Props) {
         }`
       }
       onClick={() => void onShare()}
-      title="Copy / share a direct link to this focus (event, node, volcano, or replay)"
+      title={
+        web
+          ? "Open system share sheet (Messages, Mail, …) with a deep link to this focus"
+          : "Copy a direct link to this focus (event, node, volcano, or replay)"
+      }
     >
       {state === "ok" ? (
         <Check className="mr-1 inline h-3 w-3" aria-hidden />
+      ) : web ? (
+        <Share2 className="mr-1 inline h-3 w-3" aria-hidden />
       ) : (
         <Link2 className="mr-1 inline h-3 w-3" aria-hidden />
       )}
