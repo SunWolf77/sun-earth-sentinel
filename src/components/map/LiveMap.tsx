@@ -61,7 +61,59 @@ import {
   nodeHoverTooltipHtml,
   eqHoverTooltipHtml,
 } from "@/lib/nodes/exportNodesCsv";
-import { shareUrlForPickedEvent } from "@/lib/pwa/shareFocus";
+import { shareUrlForPickedEvent, shareOrCopy } from "@/lib/pwa/shareFocus";
+
+/**
+ * Popup "Share this EQ" is a plain <a href>. Without intercept, the browser
+ * navigates → full SPA reload → map "refreshes" and the link never copies.
+ * Bind once per popup open: preventDefault, replaceState, shareOrCopy.
+ */
+function bindShareInPopup(layer: L.Layer, title: string) {
+  layer.on("popupopen", () => {
+    const popup = (layer as L.CircleMarker).getPopup?.();
+    const el = popup?.getElement?.();
+    if (!el) return;
+    const a = el.querySelector<HTMLAnchorElement>("a[data-ww-share]");
+    if (!a || a.dataset.wwShareBound === "1") return;
+    a.dataset.wwShareBound = "1";
+    a.setAttribute("role", "button");
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const url = a.getAttribute("href") || "";
+      if (!url || url === "#") return;
+      void (async () => {
+        try {
+          const next = new URL(url, window.location.origin);
+          // Soft address-bar update only — never full navigation
+          window.history.replaceState(
+            window.history.state,
+            "",
+            next.pathname + next.search + next.hash,
+          );
+        } catch {
+          /* ignore */
+        }
+        const r = await shareOrCopy(url, title);
+        const prev = a.textContent;
+        if (r === "shared") {
+          a.textContent = "Shared ✓";
+          a.style.color = "#4ade80";
+        } else if (r === "copied") {
+          a.textContent = "Link copied ✓";
+          a.style.color = "#4ade80";
+        } else {
+          a.textContent = "Copy failed — long-press URL";
+          a.style.color = "#f87171";
+        }
+        window.setTimeout(() => {
+          a.textContent = prev;
+          a.style.color = "#22d3ee";
+        }, 2000);
+      })();
+    });
+  });
+}
 
 function makeTileLayer(styleId: keyof typeof BASEMAP_STYLES) {
   const style = BASEMAP_STYLES[styleId];
@@ -170,7 +222,7 @@ function buildEqPopupHtml(
               ? `<span style="color:#67e8f9;font-size:10px"> · +EMSC</span>`
               : "";
   const shareLine = opts.shareHref
-    ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none">Share this EQ →</a></div>`
+    ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" title="Copy shareable deep link (does not reload the map)" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer">Share this EQ →</a></div>`
     : "";
   return `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
               <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
@@ -710,6 +762,10 @@ export function LiveMap() {
           maxWidth: 300,
           autoPan: true,
         });
+        bindShareInPopup(
+          pin,
+          `M${mag.toFixed(1)} · ${place}`,
+        );
         pin.bindTooltip(
           eqHoverTooltipHtml({
             mag,
