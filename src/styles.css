@@ -1928,21 +1928,25 @@
 }
 
 .ww-map-stage {
-  /* Named grid: map canvas never sits under chrome tracks */
+  /*
+   * Stabilize layout:
+   * - canvas + dock tracks only (dock reserves bottom — never covers markers)
+   * - tools overlay top-right of canvas (no dead 14rem side gutter)
+   */
   display: grid;
   grid-template-areas:
-    "canvas tools"
-    "dock   dock";
-  grid-template-columns: minmax(0, 1fr) auto;
+    "canvas"
+    "dock";
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 0.35rem 0.4rem;
+  gap: 0.35rem;
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  /* Usable map even if chrome is tall */
   min-height: min(42dvh, 100%);
   padding: 0.35rem;
   box-sizing: border-box;
+  position: relative;
 }
 .ww-map-stage__canvas {
   grid-area: canvas;
@@ -1955,12 +1959,14 @@
   background: #050a14;
 }
 .ww-map-stage__tools {
-  grid-area: tools;
+  /* Float on canvas corner — does not shrink the map */
+  grid-area: canvas;
   position: relative;
-  z-index: 20;
+  z-index: 30;
   align-self: start;
   justify-self: end;
-  max-width: min(100%, 14rem);
+  max-width: min(calc(100% - 0.5rem), 24rem);
+  margin: 0.4rem 0.4rem 0 0;
   pointer-events: none;
 }
 .ww-map-stage__tools > * {
@@ -2028,7 +2034,7 @@
 @media (min-width: 1024px) {
   .ww-map-stage {
     padding: 0.55rem;
-    gap: 0.45rem 0.5rem;
+    gap: 0.45rem;
   }
 }
 
