@@ -1117,7 +1117,7 @@ function ObservatoryApp() {
                 )}
                 {/* Desktop edge dock; mobile 2D tools live in bottom Map tab */}
                 {mapView === "2d" && !isMobile && (
-                  <div className="pointer-events-none absolute bottom-[4.25rem] right-1.5 z-[550] sm:bottom-4 sm:right-3">
+                  <div className="pointer-events-none absolute bottom-[3.4rem] right-1.5 z-[550] sm:bottom-[3.6rem] sm:right-2">
                     <MapChromeDock className="items-end" />
                   </div>
                 )}

@@ -957,6 +957,27 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(12px);
 }
+/* Desktop: denser chips, hide ON/OFF text, cap width so east map stays clear */
+@media (min-width: 640px) {
+  .ww-toggle-bar {
+    max-width: min(36rem, 68vw);
+    gap: 0.12rem;
+    padding: 0.18rem 0.28rem;
+  }
+  .ww-toggle-bar .ww-toggle {
+    min-height: 1.75rem;
+    padding: 0.15rem 0.38rem;
+    font-size: 0.58rem;
+    gap: 0.15rem;
+  }
+  .ww-toggle-bar .ww-toggle-state {
+    display: none;
+  }
+  .ww-toggle-bar .ww-toggle svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+}
 /* Single row on phones — no wrap wall of chips */
 .ww-toggle-bar--mobile {
   flex-wrap: nowrap;

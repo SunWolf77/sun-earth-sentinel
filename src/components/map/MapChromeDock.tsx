@@ -1,7 +1,7 @@
 /**
- * Edge dock — compact on mobile, clear labels for tilt & help.
- * Mobile: 3 levels — minimized FAB → compact (2D/3D + window) → full controls.
- * Auto-minimizes when an event is selected so the detail card stays readable.
+ * Edge dock — compact by default so eastern map events stay visible.
+ * Desktop + mobile: min → compact strip → full (expand on demand).
+ * Auto-minimizes when an event is selected.
  */
 
 import { useEffect, useState } from "react";
@@ -24,7 +24,7 @@ import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { HelpGuide } from "@/components/ops/HelpGuide";
 
 type TiltPreset = "equator" | "north" | "oblique";
-/** Mobile chrome density */
+/** Chrome density — desktop also uses compact so east events stay clear */
 type DockLevel = "min" | "compact" | "full";
 
 type Props = {
@@ -62,18 +62,14 @@ export function MapChromeDock({
   const [level, setLevel] = useState<DockLevel>("compact");
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Mobile defaults: compact idle; collapse hard when reading an event
+  // Compact default everywhere — full only on user expand (frees east map)
   useEffect(() => {
-    if (!mobile) {
-      setLevel("full");
-      return;
-    }
     if (pickedEvent) {
       setLevel("min");
       return;
     }
-    setLevel((prev) => (prev === "full" ? "compact" : prev === "min" ? "min" : "compact"));
-  }, [mobile, mapView, mapImmersive, pickedEvent?.id]);
+    setLevel((prev) => (prev === "full" ? "compact" : prev));
+  }, [mapView, mapImmersive, pickedEvent?.id]);
 
   const home = () => {
     exitToHomeView();
@@ -83,8 +79,8 @@ export function MapChromeDock({
   const showTilt = mapView === "3d" && (onTiltUp || onTiltDown || onTiltPreset);
   const ViewIcon = mapView === "3d" ? Globe2 : MapIcon;
 
-  // ── Mobile minimized: single FAB — frees the map / event card ──
-  if (mobile && level === "min") {
+  // ── Minimized: single FAB — maximum map ──
+  if (level === "min") {
     return (
       <div
         className={`ww-map-dock ww-map-dock--min pointer-events-auto flex flex-col items-end gap-1 ${className}`}
@@ -110,15 +106,15 @@ export function MapChromeDock({
     );
   }
 
-  // ── Mobile compact: 2D/3D + window + open full ──
-  if (mobile && level === "compact") {
+  // ── Compact: one slim strip (default desktop + mobile) ──
+  if (level === "compact") {
     return (
       <div
         className={`ww-map-dock ww-map-dock--compact pointer-events-auto flex flex-col items-end gap-1 ${className}`}
         role="toolbar"
         aria-label="Map controls"
       >
-        <div className="flex max-w-[min(100vw-0.75rem,20rem)] flex-wrap items-center justify-end gap-1 rounded-xl border border-border bg-surface/95 p-1 shadow-lg backdrop-blur">
+        <div className="flex max-w-[min(100vw-0.75rem,22rem)] flex-wrap items-center justify-end gap-0.5 rounded-xl border border-border bg-surface/95 p-0.5 shadow-lg backdrop-blur">
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
@@ -150,7 +146,7 @@ export function MapChromeDock({
               <span className="text-[0.58rem] font-bold">3D</span>
             </button>
           </div>
-          <div className="flex overflow-hidden rounded-lg border border-border/80">
+          <div className="flex overflow-hidden rounded-lg border border-border/80" title={timeWindowTitle(timeWindow)}>
             {TIME_WINDOWS.map((w) => (
               <button
                 key={w.id}
@@ -165,6 +161,14 @@ export function MapChromeDock({
           </div>
           <button
             type="button"
+            className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
+            title="World home view"
+            onClick={home}
+          >
+            <Home className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
             className={`ww-map-dock__icon-btn ww-map-dock__icon-btn--sm ${mapImmersive ? "ww-map-dock__icon-btn--on" : ""}`}
             title={mapImmersive ? "Exit fullscreen" : "Fullscreen"}
             onClick={() => setMapImmersive(!mapImmersive)}
@@ -174,7 +178,7 @@ export function MapChromeDock({
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
-            title="More controls (replay, home, help)"
+            title="More (replay, help, tilt)"
             onClick={() => setLevel("full")}
             aria-expanded={false}
           >
@@ -186,30 +190,28 @@ export function MapChromeDock({
     );
   }
 
-  // ── Full (desktop always; mobile when expanded) ──
+  // ── Full expand (user requested) ──
   return (
     <div
-      className={`ww-map-dock pointer-events-auto flex flex-col gap-1.5 ${mobile ? "ww-map-dock--expanded max-h-[min(42dvh,18rem)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface/95 p-1.5 shadow-lg backdrop-blur" : ""} ${className}`}
+      className={`ww-map-dock ww-map-dock--expanded pointer-events-auto flex max-h-[min(50dvh,22rem)] flex-col gap-1 overflow-y-auto overscroll-contain rounded-xl border border-border bg-surface/95 p-1.5 shadow-lg backdrop-blur ${className}`}
       role="toolbar"
-      aria-label="Map controls"
+      aria-label="Map controls expanded"
     >
-      {mobile && (
-        <div className="flex items-center justify-between gap-2 px-0.5">
-          <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-dim">
-            Controls
-          </span>
-          <button
-            type="button"
-            className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
-            onClick={() => setLevel(pickedEvent ? "min" : "compact")}
-            title="Collapse"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-dim">
+          Controls
+        </span>
+        <button
+          type="button"
+          className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
+          onClick={() => setLevel(pickedEvent ? "min" : "compact")}
+          title="Collapse"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
-      <div className="ww-map-view-toggle flex w-full overflow-hidden rounded-lg border border-border bg-surface/95 shadow-lg backdrop-blur">
+      <div className="ww-map-view-toggle flex w-full overflow-hidden rounded-lg border border-border bg-bg/60">
         <button
           type="button"
           className={`ww-map-view-toggle__btn ${mapView === "2d" ? "ww-map-view-toggle__btn--on" : ""}`}
@@ -217,7 +219,7 @@ export function MapChromeDock({
           aria-pressed={mapView === "2d"}
         >
           <MapIcon className="h-3.5 w-3.5 shrink-0" />
-          <span>2D Map</span>
+          <span>2D</span>
         </button>
         <button
           type="button"
@@ -226,12 +228,12 @@ export function MapChromeDock({
           aria-pressed={mapView === "3d"}
         >
           <Globe2 className="h-3.5 w-3.5 shrink-0" />
-          <span>3D Globe</span>
+          <span>3D</span>
         </button>
       </div>
 
       <div
-        className="flex overflow-hidden rounded-lg border border-border bg-surface/95 shadow-md backdrop-blur"
+        className="flex overflow-hidden rounded-lg border border-border bg-bg/60"
         title={timeWindowTitle(timeWindow)}
       >
         {TIME_WINDOWS.map((w) => (
@@ -249,18 +251,18 @@ export function MapChromeDock({
 
       {showTilt && (
         <div
-          className="rounded-lg border border-border bg-surface/95 p-1.5 shadow-md backdrop-blur"
+          className="rounded-lg border border-border bg-bg/60 p-1.5"
           role="group"
-          aria-label="Camera tilt — viewing angle"
+          aria-label="Camera tilt"
         >
           <div className="mb-1 px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
-            View angle (camera tilt)
+            View angle
           </div>
           <div className="grid grid-cols-2 gap-1">
             <button
               type="button"
               className="ww-map-dock__icon-btn justify-center"
-              title="Tilt camera toward north pole view"
+              title="Tilt toward north"
               onClick={() => onTiltUp?.()}
             >
               <span className="text-[0.65rem] font-bold">North ↑</span>
@@ -268,7 +270,7 @@ export function MapChromeDock({
             <button
               type="button"
               className="ww-map-dock__icon-btn justify-center"
-              title="Tilt camera toward equator edge-on"
+              title="Tilt toward equator"
               onClick={() => onTiltDown?.()}
             >
               <span className="text-[0.65rem] font-bold">South ↓</span>
@@ -276,7 +278,6 @@ export function MapChromeDock({
             <button
               type="button"
               className="ww-map-dock__icon-btn justify-center"
-              title="Face the equator"
               onClick={() => onTiltPreset?.("equator")}
             >
               <span className="text-[0.62rem] font-semibold">Equator</span>
@@ -284,20 +285,16 @@ export function MapChromeDock({
             <button
               type="button"
               className="ww-map-dock__icon-btn justify-center"
-              title="Default oblique framing"
               onClick={() => onTiltPreset?.("oblique")}
             >
               <span className="text-[0.62rem] font-semibold">Oblique</span>
             </button>
           </div>
-          <p className="mt-1 px-0.5 text-[0.55rem] leading-snug text-dim">
-            Moves your camera, not the planet’s axis. Drag still rotates freely.
-          </p>
         </div>
       )}
 
       <div className="flex flex-wrap gap-1">
-        {mobile && !replayActive && (
+        {!replayActive && (
           <button
             type="button"
             className="ww-map-dock__icon-btn"
@@ -312,12 +309,11 @@ export function MapChromeDock({
           <Home className="h-3.5 w-3.5" />
           <span className="ww-map-dock__label">Home</span>
         </button>
-        {mapView === "3d" && (
+        {canPriorView && (
           <button
             type="button"
             className="ww-map-dock__icon-btn"
-            title="Undo last camera focus"
-            disabled={!canPriorView}
+            title="Prior view"
             onClick={() => onPriorView?.()}
           >
             <Undo2 className="h-3.5 w-3.5" />
@@ -327,7 +323,7 @@ export function MapChromeDock({
         <button
           type="button"
           className={`ww-map-dock__icon-btn ${mapImmersive ? "ww-map-dock__icon-btn--on" : ""}`}
-          title={mapImmersive ? "Exit fullscreen" : "Fullscreen map"}
+          title={mapImmersive ? "Exit fullscreen" : "Fullscreen"}
           onClick={() => setMapImmersive(!mapImmersive)}
         >
           {mapImmersive ? <Minimize2 className="h-3.5 w-3.5" /> : <Expand className="h-3.5 w-3.5" />}
@@ -337,11 +333,7 @@ export function MapChromeDock({
           <button
             type="button"
             className={`ww-map-dock__icon-btn ${globeAutoSpin ? "ww-map-dock__icon-btn--on" : ""}`}
-            title={
-              globeAutoSpin
-                ? "Auto-spin ON (west→east) — pauses on focus, then resumes"
-                : "Start auto-spin"
-            }
+            title={globeAutoSpin ? "Stop spin" : "Auto spin"}
             onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
           >
             <Globe2 className="h-3.5 w-3.5" />
@@ -351,18 +343,13 @@ export function MapChromeDock({
         <button
           type="button"
           className="ww-map-dock__icon-btn"
-          title="How to use"
+          title="Help"
           onClick={() => setHelpOpen(true)}
         >
           <HelpCircle className="h-3.5 w-3.5" />
           <span className="ww-map-dock__label">Help</span>
         </button>
       </div>
-
-      <div className="px-0.5 text-[0.55rem] font-semibold uppercase tracking-wider text-dim">
-        Catalog · {timeWindowChip(timeWindow)}
-      </div>
-
       <HelpGuide open={helpOpen} onOpenChange={setHelpOpen} compact className="hidden" />
     </div>
   );
