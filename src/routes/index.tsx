@@ -725,9 +725,9 @@ function ObservatoryApp() {
           tab !== "live" ? "ww-header--content" : ""
         } ${isMobile ? "ww-header--mobile" : ""}`}
       >
-        <div className="flex items-center justify-between gap-1 px-2 py-0.5 sm:gap-2 sm:px-3 sm:py-1">
-          <div className="min-w-0 flex-1 pr-1">
-            <h1 className="text-[0.78rem] font-semibold leading-tight tracking-tight text-fg sm:text-base">
+        <div className="ww-header__primary flex min-w-0 items-center gap-1 px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5">
+          <div className="ww-header__brand min-w-0 shrink-0 sm:max-w-[10.5rem] lg:max-w-[12.5rem]">
+            <h1 className="truncate text-[0.72rem] font-semibold leading-none tracking-tight text-fg sm:text-[0.85rem]">
               <span className="sm:hidden">
                 <span className="text-fg">SES</span>
               </span>
@@ -735,7 +735,11 @@ function ObservatoryApp() {
                 Sun-Earth <span className="text-primary">Sentinel</span>
               </span>
             </h1>
-            <p className={`truncate text-[0.55rem] leading-tight text-dim sm:text-[0.62rem] ${isMobile && tab === "live" ? "hidden" : ""}`}>
+            <p
+              className={`mt-0.5 truncate text-[0.5rem] leading-none text-dim sm:text-[0.55rem] ${
+                isMobile && tab === "live" ? "hidden" : ""
+              }`}
+            >
               {isMobile ? (
                 <>
                   {updatedLabel} · {ageLabel}
@@ -743,8 +747,8 @@ function ObservatoryApp() {
                 </>
               ) : (
                 <>
-                  Sentinel · updated {updatedLabel} · newest {ageLabel}
-                  {livePulseAt ? " · live pulse" : ""}
+                  {updatedLabel} · {ageLabel}
+                  {livePulseAt ? " · pulse" : ""}
                   {liveStatus === "ws"
                     ? " · WS"
                     : liveStatus === "live"
@@ -760,7 +764,36 @@ function ObservatoryApp() {
               )}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+
+          <nav
+            className="ww-tablist ww-tablist--inline min-w-0 flex-1"
+            role="tablist"
+            aria-label="Main sections"
+          >
+            {TABS.map(({ id, label, short, Icon }, i) => {
+              const selected = tab === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={selected}
+                  aria-controls={`panel-${id}`}
+                  tabIndex={selected ? 0 : -1}
+                  title={`${label} (${i + 1})`}
+                  onClick={() => setTab(id)}
+                  className={`ww-tab ${selected ? "ww-tab--active" : ""}`}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="ww-only-lg hidden sm:inline">{label}</span>
+                  <span className="ww-only-sm sm:hidden">{short}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
             <a
               href={X_PROFILES.sunwolf.url}
               target="_blank"
@@ -777,7 +810,9 @@ function ObservatoryApp() {
                 className="ww-sunwolf-id__img"
                 decoding="async"
               />
-              <span className="ww-sunwolf-id__handle">@{X_PROFILES.sunwolf.handle}</span>
+              <span className="ww-sunwolf-id__handle hidden lg:inline">
+                @{X_PROFILES.sunwolf.handle}
+              </span>
             </a>
             <span className={isMobile && tab === "live" ? "hidden" : undefined}>
               <HelpGuide />
@@ -812,20 +847,20 @@ function ObservatoryApp() {
               )}
             </button>
             {!(isMobile && tab === "live") && (
-            <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">
-              {MODE_ORDER.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  title={`${MODES[m].label}: ${MODES[m].description} ${MODES[m].deviceNote}`}
-                  onClick={() => setMode(m)}
-                  className={`ww-seg__btn capitalize ${mode === m ? "ww-seg__btn--on" : ""}`}
-                >
-                  <span className="ww-only-sm sm:hidden">{m[0]!.toUpperCase()}</span>
-                  <span className="ww-only-lg hidden sm:inline">{m}</span>
-                </button>
-              ))}
-            </div>
+              <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">
+                {MODE_ORDER.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    title={`${MODES[m].label}: ${MODES[m].description} ${MODES[m].deviceNote}`}
+                    onClick={() => setMode(m)}
+                    className={`ww-seg__btn capitalize ${mode === m ? "ww-seg__btn--on" : ""}`}
+                  >
+                    <span className="ww-only-sm sm:hidden">{m[0]!.toUpperCase()}</span>
+                    <span className="ww-only-lg hidden sm:inline">{m}</span>
+                  </button>
+                ))}
+              </div>
             )}
             <button
               type="button"
@@ -850,36 +885,7 @@ function ObservatoryApp() {
           </div>
         </div>
 
-        {/* Row 2 — Views (sections). Shortcuts 1–5 */}
-        <div className="ww-header-row ww-header-row--views">
-          <span className="ww-header-row__label" title="Main sections · keys 1–5">
-            Views
-          </span>
-          <nav className="ww-tablist" role="tablist" aria-label="Main sections">
-            {TABS.map(({ id, label, short, Icon }, i) => {
-              const selected = tab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`tab-${id}`}
-                  aria-selected={selected}
-                  aria-controls={`panel-${id}`}
-                  tabIndex={selected ? 0 : -1}
-                  title={`${label} (${i + 1})`}
-                  onClick={() => setTab(id)}
-                  className={`ww-tab ${selected ? "ww-tab--active" : ""}`}
-                >
-                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="ww-only-lg hidden sm:inline">{label}</span>
-                  <span className="ww-only-sm sm:hidden">{short}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-        {/* Nodes only on Live — desks are map focus, not Solar chrome */}
+        {/* Live only: desk rail — second band */}
         {tab === "live" && <PublishedNodesNav />}
       </header>
 
@@ -921,23 +927,30 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Brief strip — tight; no dead rows on content tabs */}
+      {/* Brief strip — one dense line; no stacked Mode + Pulse waste */}
       {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
         <div
           className={`ww-brief-strip shrink-0 border-b border-border/50 px-1.5 sm:px-2 ${
-            isMobile ? "py-0.5" : "py-0.5 sm:py-1"
+            isMobile ? "py-0.5" : "py-0.5"
           }`}
         >
           {tab === "live" ? (
-            <div className="space-y-0.5">
-              <MobilePulseStrip />
-              <ModeHonestyChip liveMap />
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <MobilePulseStrip />
+              </div>
+              <div className="hidden shrink-0 sm:block">
+                <ModeHonestyChip liveMap />
+              </div>
             </div>
           ) : (
-            <div className="space-y-0.5">
-              <TodayBriefBar dense />
-              {/* Full/3D warn only — no ModeDeepDive filler on content tabs */}
-              <ModeHonestyChip liveMap={false} />
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <TodayBriefBar dense />
+              </div>
+              <div className="hidden shrink-0 sm:block">
+                <ModeHonestyChip liveMap={false} />
+              </div>
             </div>
           )}
         </div>
