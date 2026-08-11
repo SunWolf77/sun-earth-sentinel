@@ -2484,3 +2484,34 @@
   transition: outline-color 0.3s ease;
 }
 
+
+/* ── Tab contrast lock (header) — wins over mobile size tweaks ── */
+.ww-header .ww-tablist .ww-tab {
+  border: 1px solid #334155 !important;
+  background: rgba(30, 41, 59, 0.78) !important;
+  color: #cbd5e1 !important;
+  font-weight: 600 !important;
+}
+.ww-header .ww-tablist .ww-tab:hover {
+  background: rgba(51, 65, 85, 0.95) !important;
+  border-color: #64748b !important;
+  color: #f8fafc !important;
+}
+.ww-header .ww-tablist .ww-tab--active,
+.ww-header .ww-tablist .ww-tab[aria-selected="true"] {
+  border-color: #22d3ee !important;
+  background: rgba(34, 211, 238, 0.16) !important;
+  color: #67e8f9 !important;
+  font-weight: 700 !important;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.22),
+    0 0 14px rgba(34, 211, 238, 0.14) !important;
+}
+.ww-header .ww-tablist--inline {
+  gap: 0.4rem !important;
+}
+@media (max-width: 640px) {
+  .ww-header .ww-tablist--inline {
+    gap: 0.25rem !important;
+  }
+}
