@@ -37,18 +37,21 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
   const msg = ev.data;
   if (!msg || typeof msg.id !== "string" || typeof msg.op !== "string") {
     ctx.postMessage({
-      id: (msg as { id?: string })?.id ?? "unknown",
+      id: (msg as { id?: string } | null)?.id ?? "unknown",
       ok: false,
       error: "invalid worker request",
     } satisfies SuptWorkerResponse);
     return;
   }
 
+  const reqId = msg.id;
+  const op = msg.op;
+
   try {
-    if (msg.op === "resonanceScore") {
+    if (op === "resonanceScore") {
       if (!(msg.gaps instanceof Float64Array)) {
         ctx.postMessage({
-          id: msg.id,
+          id: reqId,
           ok: false,
           error: "resonanceScore expects transferred Float64Array gaps",
         } satisfies SuptWorkerResponse);
@@ -57,7 +60,7 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       const gaps = toNumberArray(msg.gaps);
       const result = resonanceScore(gaps, msg.nShuffle ?? 80);
       ctx.postMessage({
-        id: msg.id,
+        id: reqId,
         ok: true,
         op: "resonanceScore",
         result,
@@ -65,10 +68,10 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       return;
     }
 
-    if (msg.op === "resonanceScoreBatch") {
+    if (op === "resonanceScoreBatch") {
       if (!Array.isArray(msg.jobs)) {
         ctx.postMessage({
-          id: msg.id,
+          id: reqId,
           ok: false,
           error: "resonanceScoreBatch expects jobs array",
         } satisfies SuptWorkerResponse);
@@ -78,7 +81,7 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       for (const job of msg.jobs) {
         if (!job || typeof job.jobId !== "string" || !(job.gaps instanceof Float64Array)) {
           ctx.postMessage({
-            id: msg.id,
+            id: reqId,
             ok: false,
             error: "resonanceScoreBatch job missing jobId or Float64Array gaps",
           } satisfies SuptWorkerResponse);
@@ -89,7 +92,7 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
         result.push({ jobId: job.jobId, score });
       }
       ctx.postMessage({
-        id: msg.id,
+        id: reqId,
         ok: true,
         op: "resonanceScoreBatch",
         result,
@@ -97,10 +100,10 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       return;
     }
 
-    if (msg.op === "probe") {
+    if (op === "probe") {
       if (!(msg.values instanceof Float64Array)) {
         ctx.postMessage({
-          id: msg.id,
+          id: reqId,
           ok: false,
           error: "probe expects transferred Float64Array values",
         } satisfies SuptWorkerResponse);
@@ -109,7 +112,7 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       const values = toNumberArray(msg.values);
       const result = probe(values);
       ctx.postMessage({
-        id: msg.id,
+        id: reqId,
         ok: true,
         op: "probe",
         result,
@@ -117,10 +120,10 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       return;
     }
 
-    if (msg.op === "etasWhiten") {
+    if (op === "etasWhiten") {
       if (!(msg.packed instanceof Float64Array) || msg.packed.length % 2 !== 0) {
         ctx.postMessage({
-          id: msg.id,
+          id: reqId,
           ok: false,
           error: "etasWhiten expects transferred interleaved Float64Array packed",
         } satisfies SuptWorkerResponse);
@@ -129,7 +132,7 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
       const events = unpackEvents(msg.packed);
       const result = etasWhitenResiduals(events);
       ctx.postMessage({
-        id: msg.id,
+        id: reqId,
         ok: true,
         op: "etasWhiten",
         result,
@@ -138,13 +141,13 @@ ctx.onmessage = (ev: MessageEvent<SuptWorkerRequest>) => {
     }
 
     ctx.postMessage({
-      id: msg.id,
+      id: reqId,
       ok: false,
-      error: `unknown op: ${(msg as { op: string }).op}`,
+      error: `unknown op: ${String(op)}`,
     } satisfies SuptWorkerResponse);
   } catch (e) {
     ctx.postMessage({
-      id: msg.id,
+      id: reqId,
       ok: false,
       error: e instanceof Error ? e.message : String(e),
     } satisfies SuptWorkerResponse);

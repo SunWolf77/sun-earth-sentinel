@@ -25,6 +25,7 @@ import type {
   ResonanceBatchJob,
   ResonanceBatchResult,
   SuptWorkerRequest,
+  SuptWorkerRequestBody,
   SuptWorkerResponse,
 } from "./workerTypes";
 
@@ -132,7 +133,7 @@ function packEvents(events: EtasEvent[]): Float64Array {
 }
 
 function callWorkerTransfer<T>(
-  req: Omit<SuptWorkerRequest, "id">,
+  req: SuptWorkerRequestBody,
   transfer: Transferable[],
 ): Promise<T> {
   if (pending.size >= MAX_PENDING) {

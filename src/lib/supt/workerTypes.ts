@@ -34,16 +34,23 @@ export type ResonanceBatchResult = {
 };
 
 /**
+ * Request body without id — used by the main-thread facade before seq assign.
+ * Kept as an explicit union (not Omit<Request,"id">) so TS distributes
+ * discriminant fields correctly.
+ */
+export type SuptWorkerRequestBody =
+  | { op: "resonanceScore"; gaps: Float64Array; nShuffle?: number }
+  | { op: "resonanceScoreBatch"; jobs: ResonanceBatchJob[] }
+  | { op: "probe"; values: Float64Array }
+  | { op: "etasWhiten"; packed: Float64Array };
+
+/**
  * Inbound requests use Float64Array for bulk numeric data.
  * - resonanceScore / probe: one value per element
  * - resonanceScoreBatch: N jobs, each with its own transferred gaps buffer
  * - etasWhiten: interleaved [tMs0, mag0, tMs1, mag1, …] (length = 2 × events)
  */
-export type SuptWorkerRequest =
-  | { id: string; op: "resonanceScore"; gaps: Float64Array; nShuffle?: number }
-  | { id: string; op: "resonanceScoreBatch"; jobs: ResonanceBatchJob[] }
-  | { id: string; op: "probe"; values: Float64Array }
-  | { id: string; op: "etasWhiten"; packed: Float64Array };
+export type SuptWorkerRequest = SuptWorkerRequestBody & { id: string };
 
 export type SuptWorkerResponse =
   | { id: string; ok: true; op: "resonanceScore"; result: ResonanceScore }

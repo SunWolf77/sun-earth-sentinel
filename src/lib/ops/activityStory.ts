@@ -24,6 +24,7 @@ import type { NoaaScales } from "@/lib/feeds/swpc";
 import {
   collapseFieldTwins,
   PROFILE_STORY,
+  samePhysicalFeature,
 } from "@/lib/seismology/sameEvent";
 import { formatMagField } from "@/lib/seismology/magResolution";
 
@@ -482,6 +483,72 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
   return stories;
 }
 
+/**
+ * Field-unified narrative: one rupture speaks once.
+ * - Prefer node/zone story when it claims the same event (id or physical twin)
+ * - Drop global cards that restate a zone standout
+ * - Keep solar/volcano/quiet untouched
+ */
+export function unifyFieldStories(
+  stories: ActivityStory[],
+  features: EqFeature[],
+): ActivityStory[] {
+  const byId = new Map<string, EqFeature>();
+  for (const f of features) {
+    if (f.id != null) byId.set(String(f.id), f);
+  }
+
+  const nodes = stories.filter((s) => s.kind === "node");
+  const globals = stories.filter((s) => s.kind === "global");
+  const other = stories.filter((s) => s.kind !== "node" && s.kind !== "global");
+
+  const claimedIds = new Set<string>();
+  const claimedFeats: EqFeature[] = [];
+  for (const n of nodes) {
+    if (!n.eventId) continue;
+    claimedIds.add(n.eventId);
+    const f = byId.get(n.eventId);
+    if (f) claimedFeats.push(f);
+  }
+
+  const keptGlobals: ActivityStory[] = [];
+  for (const g of globals) {
+    if (g.eventId && claimedIds.has(g.eventId)) continue;
+    const gf = g.eventId ? byId.get(g.eventId) : undefined;
+    if (gf) {
+      let owned = false;
+      for (const cf of claimedFeats) {
+        if (samePhysicalFeature(gf, cf, PROFILE_STORY)) {
+          owned = true;
+          break;
+        }
+      }
+      // Zone owns standout if event sits in a now/watch node bounds
+      if (!owned) {
+        for (const n of nodes) {
+          if (n.urgency !== "now" && n.urgency !== "watch") continue;
+          if (!n.nodeId) continue;
+          const node = DRAGON_NODES.find((d) => d.id === n.nodeId);
+          if (!node?.bounds) continue;
+          const [lon, lat] = gf.geometry.coordinates;
+          if (
+            Number.isFinite(lat) &&
+            Number.isFinite(lon) &&
+            pointInBounds(lat, lon, node.bounds, 0.15)
+          ) {
+            owned = true;
+            break;
+          }
+        }
+      }
+      if (owned) continue;
+    }
+    keptGlobals.push(g);
+  }
+
+  return [...nodes, ...keptGlobals, ...other];
+}
+
 function volcanoBeats(alerts: UsgsVolcanoAlert[]): ActivityStory[] {
   const elevated = alerts.filter((a) => {
     const lvl = `${a.colorCode || ""} ${a.alertLevel || ""}`.toUpperCase();
@@ -588,7 +655,11 @@ export function buildActivityStory(opts: {
   const sol = solarBeat(opts.solar ?? null, opts.scales ?? null);
   if (sol) stories.push(sol);
 
-  stories.sort((a, b) => {
+  // One rupture → one narrative. Zone owns in-corridor standouts; global keeps
+  // off-corridor only. Prevents Colombia-class double mouths (GLOBAL + zone).
+  const unified = unifyFieldStories(stories, features);
+
+  unified.sort((a, b) => {
     const ur = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency];
     if (ur !== 0) return ur;
     return b.score - a.score;
@@ -597,7 +668,7 @@ export function buildActivityStory(opts: {
   // Cap red "now" stories so chrome never looks like a constant alarm board
   let nowCount = 0;
   const capped: ActivityStory[] = [];
-  for (const s of stories) {
+  for (const s of unified) {
     if (s.urgency === "now") {
       nowCount++;
       if (nowCount > 2) {

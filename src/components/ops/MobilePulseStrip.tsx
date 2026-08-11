@@ -1,6 +1,6 @@
 /**
- * Single mobile pulse strip — SW brief + story + visit + feeds behind one expand.
- * Keeps the live map free of stacked chrome rows.
+ * Single Pulse strip — SW brief + story + visit + feeds behind one expand.
+ * Used on live map for **mobile and desktop** so chrome never stacks five rows.
  */
 
 import { useMemo, useState } from "react";
@@ -9,12 +9,15 @@ import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
 import { SinceLastVisitStrip } from "@/components/ops/SinceLastVisitStrip";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
+import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { useObservatory, filteredEq } from "@/store/observatory";
 import { buildActivityStory } from "@/lib/ops/activityStory";
 import { buildTodayBrief } from "@/lib/ops/todayBrief";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 export function MobilePulseStrip() {
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
   const resonance = useObservatory((s) => s.resonance);
   const scales = useObservatory((s) => s.scales);
   const donki = useObservatory((s) => s.donki);
@@ -68,7 +71,7 @@ export function MobilePulseStrip() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex w-full items-center gap-1.5 rounded-md border px-2 py-1 text-left text-[0.6rem] ${tone}`}
+        className={`flex w-full min-h-11 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-[0.65rem] sm:min-h-10 sm:text-[0.7rem] ${tone}`}
         aria-expanded={false}
         aria-label="Expand pulse — space weather, story, feeds"
       >
@@ -77,25 +80,30 @@ export function MobilePulseStrip() {
         <span className="shrink-0 tabular-nums text-dim">
           R{scales?.R ?? "0"} S{scales?.S ?? "0"} G{scales?.G ?? "0"}
         </span>
-        <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
       </button>
     );
   }
 
   return (
-    <div className="space-y-1 rounded-md border border-border/70 bg-bg/40 p-1">
+    <div className="space-y-1 rounded-md border border-border/70 bg-bg/40 p-1.5">
       <button
         type="button"
         onClick={() => setOpen(false)}
-        className="flex w-full items-center justify-between gap-1 px-1 py-0.5 text-left text-[0.58rem] font-semibold uppercase tracking-wider text-dim"
+        className="flex min-h-9 w-full items-center justify-between gap-1 px-1 py-0.5 text-left text-[0.62rem] font-semibold uppercase tracking-wider text-dim"
         aria-expanded
       >
         <span>Pulse · expanded</span>
-        <ChevronUp className="h-3 w-3" />
+        <ChevronUp className="h-3.5 w-3.5" />
       </button>
       <TodayBriefBar dense showRecLink={false} />
       <SinceLastVisitStrip dense />
       <ActivityStoryChip />
+      {!isMobile && (
+        <div className="min-w-0">
+          <CrossFeedChips />
+        </div>
+      )}
       <FeedHealthStrip compact />
     </div>
   );

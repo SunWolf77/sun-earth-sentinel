@@ -34,11 +34,9 @@ import { FocusedNodeCard } from "@/components/nodes/FocusedNodeCard";
 import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
-import { SinceLastVisitStrip } from "@/components/ops/SinceLastVisitStrip";
 import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
-import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
-import { ActivityStoryPanel, ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
+import { ActivityStoryPanel } from "@/components/ops/ActivityStoryPanel";
 import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
 import { BackToSesButton } from "@/components/nodes/BackToSesButton";
 import { X_PROFILES } from "@/lib/site";
@@ -906,34 +904,20 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Map-first on phone: one Pulse strip; desktop keeps full stack */}
+      {/* Live map: one Pulse strip (mobile + desktop). Other tabs: brief + feeds only. */}
       {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
         <div
           className={`ww-brief-strip shrink-0 border-b border-border/60 px-2 sm:px-3 ${
             isMobile ? "py-0.5" : "py-1 sm:py-1.5"
           }`}
         >
-          {isMobile && tab === "live" ? (
+          {tab === "live" ? (
+            /* One Pulse strip on live map — mobile + desktop (no stacked chrome) */
             <MobilePulseStrip />
           ) : (
             <>
               <TodayBriefBar dense />
-              {tab === "live" && (
-                <div className="mt-0.5 min-w-0">
-                  <SinceLastVisitStrip dense />
-                </div>
-              )}
-              {tab === "live" && (
-                <div className="mt-0.5 min-w-0">
-                  <ActivityStoryChip />
-                </div>
-              )}
-              {tab === "live" && !isMobile && (
-                <div className="mt-0.5 min-w-0">
-                  <CrossFeedChips />
-                </div>
-              )}
-              <div className={`mt-0.5 min-w-0`}>
+              <div className="mt-0.5 min-w-0">
                 <FeedHealthStrip compact />
               </div>
             </>
