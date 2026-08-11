@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useObservatory } from "@/store/observatory";
 import { buildTodayBrief, type RecPriority } from "@/lib/ops/todayBrief";
 import { runFullBacktest } from "@/lib/supt/backtest";
+import { focusForRecommendation, requestFocus } from "@/lib/ops/focusNav";
 import { ListChecks, FlaskConical, ChevronDown, ChevronRight } from "lucide-react";
 
 const PRI_STYLE: Record<RecPriority, string> = {
@@ -11,6 +12,15 @@ const PRI_STYLE: Record<RecPriority, string> = {
   ok: "border-border bg-panel text-muted",
 };
 
+const GO_LABEL: Record<string, string> = {
+  cme: "CME catalog",
+  radio: "X-ray",
+  protons: "Protons",
+  geo: "Kp / G",
+  "earth-supt": "Rhythm",
+  quiet: "Live map",
+};
+
 export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: boolean }) {
   const resonance = useObservatory((s) => s.resonance);
   const scales = useObservatory((s) => s.scales);
@@ -18,6 +28,7 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
   const solar = useObservatory((s) => s.solarAssessment);
   const kp = useObservatory((s) => s.kp);
   const mode = useObservatory((s) => s.mode);
+  const tab = useObservatory((s) => s.tab);
   const setTab = useObservatory((s) => s.setTab);
   const [openBt, setOpenBt] = useState(false);
 
@@ -35,6 +46,13 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
 
   const bt = useMemo(() => (openBt ? runFullBacktest(36) : null), [openBt, mode]);
 
+  const go = (id: string, recTab?: typeof tab) => {
+    const target = focusForRecommendation(id, recTab);
+    // Always set tab (even if same — panel may remount) then focus scroll
+    setTab(target.tab);
+    requestFocus(target);
+  };
+
   return (
     <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
       <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-primary">
@@ -43,7 +61,6 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
       </h3>
       <p className="mb-3 text-[0.68rem] text-dim">
         Deterministic triage from scales · L1 · DONKI · SUPT — not official SWPC watches.
-        
       </p>
       <ul className="space-y-2">
         {brief.recommendations.map((r) => (
@@ -61,10 +78,15 @@ export function RecommendationsPanel({ showBacktest = true }: { showBacktest?: b
               {r.tab && (
                 <button
                   type="button"
-                  className="ww-btn min-h-8 px-2 text-[0.62rem]"
-                  onClick={() => setTab(r.tab!)}
+                  className="ww-btn min-h-9 px-2.5 text-[0.62rem] font-semibold sm:min-h-8"
+                  onClick={() => go(r.id, r.tab)}
+                  title={
+                    tab === r.tab
+                      ? `Scroll to ${GO_LABEL[r.id] ?? r.tab}`
+                      : `Open ${r.tab} · ${GO_LABEL[r.id] ?? ""}`
+                  }
                 >
-                  Go
+                  {tab === r.tab ? GO_LABEL[r.id] ?? "Show" : "Go"}
                 </button>
               )}
             </div>

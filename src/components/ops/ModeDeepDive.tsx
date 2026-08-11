@@ -172,6 +172,19 @@ export function ModeDeepDive({ className = "", defaultOpen = false }: Props) {
             </div>
           </div>
 
+          <div className="rounded border border-border/70 bg-bg/40 px-2 py-1.5 text-[0.6rem] leading-snug">
+            <p className="font-semibold text-fg">SUPT shuffle null cost</p>
+            <p className="mt-0.5 text-muted">
+              Each resonance score runs Fisher–Yates order shuffles of the gap multiset
+              (mulberry32 seed 20250120), re-probes, then z vs that null cloud.{" "}
+              <strong className="text-fg">Standard = {MODES.standard.shuffleN}</strong>
+              {" · "}
+              <strong className="text-fg">Full = {MODES.full.shuffleN}</strong>
+              . Cost ≈ nShuffle × probe(N). Full does not change α, seed, or |z|≥3 — only null
+              sample size (tighter null_sd, more CPU; worker offloads large jobs).
+            </p>
+          </div>
+
           {!showTable ? (
             <button
               type="button"

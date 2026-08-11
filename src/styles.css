@@ -2281,3 +2281,12 @@
 .ww-globe-css2d.is-back {
   visibility: hidden;
 }
+
+/* Recommendation / mode focus flash */
+.ses-focus-ring {
+  outline: 2px solid color-mix(in oklab, var(--color-primary, #22d3ee) 70%, transparent);
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+  transition: outline-color 0.3s ease;
+}
+

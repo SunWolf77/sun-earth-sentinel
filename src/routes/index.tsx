@@ -36,7 +36,6 @@ import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
 import { ModeHonestyChip } from "@/components/ops/ModeHonestyChip";
-import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel } from "@/components/ops/ActivityStoryPanel";
 import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
 import { BackToSesButton } from "@/components/nodes/BackToSesButton";
@@ -921,9 +920,7 @@ function ObservatoryApp() {
           ) : (
             <>
               <TodayBriefBar dense />
-              <div className="mt-0.5 min-w-0">
-                <FeedHealthStrip compact />
-              </div>
+              {/* Non-live: no full feed-chip wall — desktop was drowning Solar/Rhythm */}
               <div className="mt-0.5 min-w-0">
                 <ModeHonestyChip liveMap={false} />
               </div>

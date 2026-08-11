@@ -28,6 +28,13 @@ import { SuptSolarAgent } from "@/components/weather/SuptSolarAgent";
 import { isMobileViewport } from "@/lib/device";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { RecommendationsPanel } from "@/components/ops/RecommendationsPanel";
+import {
+  applyFocusScroll,
+  peekPendingFocus,
+  subscribeFocus,
+  takePendingFocus,
+  type FocusTarget,
+} from "@/lib/ops/focusNav";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
@@ -104,6 +111,33 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       return next;
     });
   };
+
+  const openDeep = (key: "farside" | "models" | "alerts" | "catalogs") => {
+    setDeepOpen((prev) => {
+      if (prev[key]) return prev;
+      const next = { ...prev, [key]: true };
+      try { localStorage.setItem("wolfwatch_solar_deep", JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  };
+
+  const applySolarFocus = (t: FocusTarget) => {
+    if (t.tab !== "solar") return;
+    if (t.solarDeep) openDeep(t.solarDeep);
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => applyFocusScroll(t), 80);
+      window.setTimeout(() => applyFocusScroll(t), 320);
+    });
+  };
+
+  useEffect(() => {
+    const pending = peekPendingFocus() ?? takePendingFocus();
+    if (pending) applySolarFocus(pending);
+    return subscribeFocus((t) => {
+      if (t.tab === "solar") applySolarFocus(t);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + focus bus only
+  }, []);
 
   const latestKp = kp.length ? kp[kp.length - 1] : null;
   const kpVal = latestKp ? Number(latestKp.Kp) : null;
@@ -296,7 +330,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       <Ladder title="2 · Live instruments" hint="Gauges · protons · scales · forecast" />
       {/* Live gauges */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div
+        id="ses-solar-geo"
+        className="grid scroll-mt-20 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
+      >
         <Gauge icon={<Activity className="h-3.5 w-3.5" />} label="Kp now" value={kpVal != null ? kpVal.toFixed(1) : "—"} alert={highKp} />
         <Gauge icon={<Sun className="h-3.5 w-3.5" />} label="X-ray" value={xClass} alert={highX} />
         <Gauge icon={<Wind className="h-3.5 w-3.5" />} label="SW km/s" value={solarWind?.speed != null ? String(Math.round(solarWind.speed)) : "—"} />
@@ -310,7 +347,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       </div>
 
       {/* Real-time proton flux */}
-      <div className="grid grid-cols-3 gap-2">
+      <div id="ses-solar-protons" className="grid scroll-mt-20 grid-cols-3 gap-2">
         <Gauge
           icon={<Atom className="h-3.5 w-3.5" />}
           label="p ≥10 MeV"
@@ -402,7 +439,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         </button>
       </Ladder>
       {deepOpen.catalogs && (
-      <section className="grid gap-3 lg:grid-cols-2">
+      <section
+        id="ses-solar-cme"
+        className="grid scroll-mt-20 gap-3 lg:grid-cols-2"
+      >
         <div className="rounded-xl border border-border bg-panel p-3 sm:p-4">
           <h3 className="mb-2 flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
             <AlertTriangle className="h-3.5 w-3.5" />
