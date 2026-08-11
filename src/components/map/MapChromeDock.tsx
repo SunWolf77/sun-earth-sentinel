@@ -1,7 +1,8 @@
 /**
  * Edge dock — compact by default so eastern map events stay visible.
  * Desktop + mobile: min → compact strip → full (expand on demand).
- * Auto-minimizes when an event is selected.
+ * 3D: Spin is always on the compact strip (not buried under ⚙).
+ * Camera actions for 3D go through registerGlobeChrome (grid tools track).
  */
 
 import { useEffect, useState } from "react";
@@ -17,13 +18,14 @@ import {
   X,
   History,
   ChevronUp,
+  RotateCw,
 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { timeWindowChip, timeWindowTitle, TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { HelpGuide } from "@/components/ops/HelpGuide";
+import { getGlobeChrome, type TiltPreset } from "@/lib/map/globeChrome";
 
-type TiltPreset = "equator" | "north" | "oblique";
 /** Chrome density — desktop also uses compact so east events stay clear */
 type DockLevel = "min" | "compact" | "full";
 
@@ -55,29 +57,73 @@ export function MapChromeDock({
   const exitToHomeView = useObservatory((s) => s.exitToHomeView);
   const globeAutoSpin = useObservatory((s) => s.globeAutoSpin);
   const setGlobeAutoSpin = useObservatory((s) => s.setGlobeAutoSpin);
+  const resumeGlobeSpin = useObservatory((s) => s.resumeGlobeSpin);
   const setReplayActive = useObservatory((s) => s.setReplayActive);
   const replayActive = useObservatory((s) => s.replayActive);
   const pickedEvent = useObservatory((s) => s.pickedEvent);
   const mobile = useIsMobile();
   const [level, setLevel] = useState<DockLevel>("compact");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [, bumpPrior] = useState(0);
 
-  // Compact default everywhere — full only on user expand (frees east map)
+  // Compact default; collapse when reading an event on mobile only
   useEffect(() => {
-    if (pickedEvent) {
+    if (mobile && pickedEvent) {
       setLevel("min");
       return;
     }
-    setLevel((prev) => (prev === "full" ? "compact" : prev));
-  }, [mapView, mapImmersive, pickedEvent?.id]);
+    setLevel((prev) => (prev === "full" ? "compact" : prev === "min" && !mobile ? "compact" : prev));
+  }, [mobile, mapView, mapImmersive, pickedEvent?.id]);
+
+  // Poll canPrior for 3D (registered after globe mounts)
+  useEffect(() => {
+    if (mapView !== "3d") return;
+    const id = window.setInterval(() => bumpPrior((n) => n + 1), 800);
+    return () => window.clearInterval(id);
+  }, [mapView]);
 
   const home = () => {
     exitToHomeView();
     onHomeView?.();
+    if (mapView === "3d") getGlobeChrome()?.home();
   };
 
-  const showTilt = mapView === "3d" && (onTiltUp || onTiltDown || onTiltPreset);
+  const prior = () => {
+    onPriorView?.();
+    if (mapView === "3d") getGlobeChrome()?.prior();
+  };
+
+  const canPrior =
+    canPriorView || (mapView === "3d" && !!getGlobeChrome()?.canPrior());
+
+  const tiltUp = () => {
+    onTiltUp?.();
+    if (mapView === "3d") getGlobeChrome()?.tiltBy(-0.1);
+  };
+  const tiltDown = () => {
+    onTiltDown?.();
+    if (mapView === "3d") getGlobeChrome()?.tiltBy(0.1);
+  };
+  const tiltPreset = (k: TiltPreset) => {
+    onTiltPreset?.(k);
+    if (mapView === "3d") getGlobeChrome()?.tiltPreset(k);
+  };
+
+  const showTilt = mapView === "3d" && (onTiltUp || onTiltDown || onTiltPreset || true);
   const ViewIcon = mapView === "3d" ? Globe2 : MapIcon;
+
+  const spinBtn = mapView === "3d" && (
+    <button
+      type="button"
+      className={`ww-map-dock__icon-btn ww-map-dock__icon-btn--sm ${globeAutoSpin ? "ww-map-dock__icon-btn--on" : ""}`}
+      title={globeAutoSpin ? "Stop auto-spin" : "Resume auto-spin"}
+      aria-pressed={globeAutoSpin}
+      onClick={() => (globeAutoSpin ? setGlobeAutoSpin(false) : resumeGlobeSpin())}
+    >
+      <RotateCw className={`h-3.5 w-3.5 ${globeAutoSpin ? "animate-spin" : ""}`} style={globeAutoSpin ? { animationDuration: "3s" } : undefined} />
+      <span className="text-[0.55rem] font-bold">{globeAutoSpin ? "Spin" : "Still"}</span>
+    </button>
+  );
 
   // ── Minimized: single FAB — maximum map ──
   if (level === "min") {
@@ -98,6 +144,7 @@ export function MapChromeDock({
           <ViewIcon className="h-4 w-4 shrink-0" aria-hidden />
           <span className="ww-map-dock__fab-label">
             {mapView === "3d" ? "3D" : "2D"} · {timeWindowChip(timeWindow)}
+            {mapView === "3d" ? (globeAutoSpin ? " · Spin" : " · Still") : ""}
           </span>
           <ChevronUp className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
         </button>
@@ -114,7 +161,7 @@ export function MapChromeDock({
         role="toolbar"
         aria-label="Map controls"
       >
-        <div className="flex max-w-[min(100vw-0.75rem,22rem)] flex-wrap items-center justify-end gap-0.5 rounded-xl border border-border bg-surface/95 p-0.5 shadow-lg backdrop-blur">
+        <div className="flex max-w-[min(100vw-0.75rem,24rem)] flex-wrap items-center justify-end gap-0.5 rounded-xl border border-border bg-surface/95 p-0.5 shadow-lg backdrop-blur">
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
@@ -159,6 +206,7 @@ export function MapChromeDock({
               </button>
             ))}
           </div>
+          {spinBtn}
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
@@ -204,7 +252,7 @@ export function MapChromeDock({
         <button
           type="button"
           className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
-          onClick={() => setLevel(pickedEvent ? "min" : "compact")}
+          onClick={() => setLevel(mobile && pickedEvent ? "min" : "compact")}
           title="Collapse"
         >
           <X className="h-3.5 w-3.5" />
@@ -249,7 +297,19 @@ export function MapChromeDock({
         ))}
       </div>
 
-      {showTilt && (
+      {mapView === "3d" && (
+        <button
+          type="button"
+          className={`ww-map-dock__icon-btn w-full justify-center ${globeAutoSpin ? "ww-map-dock__icon-btn--on" : ""}`}
+          title={globeAutoSpin ? "Stop auto-spin" : "Resume auto-spin"}
+          onClick={() => (globeAutoSpin ? setGlobeAutoSpin(false) : resumeGlobeSpin())}
+        >
+          <RotateCw className="h-3.5 w-3.5" />
+          <span className="ww-map-dock__label">{globeAutoSpin ? "Spin on" : "Spin off"}</span>
+        </button>
+      )}
+
+      {showTilt && mapView === "3d" && (
         <div
           className="rounded-lg border border-border bg-bg/60 p-1.5"
           role="group"
@@ -259,33 +319,23 @@ export function MapChromeDock({
             View angle
           </div>
           <div className="grid grid-cols-2 gap-1">
-            <button
-              type="button"
-              className="ww-map-dock__icon-btn justify-center"
-              title="Tilt toward north"
-              onClick={() => onTiltUp?.()}
-            >
+            <button type="button" className="ww-map-dock__icon-btn justify-center" onClick={tiltUp}>
               <span className="text-[0.65rem] font-bold">North ↑</span>
             </button>
-            <button
-              type="button"
-              className="ww-map-dock__icon-btn justify-center"
-              title="Tilt toward equator"
-              onClick={() => onTiltDown?.()}
-            >
+            <button type="button" className="ww-map-dock__icon-btn justify-center" onClick={tiltDown}>
               <span className="text-[0.65rem] font-bold">South ↓</span>
             </button>
             <button
               type="button"
               className="ww-map-dock__icon-btn justify-center"
-              onClick={() => onTiltPreset?.("equator")}
+              onClick={() => tiltPreset("equator")}
             >
               <span className="text-[0.62rem] font-semibold">Equator</span>
             </button>
             <button
               type="button"
               className="ww-map-dock__icon-btn justify-center"
-              onClick={() => onTiltPreset?.("oblique")}
+              onClick={() => tiltPreset("oblique")}
             >
               <span className="text-[0.62rem] font-semibold">Oblique</span>
             </button>
@@ -309,13 +359,8 @@ export function MapChromeDock({
           <Home className="h-3.5 w-3.5" />
           <span className="ww-map-dock__label">Home</span>
         </button>
-        {canPriorView && (
-          <button
-            type="button"
-            className="ww-map-dock__icon-btn"
-            title="Prior view"
-            onClick={() => onPriorView?.()}
-          >
+        {canPrior && (
+          <button type="button" className="ww-map-dock__icon-btn" title="Prior view" onClick={prior}>
             <Undo2 className="h-3.5 w-3.5" />
             <span className="ww-map-dock__label">Back</span>
           </button>
@@ -329,17 +374,6 @@ export function MapChromeDock({
           {mapImmersive ? <Minimize2 className="h-3.5 w-3.5" /> : <Expand className="h-3.5 w-3.5" />}
           <span className="ww-map-dock__label">{mapImmersive ? "Exit" : "Full"}</span>
         </button>
-        {mapView === "3d" && (
-          <button
-            type="button"
-            className={`ww-map-dock__icon-btn ${globeAutoSpin ? "ww-map-dock__icon-btn--on" : ""}`}
-            title={globeAutoSpin ? "Stop spin" : "Auto spin"}
-            onClick={() => setGlobeAutoSpin(!globeAutoSpin)}
-          >
-            <Globe2 className="h-3.5 w-3.5" />
-            <span className="ww-map-dock__label">{globeAutoSpin ? "Spin" : "Still"}</span>
-          </button>
-        )}
         <button
           type="button"
           className="ww-map-dock__icon-btn"

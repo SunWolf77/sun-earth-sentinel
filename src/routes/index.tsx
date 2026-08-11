@@ -1107,8 +1107,8 @@ function ObservatoryApp() {
                 {isMobile && <MobileEventSheet />}
               </div>
 
-              {/* Right tools track — reserved column; 2D dock lives here */}
-              {!isMobile && mapView === "2d" && (
+              {/* Right tools track — 2D + 3D dock (Spin visible on 3D compact) */}
+              {!isMobile && (
                 <div className="ww-map-stage__tools">
                   <MapChromeDock className="items-end" />
                 </div>

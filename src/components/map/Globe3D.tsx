@@ -30,7 +30,7 @@ import {
 import { formatUtc } from "@/lib/utils";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { MapChromeDock } from "@/components/map/MapChromeDock";
+import { registerGlobeChrome } from "@/lib/map/globeChrome";
 import {
   nodeWhyLine,
   nodeRoleLine,
@@ -128,6 +128,8 @@ export function Globe3D() {
   const [canPrior, setCanPrior] = useState(false);
   const setCanPriorRef = useRef(setCanPrior);
   setCanPriorRef.current = setCanPrior;
+  const canPriorRef = useRef(false);
+  canPriorRef.current = canPrior;
   const priorViewRef = useRef<(() => void) | null>(null);
   const tiltByRef = useRef<((delta: number) => void) | null>(null);
   const tiltPresetRef = useRef<((kind: "equator" | "north" | "oblique") => void) | null>(null);
@@ -689,6 +691,19 @@ export function Globe3D() {
         applyCam();
         scheduleSpinResume(SPIN_RESUME_AFTER_HOME_MS, "after home");
       };
+
+      // Grid tools track dock — not painted over the globe canvas
+      registerGlobeChrome({
+        home: () => recenterRef.current?.(),
+        prior: () => priorViewRef.current?.(),
+        canPrior: () => canPriorRef.current,
+        tiltBy: (d) => tiltByRef.current?.(d),
+        tiltPreset: (k) => tiltPresetRef.current?.(k),
+      });
+      // Ensure spin is live when user preference is ON (grid remount / 2D→3D)
+      if (spinDesiredRef.current) {
+        autoRef.current = true;
+      }
 
       const hexGeo = makeHexRingGeometry(THREE, 1, 0.22);
       const dummy = new THREE.Object3D();
@@ -1986,6 +2001,7 @@ export function Globe3D() {
         aimRef.current = null;
         recenterRef.current = null;
         qualityRef.current = null;
+        registerGlobeChrome(null);
       };
     })().catch((err) => {
       console.error(err);
@@ -2005,6 +2021,7 @@ export function Globe3D() {
 
     return () => {
       cancelled = true;
+      registerGlobeChrome(null);
       cleanupRef.current?.();
       cleanupRef.current = null;
     };
@@ -2081,7 +2098,7 @@ export function Globe3D() {
   const focus = getFocusNode(focusNodeId);
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg border border-border bg-[#0b1220] sm:min-h-[280px]">
+    <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#0b1220]">
       <div ref={containerRef} className="h-full min-h-0 w-full" />
       <div className="pointer-events-none absolute right-2 top-12 z-20 sm:top-14">
         <AuroraOfficialPanel />
@@ -2395,24 +2412,11 @@ export function Globe3D() {
         </div>
       )}
 
-      {/* Edge dock — keeps chrome off the Earth */}
+      {/* Edge dock lives in ww-map-stage__tools (grid) — Spin + tilt via registerGlobeChrome */}
       {spinResumeHint && (
-        <div className="pointer-events-none absolute bottom-[5.5rem] right-2 z-30 max-w-[11rem] rounded-md border border-primary/30 bg-surface/90 px-2 py-1 text-[0.55rem] font-semibold text-primary shadow backdrop-blur sm:bottom-[7.5rem] sm:right-3 sm:max-w-[14rem] sm:text-[0.6rem]">
+        <div className="pointer-events-none absolute bottom-2 right-2 z-30 max-w-[11rem] rounded-md border border-primary/30 bg-surface/90 px-2 py-1 text-[0.55rem] font-semibold text-primary shadow backdrop-blur sm:right-3 sm:max-w-[14rem] sm:text-[0.6rem]">
           {spinResumeHint}
         </div>
-      )}
-      {!isMobileGlobe && (
-      <div className="pointer-events-none absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] right-[max(0.35rem,env(safe-area-inset-right))] z-30 sm:bottom-4 sm:right-3">
-        <MapChromeDock
-          className="items-end"
-          canPriorView={canPrior}
-          onPriorView={() => priorViewRef.current?.()}
-          onHomeView={() => recenterRef.current?.()}
-          onTiltUp={() => tiltByRef.current?.(-0.1)}
-          onTiltDown={() => tiltByRef.current?.(0.1)}
-          onTiltPreset={(k) => tiltPresetRef.current?.(k)}
-        />
-      </div>
       )}
 
     </div>
