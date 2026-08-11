@@ -1,6 +1,9 @@
 /**
  * Activity Story panel — ranked "what's unfolding" with one-tap shortcuts.
  * Lives in Live sidebar + compact chrome chip.
+ *
+ * Tone discipline: red "now" is for fresh standouts only — not every M6/M7
+ * still in the week window. Actions must fly the map + pick the event.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,6 +12,7 @@ import {
   ChevronUp,
   ExternalLink,
   Focus,
+  Map as MapIcon,
   Newspaper,
   Zap,
 } from "lucide-react";
@@ -40,6 +44,15 @@ const URGENCY_BADGE: Record<StoryUrgency, string> = {
   quiet: "bg-panel text-dim border-border",
 };
 
+/** Chip label — never scream NOW for elevated/context catalog notes */
+const URGENCY_CHIP: Record<StoryUrgency, string> = {
+  now: "Now",
+  watch: "Watch",
+  elevated: "Busy",
+  context: "Note",
+  quiet: "Quiet",
+};
+
 const KIND_LABEL: Record<string, string> = {
   node: "Zone",
   global: "Global",
@@ -62,33 +75,54 @@ function runAction(
       time: number | null;
       url?: string;
     } | null) => void;
+    flyMapTo: (lat: number, lon: number, zoom?: number, id?: string) => void;
     setTab: (t: TabId) => void;
     setMobileSheet: (s: MobileSheet) => void;
   },
 ) {
   if (action.focusNodeId) {
     api.setFocusNode(action.focusNodeId);
+    api.setTab("live");
+    api.setMobileSheet("closed");
+    return;
   }
-  if (
+
+  const hasCoords =
     action.lat != null &&
     action.lon != null &&
     Number.isFinite(action.lat) &&
-    Number.isFinite(action.lon)
-  ) {
+    Number.isFinite(action.lon);
+
+  if (hasCoords) {
+    const lat = action.lat!;
+    const lon = action.lon!;
+    const id = action.eventId || `${lat},${lon},${action.time ?? 0}`;
+    const mag = action.mag ?? 0;
+    // Zoom by magnitude — big events need regional context, not street level
+    const zoom = mag >= 7 ? 5 : mag >= 6 ? 5.5 : mag >= 5 ? 6 : 7;
+
     api.pickEvent({
-      id: action.eventId || `${action.lat},${action.lon},${action.time ?? 0}`,
-      lat: action.lat,
-      lon: action.lon,
-      mag: action.mag ?? 0,
+      id,
+      lat,
+      lon,
+      mag,
       place: action.place || "Event",
       depth: action.depth ?? 0,
       time: action.time ?? null,
       url: action.url,
     });
-    api.setTab("live");
-    api.setMobileSheet("events");
-  } else if (action.tab) {
+    // flyMapTo sets tab live + closes mobile sheet + mapFlyTo target
+    api.flyMapTo(lat, lon, zoom, id);
+    // Desktop: keep event sheet available; mobile: event card via pick
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      api.setMobileSheet("events");
+    }
+    return;
+  }
+
+  if (action.tab) {
     api.setTab(action.tab as TabId);
+    if (action.tab === "live") api.setMobileSheet("closed");
   }
   if (action.boardUrl) {
     window.open(action.boardUrl, "_blank", "noopener,noreferrer");
@@ -148,23 +182,32 @@ function StoryCard({
             {story.actions.map((a) => {
               const isBoard = !!a.boardUrl;
               const isFocus = !!a.focusNodeId && !a.eventId && !a.boardUrl;
+              const isMap =
+                !isBoard &&
+                !isFocus &&
+                (a.lat != null || a.label.toLowerCase().includes("map"));
               return (
                 <button
                   key={a.id}
                   type="button"
-                  className={`inline-flex min-h-7 items-center gap-1 rounded-md border px-2 text-[0.6rem] font-semibold ${
+                  className={`inline-flex min-h-8 items-center gap-1 rounded-md border px-2 text-[0.6rem] font-semibold ${
                     isBoard
                       ? "border-gold/45 bg-gold/15 text-gold hover:bg-gold/25"
                       : isFocus
                         ? "border-primary/45 bg-primary/15 text-primary hover:bg-primary/25"
-                        : "border-border bg-bg/60 text-fg hover:border-primary/40"
+                        : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
                   }`}
-                  onClick={() => onAction(a)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAction(a);
+                  }}
                 >
                   {isBoard ? (
                     <ExternalLink className="h-3 w-3" />
                   ) : isFocus ? (
                     <Focus className="h-3 w-3" />
+                  ) : isMap ? (
+                    <MapIcon className="h-3 w-3" />
                   ) : (
                     <Zap className="h-3 w-3 opacity-80" />
                   )}
@@ -200,6 +243,7 @@ export function ActivityStoryPanel({
   const timeWindow = useObservatory((s) => s.timeWindow);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const pickEvent = useObservatory((s) => s.pickEvent);
+  const flyMapTo = useObservatory((s) => s.flyMapTo);
   const setTab = useObservatory((s) => s.setTab);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
 
@@ -234,37 +278,30 @@ export function ActivityStoryPanel({
   ]);
 
   useEffect(() => {
-    if (!openId && bundle.stories[0] && bundle.urgency !== "quiet") {
+    // Auto-expand first card only for true "now" — not watch/elevated red noise
+    if (!openId && bundle.stories[0] && bundle.urgency === "now") {
       setOpenId(bundle.stories[0].id);
     }
-    // only re-seed when lead changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bundle.lead, bundle.urgency]);
 
   const onAction = (a: StoryAction) =>
-    runAction(a, { setFocusNode, pickEvent, setTab, setMobileSheet });
+    runAction(a, { setFocusNode, pickEvent, flyMapTo, setTab, setMobileSheet });
 
   return (
     <section className={`space-y-2 ${className}`} aria-label="Activity story">
       <header className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
           <Newspaper className="h-3.5 w-3.5" />
-          Now unfolding
+          Activity story
         </h3>
-        {bundle.hotZones > 0 && (
-          <span className="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-[0.58rem] font-semibold text-warn">
-            {bundle.hotZones} notable{bundle.hotZones > 1 ? "" : ""}
-          </span>
-        )}
+        <span className={`rounded border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase ${URGENCY_BADGE[bundle.urgency]}`}>
+          {URGENCY_CHIP[bundle.urgency]}
+        </span>
       </header>
-      <p className="text-[0.62rem] leading-snug text-dim">
-        Standouts vs ordinary corridor pace — tap for shortcuts. Catches signals;
-        does not invent alerts. Not a forecast.
-      </p>
-      <div
-        className={`space-y-1.5 ${compact ? "max-h-[40vh] overflow-y-auto pr-0.5" : ""}`}
-      >
-        {bundle.stories.map((s) => (
+      <p className="text-[0.68rem] leading-snug text-muted">{bundle.lead}</p>
+      <div className="space-y-1.5">
+        {bundle.stories.slice(0, compact ? 4 : 8).map((s) => (
           <StoryCard
             key={s.id}
             story={s}
@@ -274,12 +311,13 @@ export function ActivityStoryPanel({
           />
         ))}
       </div>
+      <p className="text-[0.55rem] text-dim">Observational ranking · not a forecast</p>
     </section>
   );
 }
 
 /**
- * Compact chrome chip (pairs with Today SW brief).
+ * Compact chip in Pulse / chrome — expands to story list.
  */
 export function ActivityStoryChip({ className = "" }: { className?: string }) {
   const eq = useObservatory((s) => s.eq);
@@ -293,6 +331,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
   const timeWindow = useObservatory((s) => s.timeWindow);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
   const pickEvent = useObservatory((s) => s.pickEvent);
+  const flyMapTo = useObservatory((s) => s.flyMapTo);
   const setTab = useObservatory((s) => s.setTab);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
   const mobile = useIsMobile();
@@ -301,6 +340,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
   const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Never auto-expand the red panel — user opts in
     if (mobile) {
       setOpen(false);
       return;
@@ -337,6 +377,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
 
   const top = bundle.stories[0];
   const tone = URGENCY_TONE[bundle.urgency];
+  const chipLabel = URGENCY_CHIP[bundle.urgency];
 
   const toggle = () => {
     setOpen((v) => {
@@ -348,13 +389,19 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
           /* */
         }
       }
-      if (next && top) setDetailId(top.id);
+      // Only auto-expand first card for true fresh "now"
+      if (next && top && bundle.urgency === "now") setDetailId(top.id);
       return next;
     });
   };
 
-  const onAction = (a: StoryAction) =>
-    runAction(a, { setFocusNode, pickEvent, setTab, setMobileSheet });
+  const onAction = (a: StoryAction) => {
+    runAction(a, { setFocusNode, pickEvent, flyMapTo, setTab, setMobileSheet });
+    // Collapse chip after successful map action so map is visible
+    if (a.lat != null || a.focusNodeId || a.tab === "live") {
+      setOpen(false);
+    }
+  };
 
   if (!open) {
     return (
@@ -370,7 +417,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
       >
         <Newspaper className="h-3 w-3 shrink-0 opacity-90" />
         <span className="shrink-0 font-semibold uppercase tracking-wide opacity-80">
-          Now
+          {chipLabel}
         </span>
         <span className="min-w-0 flex-1 truncate font-medium text-fg">
           {bundle.lead}
@@ -401,7 +448,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
           aria-expanded
         >
           <Newspaper className="h-3 w-3 shrink-0" />
-          <span className="shrink-0">Now</span>
+          <span className="shrink-0">{chipLabel}</span>
           <span className="min-w-0 flex-1 truncate font-medium normal-case tracking-normal text-fg">
             {bundle.lead}
           </span>
@@ -409,7 +456,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
         </button>
       </div>
 
-      <div className="mt-1.5 max-h-[min(42vh,22rem)] space-y-1.5 overflow-y-auto">
+      <div className="mt-1.5 max-h-[min(36vh,18rem)] space-y-1.5 overflow-y-auto">
         {bundle.stories.slice(0, mobile ? 4 : 6).map((s) => (
           <StoryCard
             key={s.id}
@@ -421,7 +468,7 @@ export function ActivityStoryChip({ className = "" }: { className?: string }) {
         ))}
       </div>
       <p className="mt-1 text-[0.55rem] text-dim">
-        Observational ranking · not a forecast
+        Observational ranking · not a forecast · tap Event detail to fly the map
       </p>
     </div>
   );

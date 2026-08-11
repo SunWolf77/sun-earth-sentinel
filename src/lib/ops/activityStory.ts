@@ -225,15 +225,25 @@ function zonePulse(
  * Ordinary RoF week traffic → context / elevated, not red "now".
  */
 function storyUrgency(p: ZonePulse): StoryUrgency {
-  // True standouts
-  if (p.m6_48h >= 1 || p.maxMag >= 7) return "now";
-  if (p.recent24h.filter((f) => (f.properties.mag ?? 0) >= 5.5).length >= 1 && p.relativeRate >= 1.8)
+  const ageH =
+    p.newestAgeMs != null ? p.newestAgeMs / 3_600_000 : 999;
+
+  // True standouts — require freshness, not a red siren for yesterday's M7
+  if (p.m6_48h >= 1 && ageH < 12) return "now";
+  if (p.maxMag >= 7 && ageH < 18) return "now";
+  if (
+    p.recent24h.filter((f) => (f.properties.mag ?? 0) >= 5.5).length >= 1 &&
+    p.relativeRate >= 1.8 &&
+    ageH < 24
+  )
     return "now";
 
   // Clear short-window burst above baseline
   if (p.recent6h.length >= 5 && p.relativeRate >= 2) return "watch";
   if (p.recent24h.length >= 8 && p.relativeRate >= 2.2) return "watch";
-  if (p.m6 >= 1 && p.newestAgeMs != null && p.newestAgeMs < 7 * 86_400_000) return "watch";
+  if (p.m6 >= 1 && p.newestAgeMs != null && p.newestAgeMs < 7 * 86_400_000)
+    return "watch";
+  if (p.maxMag >= 7 && ageH < 72) return "watch"; // notable, not alarm
 
   // Mild above baseline
   if (p.relativeRate >= 1.6 || p.status === "active") return "elevated";
@@ -399,20 +409,20 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
     const [lon, lat] = f.geometry.coordinates;
     const depth = f.geometry.coordinates[2];
     const ageH = age != null ? age / 3_600_000 : 999;
-    // Soften: only "now" if very fresh or great magnitude
+    // Soften hard: catalog M7 is not a siren after the first hours.
+    // now = fresh standout; watch = still notable; older = elevated/context.
     let urgency: StoryUrgency = "context";
     let score = 20 + mag * 4;
-    if (ageH < 12 || mag >= 7) {
+    if ((ageH < 6 && mag >= 6.5) || (ageH < 12 && mag >= 7) || (ageH < 3 && mag >= 6)) {
       urgency = "now";
       score = 75 + mag * 8;
-    } else if (ageH < 72) {
+    } else if ((ageH < 36 && mag >= 6.5) || (ageH < 72 && mag >= 7) || (ageH < 24 && mag >= 6)) {
       urgency = "watch";
       score = 50 + mag * 5;
-    } else if (ageH < 168) {
+    } else if (ageH < 168 && mag >= 6) {
       urgency = "elevated";
       score = 35 + mag * 3;
     } else {
-      // older than a week — keep as catalog context, low rank
       urgency = "context";
       score = 15 + mag;
     }
@@ -444,7 +454,7 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
       actions: [
         {
           id: `pick-${f.id}`,
-          label: "Event detail",
+          label: "Show on map",
           eventId: f.id != null ? String(f.id) : undefined,
           lat,
           lon,
@@ -453,8 +463,18 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
           depth: typeof depth === "number" ? depth : undefined,
           time: t,
           url: f.properties.url,
+          tab: "live",
         },
-        { id: "map-global", label: "Live map", tab: "live" },
+        ...(f.properties.url
+          ? [
+              {
+                id: `agency-${f.id}`,
+                label: "Agency page",
+                url: f.properties.url,
+                boardUrl: f.properties.url,
+              },
+            ]
+          : []),
       ],
     });
   }
