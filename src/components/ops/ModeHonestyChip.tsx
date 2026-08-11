@@ -1,13 +1,15 @@
 /**
  * Mode honesty chip — device-tolerance made visible.
  * Full catalog and/or 3D globe can push phones past thermal/memory limits.
- * One-tap escape to Standard / 2D. No sugar.
+ * One-tap escape to Standard / 2D. Expand for deep dive.
  */
 
+import { useState } from "react";
 import { Gauge, Globe2, Map as MapIcon, Zap } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { MODES } from "@/lib/feeds/modes";
+import { MODES, runtimeLoadProfile } from "@/lib/feeds/modes";
+import { ModeDeepDive } from "@/components/ops/ModeDeepDive";
 
 type Props = {
   className?: string;
@@ -16,29 +18,54 @@ type Props = {
 };
 
 export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
+  const [deep, setDeep] = useState(false);
   const mode = useObservatory((s) => s.mode);
   const mapView = useObservatory((s) => s.mapView);
   const setMode = useObservatory((s) => s.setMode);
   const setMapView = useObservatory((s) => s.setMapView);
   const mobile = useIsMobile();
+  const profile = runtimeLoadProfile({ mode, mapView, mobile });
 
   const full = mode === "full";
   const globe = mapView === "3d";
+  const warn3d = globe && mobile;
 
-  // Full always deserves honesty. 3D heat risk is mainly phones / low-end.
-  const warn3d = globe && (mobile || liveMap);
-  if (!full && !warn3d) return null;
-  // On desktop Standard + 2D: hidden. On desktop Full: show density note.
-  if (!full && !mobile && !globe) return null;
-  if (!full && globe && !mobile) return null; // desktop 3D is usually fine
+  // Always offer deep dive collapsed row when load is moderate+ OR user opened it
+  const showWarn = full || warn3d;
+  if (!showWarn && !deep) {
+    // Quiet path: small "Mode" link only on live so mobile can still open deep dive
+    if (!liveMap) return null;
+    return (
+      <div className={className}>
+        <ModeDeepDive />
+      </div>
+    );
+  }
+
+  if (deep) {
+    return (
+      <div className={`space-y-1 ${className}`}>
+        <ModeDeepDive defaultOpen />
+        <button
+          type="button"
+          className="text-[0.58rem] text-dim underline-offset-2 hover:underline"
+          onClick={() => setDeep(false)}
+        >
+          Collapse mode deep dive
+        </button>
+      </div>
+    );
+  }
+
+  if (!showWarn) return null;
 
   const bits: string[] = [];
   if (full) bits.push("Full density");
-  if (warn3d && mobile) bits.push("3D globe");
+  if (warn3d) bits.push("3D globe");
   const title = bits.join(" + ");
 
   const risk =
-    full && warn3d && mobile
+    full && warn3d
       ? "dense catalog + WebGL — may lag or heat"
       : full
         ? `M${MODES.full.minMag}+ · up to ${MODES.full.maxMarkers} pins — heavier on phones`
@@ -46,7 +73,7 @@ export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
 
   return (
     <div
-      className={`flex min-h-11 items-center gap-1.5 rounded-md border border-warn/40 bg-warn/10 px-2 py-1 text-[0.62rem] text-warn sm:min-h-9 sm:text-[0.65rem] ${className}`}
+      className={`flex min-h-11 flex-wrap items-center gap-1.5 rounded-md border border-warn/40 bg-warn/10 px-2 py-1 text-[0.62rem] text-warn sm:min-h-9 sm:text-[0.65rem] ${className}`}
       role="status"
       aria-live="polite"
     >
@@ -57,10 +84,18 @@ export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
       ) : (
         <Globe2 className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
       )}
-      <div className="min-w-0 flex-1 leading-snug">
+      <button
+        type="button"
+        className="min-w-0 flex-1 text-left leading-snug"
+        onClick={() => setDeep(true)}
+        title="Open mode deep dive"
+      >
         <span className="font-semibold text-fg">{title}</span>
-        <span className="text-muted"> · {risk}</span>
-      </div>
+        <span className="text-muted">
+          {" "}
+          · {risk} · load {profile.pressureLabel}
+        </span>
+      </button>
       <div className="flex shrink-0 items-center gap-1">
         {full && (
           <button
@@ -83,6 +118,13 @@ export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
             2D
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => setDeep(true)}
+          className="inline-flex min-h-9 items-center justify-center rounded-md border border-border bg-bg/90 px-2 text-[0.62rem] font-semibold text-fg hover:bg-elevated sm:min-h-8"
+        >
+          Details
+        </button>
       </div>
     </div>
   );

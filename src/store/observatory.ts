@@ -507,7 +507,8 @@ function buildSolarAssessmentFromState(s: {
     flares: s.donki?.flares ?? [],
     protons: s.protons,
     enlilTimeHint: s.enlil?.timeHint,
-    shuffleN: s.mode === "full" ? 80 : 60,
+    shuffleN: MODES[s.mode].shuffleN,
+
   });
 }
 

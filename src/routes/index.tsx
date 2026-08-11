@@ -801,7 +801,7 @@ function ObservatoryApp() {
                 <button
                   key={m}
                   type="button"
-                  title={MODES[m].description}
+                  title={`${MODES[m].label}: ${MODES[m].description} ${MODES[m].deviceNote}`}
                   onClick={() => setMode(m)}
                   className={`ww-seg__btn capitalize ${mode === m ? "ww-seg__btn--on" : ""}`}
                 >
