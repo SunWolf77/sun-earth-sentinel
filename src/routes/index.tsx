@@ -61,6 +61,7 @@ import {
   softReplaceShareUrl,
 } from "@/lib/pwa/shareFocus";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import { ShareEventCard } from "@/components/ops/ShareEventCard";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { Link2, Check } from "lucide-react";
@@ -647,7 +648,7 @@ function ObservatoryApp() {
           Events ({features.length})
         </h3>
         {pickedEvent && (
-          <ShareFocusButton target="event" event={pickedEvent} compact label="Share EQ" />
+          <ShareEventCard event={pickedEvent} compact className="shrink-0" />
         )}
       </div>
       {focusNodeId && (
@@ -794,21 +795,20 @@ function ObservatoryApp() {
             <button
               type="button"
               className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile ? "hidden" : ""}`}
-              title="Copy current view link (tab · filters · layers — not a single-event focus)"
+              title="Copy current view link (tab · filters · layers)"
               aria-label="Copy current view link"
               onClick={async () => {
-                // View-level only — event focus share is parked (SHARE_FOCUS_UI_ENABLED)
                 const url = shareableViewUrl();
                 softReplaceShareUrl(url);
                 const r = await shareOrCopy(url, "Sun-Earth Sentinel · live view", {
                   text: `Sun-Earth Sentinel live view\nFree observation · not a forecast\n${url}`,
-                  preferCopy: true, // honest clipboard for view links until focus share returns
+                  preferCopy: true,
                 });
                 if (r === "shared" || r === "copied") {
                   setCopiedShare(true);
-                  setToast("View link copied (not a focused EQ share)");
+                  setToast("View link copied");
                   window.setTimeout(() => setCopiedShare(false), 1600);
-                  window.setTimeout(() => setToast(null), 2200);
+                  window.setTimeout(() => setToast(null), 2000);
                 } else {
                   setToast("Could not copy — use the address bar URL");
                   window.setTimeout(() => setToast(null), 2500);

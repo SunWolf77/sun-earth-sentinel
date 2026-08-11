@@ -17,10 +17,10 @@ import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 import { viewFromLocation, type ViewDeepLink } from "@/lib/pwa/shortcuts";
 
 /**
- * Public share buttons / popup "Share this EQ" — OFF until focus deep-links
- * consistently land on the event (not the bare home map).
+ * Public share buttons / popup share — re-enabled after hydrate race fix
+ * (syncViewToUrl no longer strips ?event=&lat=&lon= before focus applies).
  */
-export const SHARE_FOCUS_UI_ENABLED = false;
+export const SHARE_FOCUS_UI_ENABLED = true;
 
 export type ShareFocusKind = "event" | "node" | "volcano" | "view" | "replay";
 

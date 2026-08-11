@@ -69,12 +69,20 @@ import {
   canWebShare,
 } from "@/lib/pwa/shareFocus";
 
+function escapeAttr(s: string): string {
+  return String(s)
+    .replace(/&/g, "&" + "amp;")
+    .replace(/"/g, "&" + "quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&" + "lt;")
+    .replace(/>/g, "&" + "gt;");
+}
+
 /**
- * Popup "Share this EQ" is a plain <a href>. Without intercept, the browser
- * navigates → full SPA reload → map "refreshes" and the link never copies.
- * Bind once per popup open: preventDefault, soft replaceState, Web Share / copy.
+ * Popup share is a short button (not a wall of URL). Intercept click:
+ * preventDefault, soft replaceState, Web Share / copy.
  */
-function bindShareInPopup(layer: L.Layer, title: string, text?: string) {
+function bindShareInPopup(layer: L.Layer, fallbackTitle: string, fallbackText?: string) {
   layer.on("popupopen", () => {
     const popup = (layer as L.CircleMarker).getPopup?.();
     const el = popup?.getElement?.();
@@ -83,43 +91,40 @@ function bindShareInPopup(layer: L.Layer, title: string, text?: string) {
     if (!a || a.dataset.wwShareBound === "1") return;
     a.dataset.wwShareBound = "1";
     a.setAttribute("role", "button");
-    // Reflect capability in the control label
     const web = canWebShare();
-    if (web && a.textContent?.includes("Share this EQ")) {
-      a.textContent = "Share this EQ →";
-      a.title = "Open system share sheet with deep link (no map reload)";
-    } else if (!web) {
-      a.textContent = "Copy EQ link →";
-      a.title = "Copy shareable deep link (does not reload the map)";
+    if (!web) {
+      a.textContent = "Copy link";
     }
     a.addEventListener("click", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       const url = a.getAttribute("href") || "";
       if (!url || url === "#") return;
+      const title = a.getAttribute("data-ww-share-title") || fallbackTitle;
+      const text =
+        a.getAttribute("data-ww-share-text") ||
+        fallbackText ||
+        `${title}\nLive map · free observation · not a warning\n${url}`;
       void (async () => {
         softReplaceShareUrl(url);
-        const body =
-          text ??
-          `${title}\nLive map · free observation · not a warning\n${url}`;
-        const r = await shareOrCopy(url, title, { text: body });
+        const r = await shareOrCopy(url, title, { text });
         const prev = a.textContent;
         if (r === "shared") {
           a.textContent = "Shared ✓";
           a.style.color = "#4ade80";
         } else if (r === "copied") {
-          a.textContent = "Link copied ✓";
+          a.textContent = "Copied ✓";
           a.style.color = "#4ade80";
         } else if (r === "cancelled") {
           a.textContent = "Cancelled";
           a.style.color = "#94a3b8";
         } else {
-          a.textContent = "Copy failed";
+          a.textContent = "Failed";
           a.style.color = "#f87171";
         }
         window.setTimeout(() => {
           a.textContent = prev;
-          a.style.color = "#22d3ee";
+          a.style.color = "#67e8f9";
         }, 2000);
       })();
     });
@@ -165,6 +170,8 @@ function buildEqPopupHtml(
     eventId: string;
     agencyHtml: string;
     shareHref?: string | null;
+    shareTitle?: string | null;
+    shareText?: string | null;
   },
 ): string {
   const {
@@ -234,7 +241,7 @@ function buildEqPopupHtml(
               : "";
   const shareLine =
     SHARE_FOCUS_UI_ENABLED && opts.shareHref
-      ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" title="Copy shareable deep link (does not reload the map)" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer">Share this EQ →</a></div>`
+      ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><a href="${opts.shareHref}" data-ww-share="1" data-ww-share-title="${escapeAttr(opts.shareTitle || "Earthquake")}" data-ww-share-text="${escapeAttr(opts.shareText || "")}" title="Share focus — opens map on this event" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid #0e7490;background:#0c4a6e;color:#67e8f9;font-size:11px;font-weight:700;text-decoration:none;cursor:pointer">Share event</a><span style="color:#64748b;font-size:10px">Deep link · no reload</span></div>`
       : "";
   return `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
               <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
@@ -738,6 +745,17 @@ export function LiveMap() {
               },
             )
           : null;
+        const shareTitle = `M${mag.toFixed(1)} · ${place} · Sun-Earth Sentinel`;
+        const shareText = [
+          `M${mag.toFixed(1)} earthquake — ${place}`,
+          typeof f.properties.time === "number"
+            ? `Origin ${new Date(f.properties.time).toISOString().replace(".000Z", "Z")}`
+            : null,
+          `Depth ${depth.toFixed(0)} km`,
+          "Live map · free observation · not a warning",
+        ]
+          .filter(Boolean)
+          .join("\n");
         const popupHtml = buildEqPopupHtml(f, {
           lat,
           lon,
@@ -756,6 +774,8 @@ export function LiveMap() {
           eventId,
           agencyHtml: agencyLinksHtml(agencyLinks),
           shareHref,
+          shareTitle,
+          shareText,
         });
 
         // SVG circle on exact epicenter — Pacific frame so RoF is continuous
@@ -779,16 +799,7 @@ export function LiveMap() {
         bindShareInPopup(
           pin,
           `M${mag.toFixed(1)} · ${place} · Sun-Earth Sentinel`,
-          [
-            `M${mag.toFixed(1)} earthquake — ${place}`,
-            typeof f.properties.time === "number"
-              ? `Origin ${new Date(f.properties.time).toISOString().replace(".000Z", "Z")}`
-              : null,
-            `Depth ${depth.toFixed(0)} km`,
-            "Live map · free observation · not a warning",
-          ]
-            .filter(Boolean)
-            .join("\n"),
+          shareText,
         );
         pin.bindTooltip(
           eqHoverTooltipHtml({
