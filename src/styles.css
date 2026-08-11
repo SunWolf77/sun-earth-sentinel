@@ -1603,9 +1603,14 @@
 }
 
 /* Focus-node markers — always labeled so users know what/why */
+/* Geographic point = center of .ww-node-marker__dot (iconAnchor in LiveMap) */
 .ww-node-marker {
   background: transparent !important;
   border: none !important;
+}
+.ww-node-marker--chip {
+  /* Allow caption to paint outside icon box without shifting anchor */
+  overflow: visible !important;
 }
 .ww-node-marker__inner {
   display: flex;
@@ -1615,6 +1620,8 @@
   pointer-events: auto;
   cursor: pointer;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  /* Dot is first flex item at top-left — matches iconAnchor */
+  transform-origin: 7px 50%;
 }
 .ww-node-marker__dot {
   flex-shrink: 0;

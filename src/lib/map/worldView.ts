@@ -34,12 +34,12 @@ export const WORLD_CENTER: [number, number] = [8, 180];
 /**
  * Home framing: Pacific-weighted setView, not a clipped corridor.
  * User can still pan toward the Atlantic seam (lon → 0 or 360).
+ * Chrome lives in CSS grid tracks outside the canvas — no bottomPad needed.
  */
 export function fitWorldView(
   map: LeafletMap,
   opts?: {
     animate?: boolean;
-    bottomPad?: number;
   },
 ): void {
   try {

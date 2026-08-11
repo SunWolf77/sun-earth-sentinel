@@ -417,7 +417,7 @@ export function LiveMap() {
     });
 
     // Full world framing — size sync keeps markers on basemap
-    const mobilePad = window.matchMedia("(max-width: 640px)").matches;
+    // Grid stage: also watch canvas/stage so dock-track growth remeasures projection
     const syncSize = () => {
       try {
         map.invalidateSize({ animate: false, pan: false });
@@ -425,30 +425,47 @@ export function LiveMap() {
         /* ignore */
       }
     };
+    let sizePulse: number | null = null;
+    const syncSizeDebounced = () => {
+      syncSize();
+      if (sizePulse != null) window.clearTimeout(sizePulse);
+      sizePulse = window.setTimeout(() => {
+        sizePulse = null;
+        syncSize();
+      }, 60);
+    };
     requestAnimationFrame(() => {
       syncSize();
-      fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
-      // Second pulse after layout/fonts/chrome settle (fullscreen, side panels)
+      fitWorldView(map, { animate: false });
+      // Second pulse after layout/fonts/chrome settle (fullscreen, side panels, grid dock)
       window.setTimeout(() => {
         syncSize();
-        fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
+        fitWorldView(map, { animate: false });
       }, 120);
+      window.setTimeout(syncSize, 320);
     });
-    // Keep marker projection locked to basemap when shell/immersive resizes
+    // Keep marker projection locked to basemap when shell/immersive/grid resizes
     const ro = new ResizeObserver(() => {
-      syncSize();
+      syncSizeDebounced();
     });
     ro.observe(map.getContainer());
-    map.once("unload", () => ro.disconnect());
-    window.addEventListener("resize", syncSize);
+    const stageCanvas = map.getContainer().closest(".ww-map-stage__canvas");
+    if (stageCanvas) ro.observe(stageCanvas);
+    const stage = map.getContainer().closest(".ww-map-stage");
+    if (stage) ro.observe(stage);
+    map.once("unload", () => {
+      ro.disconnect();
+      if (sizePulse != null) window.clearTimeout(sizePulse);
+    });
+    window.addEventListener("resize", syncSizeDebounced);
     const onShell = () => {
-      syncSize();
-      window.setTimeout(syncSize, 80);
+      syncSizeDebounced();
+      window.setTimeout(syncSize, 100);
     };
     window.addEventListener("ww-map-resize", onShell);
 
     map.once("unload", () => {
-      window.removeEventListener("resize", syncSize);
+      window.removeEventListener("resize", syncSizeDebounced);
       window.removeEventListener("ww-map-resize", onShell);
     });
 
@@ -548,10 +565,9 @@ export function LiveMap() {
     const map = mapObj.current;
     if (!map) return;
     if (useObservatory.getState().focusNodeId) return;
-    const mobilePad = window.matchMedia("(max-width: 640px)").matches;
     const id = window.setTimeout(() => {
       map.invalidateSize(false);
-      fitWorldView(map, { animate: false, bottomPad: mobilePad ? 88 : 28 });
+      fitWorldView(map, { animate: false });
     }, 60);
     return () => window.clearTimeout(id);
   }, [mapView, mapImmersive]);
@@ -572,8 +588,7 @@ export function LiveMap() {
     const node = getFocusNode(focusNodeId);
     if (!node) {
       if (focusNodeId === null) {
-        const mobilePad = window.matchMedia("(max-width: 640px)").matches;
-        fitWorldView(map, { animate: true, bottomPad: mobilePad ? 88 : 28 });
+        fitWorldView(map, { animate: true });
       }
       return;
     }
@@ -942,13 +957,19 @@ export function LiveMap() {
           '"></span>' +
           textHtml +
           "</div>";
+        // Anchor on the DOT center (not mid-pill) so labels grow east without
+        // shifting the geographic point. Dot is 14px (16px focus) at flex start.
+        const dotHalf = isFocus ? 8 : 7;
         const label = L.marker([clat, clon], {
           icon: L.divIcon({
-            className: compact ? "ww-node-marker ww-node-marker--dot" : "ww-node-marker",
+            className: compact
+              ? "ww-node-marker ww-node-marker--dot"
+              : "ww-node-marker ww-node-marker--chip",
             html: nodeHtml,
-            iconSize: compact ? [18, 18] : [108, 32],
-            iconAnchor: compact ? [9, 9] : [12, 16],
-            popupAnchor: compact ? [0, -8] : [36, -10],
+            // Wide box only for hit/layout; anchor is left-dot center
+            iconSize: compact ? [18, 18] : [132, 34],
+            iconAnchor: compact ? [9, 9] : [dotHalf, 17],
+            popupAnchor: compact ? [0, -10] : [0, -14],
           }),
           keyboard: true,
           riseOnHover: true,
