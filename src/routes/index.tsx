@@ -716,8 +716,12 @@ function ObservatoryApp() {
       <VolcWatchSmart />
       <SuptOnboarding />
 
-      <header className="ww-header shrink-0 border-b border-border bg-bg/95 backdrop-blur">
-        <div className="flex items-center justify-between gap-1 px-2 py-1 sm:gap-2 sm:px-4 sm:py-2">
+      <header
+        className={`ww-header shrink-0 border-b border-border bg-bg/95 backdrop-blur ${
+          tab !== "live" ? "ww-header--content" : ""
+        } ${isMobile ? "ww-header--mobile" : ""}`}
+      >
+        <div className="flex items-center justify-between gap-1 px-2 py-0.5 sm:gap-2 sm:px-3 sm:py-1">
           <div className="min-w-0 flex-1 pr-1">
             <h1 className="text-[0.78rem] font-semibold leading-tight tracking-tight text-fg sm:text-base">
               <span className="sm:hidden">
@@ -862,8 +866,8 @@ function ObservatoryApp() {
             })}
           </nav>
         </div>
-        {/* Row 3 — WolfWatch Network desks; SES home / All sheet */}
-        <PublishedNodesNav />
+        {/* Nodes only on Live — desks are map focus, not Solar chrome */}
+        {tab === "live" && <PublishedNodesNav />}
       </header>
 
       {(bootWait && !lastUpdate) && (
@@ -904,27 +908,24 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Live map: one Pulse strip (mobile + desktop). Other tabs: brief + feeds only. */}
+      {/* Brief strip — tight; no dead rows on content tabs */}
       {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
         <div
-          className={`ww-brief-strip shrink-0 border-b border-border/60 px-2 sm:px-3 ${
-            isMobile ? "py-0.5" : "py-1 sm:py-1.5"
+          className={`ww-brief-strip shrink-0 border-b border-border/50 px-1.5 sm:px-2 ${
+            isMobile ? "py-0.5" : "py-0.5 sm:py-1"
           }`}
         >
           {tab === "live" ? (
-            /* One Pulse strip on live map — mobile + desktop (no stacked chrome) */
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <MobilePulseStrip />
               <ModeHonestyChip liveMap />
             </div>
           ) : (
-            <>
+            <div className="space-y-0.5">
               <TodayBriefBar dense />
-              {/* Non-live: no full feed-chip wall — desktop was drowning Solar/Rhythm */}
-              <div className="mt-0.5 min-w-0">
-                <ModeHonestyChip liveMap={false} />
-              </div>
-            </>
+              {/* Full/3D warn only — no ModeDeepDive filler on content tabs */}
+              <ModeHonestyChip liveMap={false} />
+            </div>
           )}
         </div>
       )}

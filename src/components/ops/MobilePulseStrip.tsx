@@ -71,7 +71,7 @@ export function MobilePulseStrip() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex w-full min-h-11 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-left text-[0.65rem] sm:min-h-10 sm:text-[0.7rem] ${tone}`}
+        className={`flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.58rem] sm:min-h-8 sm:text-[0.62rem] ${tone}`}
         aria-expanded={false}
         aria-label="Expand pulse — space weather, story, feeds"
       >

@@ -93,8 +93,8 @@ export function TodayBriefBar({
       <button
         type="button"
         onClick={toggle}
-        className={`flex w-full max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-left ${tone} ${
-          dense || mobile ? "text-[0.6rem]" : "text-[0.65rem]"
+        className={`flex w-full max-w-full min-h-7 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left sm:min-h-7 ${tone} ${
+          dense || mobile ? "text-[0.55rem]" : "text-[0.6rem]"
         }`}
         aria-expanded={false}
         aria-label="Show space weather brief"
