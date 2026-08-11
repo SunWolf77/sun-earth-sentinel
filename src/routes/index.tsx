@@ -35,6 +35,7 @@ import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
+import { ModeHonestyChip } from "@/components/ops/ModeHonestyChip";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { ActivityStoryPanel } from "@/components/ops/ActivityStoryPanel";
 import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
@@ -913,15 +914,29 @@ function ObservatoryApp() {
         >
           {tab === "live" ? (
             /* One Pulse strip on live map — mobile + desktop (no stacked chrome) */
-            <MobilePulseStrip />
+            <div className="space-y-1">
+              <MobilePulseStrip />
+              <ModeHonestyChip liveMap />
+            </div>
           ) : (
             <>
               <TodayBriefBar dense />
               <div className="mt-0.5 min-w-0">
                 <FeedHealthStrip compact />
               </div>
+              <div className="mt-0.5 min-w-0">
+                <ModeHonestyChip liveMap={false} />
+              </div>
             </>
           )}
+        </div>
+      )}
+      {/* Immersive mobile: keep device-tolerance chip floating — Full/3D still honest */}
+      {isMobile && tab === "live" && mapImmersive && (
+        <div className="pointer-events-none absolute left-0 right-0 top-[max(0.35rem,env(safe-area-inset-top))] z-[520] px-2">
+          <div className="pointer-events-auto mx-auto max-w-lg">
+            <ModeHonestyChip liveMap />
+          </div>
         </div>
       )}
 
