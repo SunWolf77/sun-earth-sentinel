@@ -53,11 +53,17 @@ import {
   syncViewToUrl,
   shareableViewUrl,
 } from "@/lib/pwa/shortcuts";
-import { focusFromLocation, shareOrCopy, canWebShare, softReplaceShareUrl } from "@/lib/pwa/shareFocus";
+import {
+  focusFromLocation,
+  locationHasPendingFocus,
+  findFeatureByEventId,
+  shareOrCopy,
+  softReplaceShareUrl,
+} from "@/lib/pwa/shareFocus";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { Link2, Check, Share2 } from "lucide-react";
+import { Link2, Check } from "lucide-react";
 
 const LiveMap = lazy(() =>
   import("@/components/map/LiveMap").then((m) => ({ default: m.LiveMap })),
@@ -287,7 +293,24 @@ function ObservatoryApp() {
     return () => window.removeEventListener("popstate", onPop);
   }, [setTab, setTimeWindow, setMinMag, setFocusNode, setMode, setMapView, setBasemapStyle, setOverlaysBulk]);
 
+  // Shared with syncViewToUrl — must not clear deep-link params before hydrate
+  const focusHydrated = useRef(false);
+
   useEffect(() => {
+    // CRITICAL: do not strip ?event=&lat=&lon= before deep-link hydrate runs.
+    // Earlier sync wiped focus params on boot → shared links opened bare home map.
+    const pending = !focusHydrated.current && locationHasPendingFocus();
+    let preserveEvent: string | null = null;
+    let preserveLat: number | null = null;
+    let preserveLon: number | null = null;
+    let preserveZoom: number | null = null;
+    if (pending) {
+      const f = focusFromLocation();
+      preserveEvent = f.eventId ?? null;
+      preserveLat = f.lat ?? null;
+      preserveLon = f.lon ?? null;
+      preserveZoom = f.zoom ?? null;
+    }
     syncViewToUrl({
       tab,
       node: focusNodeId,
@@ -297,10 +320,10 @@ function ObservatoryApp() {
       mode,
       mapView,
       basemap: basemapStyle,
-      eventId: pickedEvent?.id ?? null,
-      lat: pickedEvent?.lat ?? null,
-      lon: pickedEvent?.lon ?? null,
-      zoom: pickedEvent ? 7 : null,
+      eventId: pickedEvent?.id ?? preserveEvent,
+      lat: pickedEvent?.lat ?? preserveLat,
+      lon: pickedEvent?.lon ?? preserveLon,
+      zoom: pickedEvent ? 7 : preserveZoom,
       replay: replayActive,
       replayMs: replayActive ? replayCursorMs : null,
       volcanoId:
@@ -324,7 +347,6 @@ function ObservatoryApp() {
 
 
   // Deep-link hydrate: event / volcano / lat-lon / replay from URL (after feeds ready)
-  const focusHydrated = useRef(false);
   useEffect(() => {
     if (focusHydrated.current) return;
     if (!eq && !lastUpdate) return;
@@ -332,7 +354,7 @@ function ObservatoryApp() {
     let did = false;
 
     if (f.eventId && eq?.features?.length) {
-      const feat = eq.features.find((x) => String(x.id) === f.eventId);
+      const feat = findFeatureByEventId(eq.features, f.eventId);
       if (feat) {
         const [lon, lat] = feat.geometry.coordinates;
         const mag = feat.properties.mag ?? 0;
@@ -353,17 +375,11 @@ function ObservatoryApp() {
     }
 
     // Lat/lon fallback — when coords exist and catalog match did not focus.
-    // Share URLs always include eventId + lat/lon; without this branch a catalog miss
-    // leaves the map at world default ("resets the map"), especially on mobile.
-    // If eventId is present, wait until the first catalog cycle finishes (lastUpdate)
-    // so a full pick can still win when the event is in the feed.
     if (!did && f.lat != null && f.lon != null) {
       const canFallback = !f.eventId || !!lastUpdate || !!eq?.features?.length;
       if (canFallback) {
         flyMapTo(f.lat, f.lon, f.zoom ?? 7, f.eventId ?? undefined);
         if (f.eventId) {
-          // Synthetic pick so MobileEventSheet still opens when the event aged out
-          // of the current window / mag filter / catalog merge.
           try {
             const q = new URLSearchParams(window.location.search);
             const mm = Number(q.get("mm"));
@@ -402,12 +418,9 @@ function ObservatoryApp() {
       did = true;
     }
 
-    // Mark hydrated once focus applied, or after first full load when there is
-    // nothing left to retry (coords already applied above on catalog miss).
     if (did) {
       focusHydrated.current = true;
     } else if (f.eventId && eq?.features?.length && lastUpdate) {
-      // Event requested, catalog loaded, still no match and no coords — stop.
       focusHydrated.current = true;
     } else if (!f.eventId && !f.volcanoId && f.lat == null && !f.replay) {
       focusHydrated.current = true;
@@ -781,36 +794,29 @@ function ObservatoryApp() {
             <button
               type="button"
               className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile ? "hidden" : ""}`}
-              title={
-                canWebShare()
-                  ? "Share current view (system share sheet)"
-                  : "Copy shareable view link"
-              }
-              aria-label={canWebShare() ? "Share current view" : "Copy shareable view link"}
+              title="Copy current view link (tab · filters · layers — not a single-event focus)"
+              aria-label="Copy current view link"
               onClick={async () => {
+                // View-level only — event focus share is parked (SHARE_FOCUS_UI_ENABLED)
                 const url = shareableViewUrl();
                 softReplaceShareUrl(url);
                 const r = await shareOrCopy(url, "Sun-Earth Sentinel · live view", {
                   text: `Sun-Earth Sentinel live view\nFree observation · not a forecast\n${url}`,
+                  preferCopy: true, // honest clipboard for view links until focus share returns
                 });
                 if (r === "shared" || r === "copied") {
                   setCopiedShare(true);
-                  setToast(r === "shared" ? "Shared" : "Shareable view link copied");
+                  setToast("View link copied (not a focused EQ share)");
                   window.setTimeout(() => setCopiedShare(false), 1600);
-                  window.setTimeout(() => setToast(null), 2000);
-                } else if (r === "cancelled") {
-                  setToast("Share cancelled");
-                  window.setTimeout(() => setToast(null), 1500);
+                  window.setTimeout(() => setToast(null), 2200);
                 } else {
-                  setToast("Could not share — copy the address bar URL");
+                  setToast("Could not copy — use the address bar URL");
                   window.setTimeout(() => setToast(null), 2500);
                 }
               }}
             >
               {copiedShare ? (
                 <Check className="h-4 w-4 text-ok" />
-              ) : canWebShare() ? (
-                <Share2 className="h-4 w-4" />
               ) : (
                 <Link2 className="h-4 w-4" />
               )}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, Link2, Share2 } from "lucide-react";
 import {
+  SHARE_FOCUS_UI_ENABLED,
   shareOrCopy,
   shareUrlForPickedEvent,
   shareUrlForNode,
@@ -31,7 +32,7 @@ type Props =
 
 /**
  * One-click Web Share (native sheet) or clipboard of focused entity deep link.
- * Never full-navigates the SPA.
+ * Parked when SHARE_FOCUS_UI_ENABLED is false — deep-link focus not reliable yet.
  */
 export function ShareFocusButton(props: Props) {
   const [state, setState] = useState<"idle" | "ok" | "err" | "cancel">("idle");
@@ -44,6 +45,8 @@ export function ShareFocusButton(props: Props) {
   const overlays = useObservatory((s) => s.overlays);
   const replayActive = useObservatory((s) => s.replayActive);
   const replayCursorMs = useObservatory((s) => s.replayCursorMs);
+
+  if (!SHARE_FOCUS_UI_ENABLED) return null;
 
   const ctx = {
     nodeId: focusNodeId,
@@ -143,8 +146,8 @@ export function ShareFocusButton(props: Props) {
       onClick={() => void onShare()}
       title={
         web
-          ? "Open system share sheet (Messages, Mail, …) with a deep link to this focus"
-          : "Copy a direct link to this focus (event, node, volcano, or replay)"
+          ? "Open system share sheet with a deep link to this focus"
+          : "Copy a direct link to this focus"
       }
     >
       {state === "ok" ? (

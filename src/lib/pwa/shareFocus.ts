@@ -3,6 +3,10 @@
  * Builds absolute URLs and hydrates store state from query params.
  *
  * Web Share API: use sharePayload / shareOrCopy — never navigate the SPA for share.
+ *
+ * SHARE_FOCUS_UI_ENABLED — park public share controls until deep-link focus is
+ * proven end-to-end (open link → map flies + event card). Hydrate race fixed in
+ * index; flip this true when re-enabled after QA.
  */
 
 import type { TabId, TimeWindow, MapView, PickedEvent } from "@/store/observatory";
@@ -11,6 +15,12 @@ import type { PerformanceMode } from "@/lib/feeds/modes";
 import { PRODUCTION_ORIGIN, resolveShareOrigin } from "@/lib/site";
 import { resolveNodeId } from "@/lib/feeds/publishedMonitors";
 import { viewFromLocation, type ViewDeepLink } from "@/lib/pwa/shortcuts";
+
+/**
+ * Public share buttons / popup "Share this EQ" — OFF until focus deep-links
+ * consistently land on the event (not the bare home map).
+ */
+export const SHARE_FOCUS_UI_ENABLED = false;
 
 export type ShareFocusKind = "event" | "node" | "volcano" | "view" | "replay";
 
@@ -92,7 +102,6 @@ export function focusFromLocation(loc?: Location): FocusDeepLink {
     if (q.get("replay") === "1" || q.get("replay") === "true") base.replay = true;
     const t = q.get("t") || q.get("cursor");
     if (t != null && t !== "") {
-      // ISO or ms
       let ms = Number(t);
       if (!Number.isFinite(ms)) {
         const d = Date.parse(t);
@@ -107,6 +116,15 @@ export function focusFromLocation(loc?: Location): FocusDeepLink {
     /* ignore */
   }
   return base;
+}
+
+/**
+ * True when the URL still carries a focus claim we must not overwrite.
+ * Used to stop syncViewToUrl from stripping ?event=&lat=&lon= before hydrate.
+ */
+export function locationHasPendingFocus(loc?: Location): boolean {
+  const f = focusFromLocation(loc);
+  return !!(f.eventId || f.volcanoId || (f.lat != null && f.lon != null) || f.replay);
 }
 
 /** Build a shareable absolute URL for the given focus (does not mutate the address bar). */
@@ -139,7 +157,6 @@ export function buildShareFocusUrl(input: ShareFocusInput): string {
     if (on.length) u.searchParams.set("layers", on.join(","));
   }
 
-  // Only attach replay when explicitly requested — never from event time alone
   if (input.replay) {
     u.searchParams.set("replay", "1");
     if (input.replayMs != null && Number.isFinite(input.replayMs)) {
@@ -147,7 +164,6 @@ export function buildShareFocusUrl(input: ShareFocusInput): string {
     }
   }
 
-  // Human-readable crumbs (ignored by parser; help social paste)
   if (input.place) u.searchParams.set("label", input.place.slice(0, 80));
   if (input.mag != null) u.searchParams.set("mm", input.mag.toFixed(1));
 
@@ -183,14 +199,12 @@ export function shareUrlForPickedEvent(
     basemap: ctx.basemap,
     mode: ctx.mode,
     layers: ctx.layers,
-    // Only when caller is in educational replay — not every EQ share
     replay: !!ctx.replay,
     replayMs: ctx.replay ? (ctx.replayMs ?? ev.time ?? null) : null,
     tab: "live",
   });
 }
 
-/** Title + body for Web Share / social paste */
 export function payloadForPickedEvent(ev: PickedEvent, url: string): SharePayload {
   const mag = Number.isFinite(ev.mag) ? `M${ev.mag.toFixed(1)}` : "Quake";
   const place = (ev.place || "event").trim();
@@ -263,23 +277,10 @@ export function shareUrlForVolcano(
   });
 }
 
-/** Soft-update address bar to match share URL (no navigation / reload). */
 export function softReplaceShareUrl(url: string): void {
   if (typeof window === "undefined") return;
   try {
     const next = new URL(url, window.location.origin);
-    // Same origin only — never push production URL over localhost mid-session
-    if (next.origin !== window.location.origin) {
-      // Still allow production share origin on prod; on preview keep local path
-      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-        window.history.replaceState(
-          window.history.state,
-          "",
-          next.pathname + next.search + next.hash,
-        );
-        return;
-      }
-    }
     window.history.replaceState(
       window.history.state,
       "",
@@ -318,12 +319,13 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** True when Level-1 Web Share can take a URL (mobile Safari/Chrome, some desktop). */
 export function canWebShare(url?: string, title = "Sun-Earth Sentinel"): boolean {
   if (typeof navigator === "undefined" || typeof navigator.share !== "function") return false;
   try {
     if (typeof navigator.canShare === "function") {
-      return navigator.canShare(url != null ? { title, url, text: title } : { title, url: "https://example.com" });
+      return navigator.canShare(
+        url != null ? { title, url, text: title } : { title, url: "https://example.com" },
+      );
     }
     return true;
   } catch {
@@ -331,10 +333,6 @@ export function canWebShare(url?: string, title = "Sun-Earth Sentinel"): boolean
   }
 }
 
-/**
- * Web Share API first (native sheet), clipboard fallback.
- * Never full-navigates. Abort/cancel is "cancelled", not "failed".
- */
 export async function shareOrCopy(
   url: string,
   title = "Sun-Earth Sentinel",
@@ -345,7 +343,6 @@ export async function shareOrCopy(
   if (!opts?.preferCopy && canWebShare(url, title)) {
     try {
       const data: ShareData = { title, url, text };
-      // Some Android builds reject if canShare fails on combined fields — try url-only
       if (typeof navigator.canShare === "function" && !navigator.canShare(data)) {
         if (navigator.canShare({ url })) {
           await navigator.share({ url });
@@ -356,11 +353,8 @@ export async function shareOrCopy(
         return "shared";
       }
     } catch (e) {
-      if (e instanceof DOMException && (e.name === "AbortError" || e.name === "NotAllowedError")) {
-        // User dismissed sheet — do not silently copy (avoids surprise clipboard writes)
-        if (e.name === "AbortError") return "cancelled";
-      }
-      // Fall through to clipboard for TypeError / data not supported
+      if (e instanceof DOMException && e.name === "AbortError") return "cancelled";
+      // Fall through to clipboard
     }
   }
 
@@ -368,7 +362,6 @@ export async function shareOrCopy(
   return ok ? "copied" : "failed";
 }
 
-/** Event-aware share: richer text for Messages / WhatsApp / X. */
 export async function sharePickedEvent(
   ev: PickedEvent,
   url: string,
@@ -379,5 +372,23 @@ export async function sharePickedEvent(
   return shareOrCopy(payload.url, payload.title, {
     text: payload.text,
     preferCopy: opts?.preferCopy,
+  });
+}
+
+/** Match catalog feature id loosely (prefix / agency twins). */
+export function findFeatureByEventId<T extends { id?: string | number | null }>(
+  features: T[] | undefined,
+  eventId: string,
+): T | undefined {
+  if (!features?.length || !eventId) return undefined;
+  const want = eventId.trim();
+  const direct = features.find((x) => String(x.id) === want);
+  if (direct) return direct;
+  const bare = want.replace(/^(usgs|us|jma|emsc|geofon|imo|geonet):/i, "");
+  return features.find((x) => {
+    const id = String(x.id ?? "");
+    if (id === bare || id.endsWith(bare) || id.includes(bare)) return true;
+    const idBare = id.replace(/^(usgs|us|jma|emsc|geofon|imo|geonet):/i, "");
+    return idBare === bare;
   });
 }

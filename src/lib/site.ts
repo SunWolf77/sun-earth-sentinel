@@ -47,6 +47,18 @@ export function getSiteOrigin(): string {
 }
 
 export function resolveShareOrigin(): string {
+  // Prefer the host the user is on so preview + prod deep-links hydrate same-origin.
+  // Localhost still uses production so shared links open the public app.
+  try {
+    if (typeof window !== "undefined" && window.location?.origin) {
+      const h = window.location.hostname;
+      if (h && h !== "localhost" && h !== "127.0.0.1") {
+        return window.location.origin.replace(/\/$/, "");
+      }
+    }
+  } catch {
+    /* SSR */
+  }
   return getSiteOrigin();
 }
 

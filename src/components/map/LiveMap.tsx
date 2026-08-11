@@ -62,6 +62,7 @@ import {
   eqHoverTooltipHtml,
 } from "@/lib/nodes/exportNodesCsv";
 import {
+  SHARE_FOCUS_UI_ENABLED,
   shareUrlForPickedEvent,
   shareOrCopy,
   softReplaceShareUrl,
@@ -231,9 +232,10 @@ function buildEqPopupHtml(
             : f.properties.emscEnriched
               ? `<span style="color:#67e8f9;font-size:10px"> · +EMSC</span>`
               : "";
-  const shareLine = opts.shareHref
-    ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" title="Copy shareable deep link (does not reload the map)" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer">Share this EQ →</a></div>`
-    : "";
+  const shareLine =
+    SHARE_FOCUS_UI_ENABLED && opts.shareHref
+      ? `<div style="margin-top:8px"><a href="${opts.shareHref}" data-ww-share="1" title="Copy shareable deep link (does not reload the map)" style="display:inline-block;padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#22d3ee;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer">Share this EQ →</a></div>`
+      : "";
   return `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
               <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
               <div style="margin-top:4px;color:#e2e8f0">${place}</div>
@@ -713,27 +715,29 @@ export function LiveMap() {
           place,
           url: pageUrl,
         });
-        const shareHref = shareUrlForPickedEvent(
-          {
-            id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
-            lat,
-            lon,
-            mag,
-            place,
-            depth,
-            time: typeof f.properties.time === "number" ? f.properties.time : null,
-            url: pageUrl || undefined,
-          },
-          {
-            nodeId: useObservatory.getState().focusNodeId,
-            window: useObservatory.getState().timeWindow,
-            minMag: useObservatory.getState().minMag,
-            mapView: useObservatory.getState().mapView,
-            basemap: useObservatory.getState().basemapStyle,
-            mode: useObservatory.getState().mode,
-            layers: useObservatory.getState().overlays,
-          },
-        );
+        const shareHref = SHARE_FOCUS_UI_ENABLED
+          ? shareUrlForPickedEvent(
+              {
+                id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
+                lat,
+                lon,
+                mag,
+                place,
+                depth,
+                time: typeof f.properties.time === "number" ? f.properties.time : null,
+                url: pageUrl || undefined,
+              },
+              {
+                nodeId: useObservatory.getState().focusNodeId,
+                window: useObservatory.getState().timeWindow,
+                minMag: useObservatory.getState().minMag,
+                mapView: useObservatory.getState().mapView,
+                basemap: useObservatory.getState().basemapStyle,
+                mode: useObservatory.getState().mode,
+                layers: useObservatory.getState().overlays,
+              },
+            )
+          : null;
         const popupHtml = buildEqPopupHtml(f, {
           lat,
           lon,
