@@ -92,7 +92,8 @@ export function TodayBriefBar({
   if (!open) {
     return (
       <div className="flex w-full max-w-full flex-col gap-0.5">
-        <EclipseWatchChip />
+        {/* Eclipse chip only off Solar — Solar tab owns the full watch */}
+        {tab !== "solar" && <EclipseWatchChip />}
         <button
           type="button"
           onClick={toggle}

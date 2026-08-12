@@ -323,12 +323,13 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         <div className="space-y-3">
           <EclipseWatch />
 
+          {/* Kp next + attention on one thin strip (skip empty “builds after…” noise) */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
-            <AttentionSparkline />
+            <AttentionSparkline showLabel height={22} className="min-w-0" />
             {kpUpcoming.length > 0 && (
               <div className="flex flex-wrap items-center gap-1 text-[0.62rem] text-muted">
                 <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
-                {kpUpcoming.slice(0, 6).map((p) => {
+                {kpUpcoming.slice(0, 5).map((p) => {
                   const k = p.kp;
                   const tone =
                     k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
@@ -955,14 +956,13 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       {solarView === "context" && (
         <div className="space-y-3">
           <p className="rounded-lg border border-border/80 bg-panel/60 px-3 py-2 text-[0.7rem] leading-relaxed text-muted">
-            Optional depth — eclipses, historical storms, K-index education, magnetometer, and the
-            deterministic timing read. None of this is an official forecast.
+            Optional depth — expand only what you need. None of this is an official forecast.
           </p>
-          <EclipseWatch />
+          <EclipseWatch compact />
           <SuptContinuumStrip compact />
-          <MagnetoPanel />
+          <MagnetoPanel compact />
           <HistoricalStormDesk compact />
-          <KIndexScalesPanel />
+          <KIndexScalesPanel defaultOpen={false} />
           <SuptSolarAgent assessment={assessment} />
           <RecommendationsPanel />
           <ModelAccuracyDisclaimer />
@@ -974,26 +974,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         Sources: NOAA SWPC · NASA SDO / SOHO / STEREO · Solar Orbiter (Helioviewer) · DONKI · NeoWs.
         Free public feeds. Not an official forecast — always verify with SWPC.
       </footer>
-    </div>
-  );
-}
-
-function Ladder({
-  title,
-  hint,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-      <div>
-        <h3 className="text-[0.7rem] font-semibold uppercase tracking-wider text-primary">{title}</h3>
-        {hint && <p className="text-[0.62rem] text-dim">{hint}</p>}
-      </div>
-      {children}
     </div>
   );
 }

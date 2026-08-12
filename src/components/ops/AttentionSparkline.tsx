@@ -20,11 +20,7 @@ export function AttentionSparkline({
   }, [hist]);
 
   if (pts.length < 2) {
-    return showLabel ? (
-      <p className={`text-[0.65rem] text-dim ${className}`}>
-        Attention history builds after a few refreshes.
-      </p>
-    ) : null;
+    return showLabel ? null : null;
   }
 
   const w = 120;

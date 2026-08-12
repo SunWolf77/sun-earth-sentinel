@@ -3,3 +3,4 @@
 - Lightweight Three.js 3D Globe implemented (Full mode only, lazy-loaded). NASA Blue Marble texture, EQ Points by magnitude, OrbitControls + auto-rotate, full dispose on exit to 2D. [2026-07-25]
 - Live Resonance Score: Paul Sheppard frozen SUPT probe (α = 0.01). ETAS Whitening Control documented. Space Weather: Kp, GOES X-ray (24 h peak), solar-wind speed/Bz/Bt, NOAA Scales.
 - Credits: SunWolf (primary), Paul Sheppard (SUPT + probe + ETAS residual), SolarHam, Carrington, Dutchsinse (inspirational only), Ethical Skeptic (ECDO), NOAA/USGS/NASA.
+- DNA Cosmic Address Interpreter voice rule: respect capacity without condescension or posturing; default Plain layer; keep measurement separate from personal story. Public layer drops cannabis, energy-healing method, and private lived-experience claims — those stay inner circle only. See artifacts/PLAIN_LANGUAGE_VOICE.md [2026-08-12]

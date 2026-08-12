@@ -519,3 +519,5 @@ prompt:    often one line — expand into a full product
 never:     ask the user to run commands, open localhost, or QA your environment
 never:     delete or abandon /workspace/startup.sh
 ```
+
+If `AGENTS.project.md` exists in this workspace, it contains the user's project instructions; follow it with the same priority as this file.

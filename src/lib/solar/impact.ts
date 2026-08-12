@@ -20,6 +20,7 @@ function scaleNum(s: string | undefined): number {
 /**
  * Plain-language Earth-impact briefing from NOAA scales + L1 wind + DONKI CMEs.
  * Not an official forecast — synthesizes free public products.
+ * Tone: calm when quiet; escalate only on official scales / clear drivers.
  */
 export function buildImpactBrief(opts: {
   scales: NoaaScales | null;
@@ -36,7 +37,11 @@ export function buildImpactBrief(opts: {
   const earthCmes = earthDirectedCmes(cmes);
   const nextEta = earthCmes
     .map((c) => cmeImpactSummary(c))
-    .filter((x) => x.eta)
+    .filter((x) => {
+      if (!x.eta) return false;
+      const t = Date.parse(x.eta);
+      return Number.isFinite(t) && t > Date.now() - 6 * 3600_000;
+    })
     .sort((a, b) => (a.eta || "").localeCompare(b.eta || ""))[0];
 
   const southBz = wind?.bz != null && wind.bz <= -5;
@@ -46,7 +51,6 @@ export function buildImpactBrief(opts: {
 
   const bullets: string[] = [];
 
-  // Radio (R)
   if (R >= 3) {
     bullets.push(
       `Radio blackout R${R}: HF radio & some GNSS on dayside Earth can degrade during the flare.`,
@@ -54,92 +58,92 @@ export function buildImpactBrief(opts: {
   } else if (R >= 1) {
     bullets.push(`Radio blackout R${R}: brief HF fade possible on the sunlit side.`);
   } else if (strongFlare) {
-    bullets.push(`Flare class ${xClass}: watch for shortwave radio effects if it peaks higher.`);
+    bullets.push(`24 h flare peak ${xClass}: scales still low — flare already occurred or effects limited.`);
   }
 
-  // Radiation (S)
   if (S >= 2) {
     bullets.push(
-      `Solar radiation S${S}: elevated energetic protons — aviation polar routes & satellite ops may see elevated risk.`,
+      `Solar radiation S${S}: elevated energetic protons — polar HF & satellite context.`,
     );
   } else if (S >= 1) {
-    bullets.push(`Solar radiation S${S}: minor proton event — polar HF & some spacecraft sensors may notice.`);
+    bullets.push(`Solar radiation S${S}: minor proton event.`);
   }
 
-  // Geomagnetic (G)
   if (G >= 3) {
     bullets.push(
-      `Geomagnetic G${G}: power-grid operators on alert; aurora possible at mid-latitudes; GNSS/HF disruption more likely.`,
+      `Geomagnetic G${G}: grid / mid-latitude aurora / GNSS-HF disruption more likely — use SWPC alerts for ops.`,
     );
   } else if (G >= 1) {
     bullets.push(
-      `Geomagnetic G${G}: weak–moderate storming — high-latitude aurora more active; minor satellite drag/GNSS effects possible.`,
+      `Geomagnetic G${G}: high-latitude activity up; minor satellite/GNSS effects possible.`,
     );
   } else if (highKp) {
-    bullets.push(`Kp ${kp?.toFixed(1)}: elevated geomagnetic activity even if G-scale is still 0.`);
+    bullets.push(`Kp ${kp?.toFixed(1)}: elevated activity while G-scale is still 0.`);
   }
 
   if (southBz) {
     bullets.push(
-      `Bz ${wind!.bz!.toFixed(1)} nT (south): IMF coupling is favorable for geomagnetic response if it holds.`,
+      `Bz ${wind!.bz!.toFixed(1)} nT (south): coupling favorable if it holds.`,
     );
   }
   if (fastWind) {
-    bullets.push(`Solar wind ~${Math.round(wind!.speed!)} km/s: fast stream — can drive activity at Earth.`);
+    bullets.push(`Solar wind ~${Math.round(wind!.speed!)} km/s: fast stream.`);
   }
 
   if (nextEta?.eta) {
     const when = new Date(nextEta.eta).toUTCString().replace("GMT", "UTC");
     bullets.push(
-      `Modeled CME arrival window ≈ ${when}${
-        nextEta.kpHint != null ? ` · model Kp up to ~${nextEta.kpHint}` : ""
+      `Earth-directed CME · modeled arrival ≈ ${when}${
+        nextEta.kpHint != null ? ` · model Kp ~${nextEta.kpHint}` : ""
       }.`,
     );
   } else if (earthCmes.length) {
     bullets.push(
-      `${earthCmes.length} recent CME(s) flagged Earth-directed in DONKI/ENLIL — check arrival estimates below.`,
+      `${earthCmes.length} Earth-directed CME(s) in DONKI — check Catalogs for ETA detail.`,
     );
-  } else if (cmes.length) {
-    bullets.push(`${cmes.length} CME(s) cataloged in the last week; none currently flagged as strong Earth hits.`);
   }
 
   if (!bullets.length) {
-    bullets.push("No major R/S/G storm levels right now. Keep watching flares, LASCO CMEs, and L1 wind.");
+    bullets.push("R/S/G at baseline. No urgent scale-driven impacts.");
   }
 
-  bullets.push(
-    "Impacts vary by longitude, technology, and latitude — always cross-check NOAA SWPC for official watches/warnings.",
-  );
+  bullets.push("Observation only — verify watches/warnings on NOAA SWPC.");
 
+  // Escalate only on real drivers — not "lots of catalog CMEs"
   let level: ImpactLevel = "quiet";
-  let title = "Quiet to unsettled";
+  let title = "Quiet";
   let color: ImpactCard["color"] = "ok";
-  let summary = "Earth environment looks relatively calm on official NOAA scales.";
+  let summary = "Official scales look calm.";
 
-  if (maxScale >= 3 || (highKp && southBz && fastWind)) {
+  if (maxScale >= 3 || (highKp && G >= 2)) {
     level = "storm";
-    title = "Storm conditions";
+    title = "Storm scales";
     color = "danger";
-    summary = "Elevated storm scales — prioritize official SWPC alerts for ops & safety-critical systems.";
-  } else if (maxScale >= 1 || nextEta || highKp || (strongFlare && southBz)) {
+    summary = "Elevated NOAA R/S/G — prioritize official SWPC products for safety-critical systems.";
+  } else if (maxScale >= 2 || (highKp && southBz) || (nextEta && maxScale >= 1)) {
     level = "elevated";
-    title = "Elevated watch";
+    title = "Elevated";
     color = "warn";
-    summary = "Something is cooking — flare, wind, and/or CME context warrants closer monitoring.";
-  } else if (strongFlare || fastWind || southBz || cmes.length > 2) {
+    summary = "Clear drivers on scales and/or wind — monitor, not alarm.";
+  } else if (maxScale >= 1 || highKp || nextEta || (strongFlare && southBz)) {
     level = "watch";
-    title = "Watchful quiet";
+    title = "Watch";
     color = "gold";
-    summary = "Scales are low, but the Sun is active enough to watch for evolution.";
+    summary = "Minor activity or a CME window — worth a glance, not a red alert.";
+  } else if (strongFlare || (fastWind && southBz)) {
+    level = "watch";
+    title = "Watch";
+    color = "gold";
+    summary = "Secondary drivers present; official scales still low.";
   }
 
-  if (scales?.RMinorProb) {
+  if (scales?.RMinorProb && maxScale >= 1) {
     bullets.splice(
       -1,
       0,
-      `SWPC day-1 probabilities: R (minor) ~${scales.RMinorProb}% · S ~${scales.SProb ?? "—"}% · G forecast ${scales.G1 ?? "—"}.`,
+      `SWPC day-1 probs: R minor ~${scales.RMinorProb}% · S ~${scales.SProb ?? "—"}% · G ${scales.G1 ?? "—"}.`,
     );
   }
 
-  return { level, title, summary, bullets: bullets.slice(0, 7), color };
+  return { level, title, summary, bullets: bullets.slice(0, 6), color };
 }
