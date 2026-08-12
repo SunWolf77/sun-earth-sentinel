@@ -200,7 +200,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
                 className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1 text-[0.68rem] font-semibold text-gold hover:bg-gold/20"
               >
                 {pub?.sesNodeId === "mediterranean"
-                  ? "Campi Flegrei board (INGV)"
+                  ? "Swarm board"
                   : "Full swarm board"}
                 <ExternalLink className="h-3 w-3" />
               </a>
@@ -393,11 +393,11 @@ export function NodeFocusBanner() {
           className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1 text-[0.68rem] font-semibold text-gold hover:bg-gold/20"
           title={
             pub
-              ? `Open ${pub.name} swarm board (${pub.authority})`
+              ? `Open SES ${pub.name} swarm board · data: ${pub.authority}`
               : "Open full swarm board"
           }
         >
-          {pub?.sesNodeId === "mediterranean" ? "INGV board" : "Full board"}
+          Full board
           <ExternalLink className="h-3 w-3" />
         </a>
       )}

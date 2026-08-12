@@ -96,7 +96,7 @@ export function nodePopupHtml(
       boardHref.includes("monitor.vercel.app"));
   const boardLabel =
     node.id === "mediterranean"
-      ? "Campi Flegrei board (INGV) →"
+      ? "Swarm board →"
       : isPubBoard
         ? "Full swarm board →"
         : node.kind === "volcano"
