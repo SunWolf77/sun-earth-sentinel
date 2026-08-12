@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import type { SolarAssessment } from "@/lib/solar/suptInterpreter";
-import { XPerson } from "@/components/ui/XProfileLink";
 import { Bot, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 
 export function SuptSolarAgent({ assessment }: { assessment: SolarAssessment }) {
@@ -23,11 +22,10 @@ export function SuptSolarAgent({ assessment }: { assessment: SolarAssessment }) 
         <div className="min-w-0">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-accent">
             <Bot className="h-4 w-4" />
-            Solar timing read
+            Timing read
           </h3>
           <p className="mt-0.5 text-[0.68rem] text-dim">
-            Deterministic multi-channel agent · frozen probe by <XPerson profile="sheppard" /> ·
-            not a free-form LLM · not an official forecast
+            Deterministic spacing of flares / CMEs · not an official forecast · not an LLM
           </p>
         </div>
         <div className="text-right">
