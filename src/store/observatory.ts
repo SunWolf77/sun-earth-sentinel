@@ -211,7 +211,8 @@ export type PickedEvent = {
   id: string;
   lat: number;
   lon: number;
-  mag: number;
+  /** Null when GOSSIP N/D — never coerce to 0 */
+  mag: number | null;
   place: string;
   depth: number;
   time: number | null;
@@ -237,7 +238,9 @@ export function filteredEq(
 ): EqFeature[] {
   if (!features?.length) return [];
   return features.filter((f) => {
-    const m = f.properties.mag ?? 0;
+    const m = f.properties.mag;
+    // CF densify contract: null mag ≠ 0 — keep unknown for map completeness
+    if (m == null || !Number.isFinite(m)) return true;
     return m >= minMag && m <= maxMag;
   });
 }

@@ -27,6 +27,13 @@ export type EqFeature = {
     /** Agency / network tag (us, jma, geofon, …) */
     net?: string | null;
     magType?: string | null;
+    /**
+     * GOSSIP / board densify: true when magnitude is officially N/D.
+     * mag must stay null — never coerce to 0 (would fake energy).
+     */
+    magNd?: boolean;
+    /** Optional multi-source label (e.g. INGV-OV) */
+    sources?: string | null;
     /** JMA shindo class when known */
     jmaMaxi?: string | null;
     jmaEid?: string | null;
@@ -280,6 +287,48 @@ export function magColor(mag: number): string {
   if (mag >= 5) return "#fb923c";
   if (mag >= 4) return "#fbbf24";
   return "#34d399";
+}
+
+/** Finite magnitude only — null / N/D are not energy. */
+export function hasFiniteMag(mag: number | null | undefined): mag is number {
+  return mag != null && Number.isFinite(mag);
+}
+
+/**
+ * Min-mag filter helper (CF densify contract):
+ * null mag is unknown — never treated as 0. Include for map densify
+ * when `includeUnknown` (default true); stats paths pass false.
+ */
+export function magPassesRange(
+  mag: number | null | undefined,
+  minMag: number,
+  maxMag = 10,
+  includeUnknown = true,
+): boolean {
+  if (!hasFiniteMag(mag)) return includeUnknown;
+  return mag >= minMag && mag <= maxMag;
+}
+
+/** UI label — M– for N/D / null, never M0. */
+export function formatMagLabel(
+  mag: number | null | undefined,
+  opts?: { digits?: number; prefix?: boolean },
+): string {
+  const digits = opts?.digits ?? 1;
+  const prefix = opts?.prefix !== false;
+  if (!hasFiniteMag(mag)) return prefix ? "M–" : "–";
+  const body = mag.toFixed(digits);
+  return prefix ? `M${body}` : body;
+}
+
+/** Marker size proxy — unknown mag uses small neutral pin (not M0). */
+export function magForDisplaySize(mag: number | null | undefined): number {
+  return hasFiniteMag(mag) ? mag : 1.2;
+}
+
+export function magColorForFeature(mag: number | null | undefined): string {
+  if (!hasFiniteMag(mag)) return "#94a3b8"; // slate — unknown N/D
+  return magColor(mag);
 }
 
 /**
@@ -690,8 +739,13 @@ function seismicNodeStatus(
           : 3.5;
   const inBounds = features.filter((f) => {
     const [lon, lat] = f.geometry.coordinates;
-    const mag = f.properties.mag ?? 0;
-    return pointInBounds(lat, lon, node.bounds) && mag >= minMagFloor;
+    if (!pointInBounds(lat, lon, node.bounds)) return false;
+    const mag = f.properties.mag;
+    // Dense desks: count finite-hypocentre N/D as activity (not energy)
+    if (!hasFiniteMag(mag)) {
+      return node.id === "mediterranean" || node.id === "iceland";
+    }
+    return mag >= minMagFloor;
   });
   if (!inBounds.length) return "quiet";
 
@@ -703,10 +757,16 @@ function seismicNodeStatus(
   let m5_72h = 0;
   let count_24h = 0;
   let m3 = 0;
+  let nullCount = 0;
   for (const f of inBounds) {
-    const mag = f.properties.mag ?? 0;
+    const mag = f.properties.mag;
     const t = f.properties.time;
     const age = typeof t === "number" ? now - t : Number.POSITIVE_INFINITY;
+    if (!hasFiniteMag(mag)) {
+      nullCount++;
+      if (age <= 24 * 3_600_000) count_24h++;
+      continue;
+    }
     if (mag > maxMag) maxMag = mag;
     if (mag >= 3) m3++;
     if (mag >= 5) m5++;
@@ -817,6 +877,8 @@ export type NodeEventStats = {
   count: number;
   maxMag: number;
   m5: number;
+  /** Unmaged (N/D) events in box — not energy */
+  nullMag?: number;
 };
 
 export function nodeEventStats(
@@ -827,14 +889,24 @@ export function nodeEventStats(
   let count = 0;
   let maxMag = 0;
   let m5 = 0;
+  let nullMag = 0;
   for (const f of features ?? []) {
-    const mag = f.properties.mag ?? 0;
-    if (mag < minMag) continue;
+    const mag = f.properties.mag;
+    const finite = hasFiniteMag(mag);
+    // Unknown mag still counts as an event in-box (densify completeness)
+    if (finite && mag < minMag) continue;
+    if (!finite && minMag > 0) {
+      // keep nulls in count for CF; they don't affect max/m5
+    }
     const [lon, lat] = f.geometry.coordinates;
     if (!pointInBounds(lat, lon, node.bounds)) continue;
     count++;
+    if (!finite) {
+      nullMag++;
+      continue;
+    }
     if (mag > maxMag) maxMag = mag;
     if (mag >= 5) m5++;
   }
-  return { count, maxMag, m5 };
+  return { count, maxMag, m5, nullMag };
 }

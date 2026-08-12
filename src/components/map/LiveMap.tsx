@@ -4,6 +4,10 @@ import L from "leaflet";
 import { useObservatory, filteredEq, getFocusNode, getAllFocusNodes } from "@/store/observatory";
 import {
   magColor,
+  magColorForFeature,
+  magForDisplaySize,
+  formatMagLabel,
+  hasFiniteMag,
   depthColor,
   eqDepthKm,
   nodeStatus,
@@ -154,7 +158,7 @@ function buildEqPopupHtml(
   opts: {
     lat: number;
     lon: number;
-    mag: number;
+    mag: number | null;
     depth: number;
     place: string;
     time: string;
@@ -189,6 +193,7 @@ function buildEqPopupHtml(
     smUrl,
     eventId,
   } = opts;
+  const magHead = formatMagLabel(mag);
   const mmiLine =
     mmi != null && Number.isFinite(mmi)
       ? `<div style="color:#22d3ee;font-size:11px;margin-top:2px">USGS MMI ~${formatMmi(mmi)}${sm ? " · ShakeMap product" : ""}</div>`
@@ -199,6 +204,10 @@ function buildEqPopupHtml(
   const sigNote = isSig
     ? `<span style="color:#fbbf24;font-size:11px"> · Significant M≥6</span>`
     : "";
+  const ndNote =
+    !hasFiniteMag(mag)
+      ? `<div style="color:#94a3b8;font-size:10px;margin-top:2px">Magnitude N/D · not M0 energy</div>`
+      : "";
   const magType = (f.properties as { magType?: string }).magType;
   const net = (f.properties as { net?: string }).net;
   const status = (f.properties as { status?: string }).status;
@@ -225,24 +234,31 @@ function buildEqPopupHtml(
     idStr.startsWith("emsc:") ||
     f.properties.detail === "emsc" ||
     f.properties.net === "emsc";
+  const isIngv =
+    f.properties.net === "ov" ||
+    f.properties.net === "ingv" ||
+    (typeof f.properties.sources === "string" &&
+      f.properties.sources.toUpperCase().includes("INGV"));
   const srcBadge = isJma
     ? `<span style="color:#22d3ee;font-size:10px;font-weight:600"> · JMA</span>`
     : isImo
       ? `<span style="color:#a78bfa;font-size:10px;font-weight:600"> · IMO</span>`
       : isEmsc
         ? `<span style="color:#67e8f9;font-size:10px;font-weight:600"> · EMSC</span>`
-        : f.properties.jmaEnriched
-          ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
-          : f.properties.imoEnriched
-            ? `<span style="color:#a78bfa;font-size:10px"> · +IMO</span>`
-            : f.properties.emscEnriched
-              ? `<span style="color:#67e8f9;font-size:10px"> · +EMSC</span>`
-              : "";
+        : isIngv
+          ? `<span style="color:#fbbf24;font-size:10px;font-weight:600"> · INGV-OV</span>`
+          : f.properties.jmaEnriched
+            ? `<span style="color:#22d3ee;font-size:10px"> · +JMA</span>`
+            : f.properties.imoEnriched
+              ? `<span style="color:#a78bfa;font-size:10px"> · +IMO</span>`
+              : f.properties.emscEnriched
+                ? `<span style="color:#67e8f9;font-size:10px"> · +EMSC</span>`
+                : "";
   const shareLine =
     SHARE_FOCUS_UI_ENABLED && opts.shareHref
       ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><a href="${opts.shareHref}" data-ww-share="1" data-ww-share-title="${escapeAttr(opts.shareTitle || "Earthquake")}" data-ww-share-text="${escapeAttr(opts.shareText || "")}" title="Share focus — opens map on this event" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid #0e7490;background:#0c4a6e;color:#67e8f9;font-size:11px;font-weight:700;text-decoration:none;cursor:pointer">Share event</a><span style="color:#64748b;font-size:10px">Deep link · no reload</span></div>`
       : "";
-  return `<div style="font-weight:700;color:${fill};font-size:14px">M${mag.toFixed(1)}${sigNote}${srcBadge}</div>
+  return `<div style="font-weight:700;color:${fill};font-size:14px">${magHead}${sigNote}${srcBadge}</div>${ndNote}
               <div style="color:#94a3b8;font-size:11px;margin-top:2px">${depth.toFixed(0)} km depth · ${coords}</div>
               <div style="margin-top:4px;color:#e2e8f0">${place}</div>
               <div style="color:#64748b;font-size:11px;margin-top:3px">${time}</div>
@@ -698,7 +714,7 @@ export function LiveMap() {
         useObservatory.getState().mode === "full" ? 900 : 500;
       const points: EqPoint[] = features.map((f) => {
         const [lon, lat] = f.geometry.coordinates;
-        return { f, lat, lon, mag: f.properties.mag ?? 0 };
+        return { f, lat, lon, mag: magForDisplaySize(f.properties.mag) };
       });
       const sampled = fairSampleEqPoints(points, modeMax, {
         cellDeg: 10,
@@ -707,19 +723,25 @@ export function LiveMap() {
       const drawFeatures = sampled.map((p) => p.f);
 
       const markers: L.Layer[] = [];
-      // Weak first so stronger quakes sit above in the pane
-      const ordered = [...drawFeatures].sort(
-        (a, b) => (a.properties.mag ?? 0) - (b.properties.mag ?? 0),
-      );
+      // Weak first so stronger quakes sit above; N/D (null) sort as weakest
+      const ordered = [...drawFeatures].sort((a, b) => {
+        const ma = hasFiniteMag(a.properties.mag) ? a.properties.mag : -1;
+        const mb = hasFiniteMag(b.properties.mag) ? b.properties.mag : -1;
+        return ma - mb;
+      });
       for (const f of ordered) {
         const [lon, lat] = f.geometry.coordinates;
-        const mag = f.properties.mag ?? 0;
+        const magRaw = f.properties.mag;
+        const mag = magForDisplaySize(magRaw);
+        const magFinite = hasFiniteMag(magRaw);
         const depth = eqDepthKm(f);
         const place = f.properties.place ?? "Unknown";
         const time = formatUtc(f.properties.time);
-        const isSig = mag >= 6;
+        const isSig = magFinite && magRaw >= 6;
         const isJma = isJmaFeature(f);
-        const fill = overlays.depthColor ? depthColor(depth) : magColor(mag);
+        const fill = overlays.depthColor
+          ? depthColor(depth)
+          : magColorForFeature(magRaw);
         const mmi = f.properties.mmi;
         const sm =
           hasShakeMapProduct(f.properties.types) ||
@@ -742,7 +764,7 @@ export function LiveMap() {
                 id: eventId || `${lat},${lon},${f.properties.time ?? 0}`,
                 lat,
                 lon,
-                mag,
+                mag: magFinite ? magRaw : null,
                 place,
                 depth,
                 time: typeof f.properties.time === "number" ? f.properties.time : null,
@@ -759,13 +781,15 @@ export function LiveMap() {
               },
             )
           : null;
-        const shareTitle = `M${mag.toFixed(1)} · ${place} · Sun-Earth Sentinel`;
+        const magLabel = formatMagLabel(magRaw);
+        const shareTitle = `${magLabel} · ${place} · Sun-Earth Sentinel`;
         const shareText = [
-          `M${mag.toFixed(1)} earthquake — ${place}`,
+          `${magLabel} earthquake — ${place}`,
           typeof f.properties.time === "number"
             ? `Origin ${new Date(f.properties.time).toISOString().replace(".000Z", "Z")}`
             : null,
           `Depth ${depth.toFixed(0)} km`,
+          magFinite ? null : "Magnitude N/D (GOSSIP) · not M0",
           "Live map · free observation · not a warning",
         ]
           .filter(Boolean)
@@ -773,7 +797,7 @@ export function LiveMap() {
         const popupHtml = buildEqPopupHtml(f, {
           lat,
           lon,
-          mag,
+          mag: magFinite ? magRaw : null,
           depth,
           place,
           time,

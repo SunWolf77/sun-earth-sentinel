@@ -82,12 +82,21 @@ export function normalizeBoardFeature(raw: unknown, sesNodeId: string): EqFeatur
   const depth = coords.length >= 3 && Number.isFinite(Number(coords[2])) ? Number(coords[2]) : 0;
   const props = f.properties ?? {};
   const magRaw = props.mag;
+  const magNd =
+    props.magNd === true ||
+    props.magNd === "true" ||
+    (typeof props.magType === "string" &&
+      /^n\/?d$/i.test(props.magType.trim()));
   const mag =
-    magRaw == null || magRaw === ""
+    magNd || magRaw == null || magRaw === ""
       ? null
       : Number.isFinite(Number(magRaw))
         ? Number(magRaw)
         : null;
+  // Never invent 0 — explicit null only
+  if (mag === 0 && magNd) {
+    /* keep null */
+  }
   const timeRaw = props.time;
   const time =
     typeof timeRaw === "number" && Number.isFinite(timeRaw)
@@ -96,35 +105,54 @@ export function normalizeBoardFeature(raw: unknown, sesNodeId: string): EqFeatur
         ? Date.parse(timeRaw)
         : null;
   const sesSource =
-    typeof props.sesSource === "string"
-      ? props.sesSource
-      : sesNodeId === "iceland"
-        ? "imo"
-        : sesNodeId === "andes"
-          ? "csn"
-          : sesNodeId === "newzealand"
-            ? "geonet"
-            : "ingv";
+    typeof props.net === "string" && props.net.trim()
+      ? props.net.trim()
+      : typeof props.sesSource === "string"
+        ? props.sesSource
+        : sesNodeId === "iceland"
+          ? "imo"
+          : sesNodeId === "andes"
+            ? "csn"
+            : sesNodeId === "newzealand"
+              ? "geonet"
+              : "ingv";
   const id =
     f.id != null
       ? String(f.id)
       : `board-${sesNodeId}-${lat.toFixed(4)}_${lon.toFixed(4)}_${time ?? 0}`;
+
+  const place = typeof props.place === "string" ? props.place : null;
+  const titleFromBoard = typeof props.title === "string" ? props.title : null;
+  const title =
+    titleFromBoard ||
+    (mag == null
+      ? `M– ${place || id}`
+      : `M ${mag.toFixed(1)} – ${place || id}`);
 
   return {
     type: "Feature",
     id,
     properties: {
       mag,
-      place: typeof props.place === "string" ? props.place : null,
+      magNd: mag == null ? true : props.magNd === true ? true : undefined,
+      place,
       time: time != null && Number.isFinite(time) ? time : null,
       updated: typeof props.updated === "number" ? props.updated : time ?? undefined,
       url: typeof props.url === "string" ? props.url : undefined,
-      title: typeof props.title === "string" ? props.title : undefined,
+      title,
       type: typeof props.type === "string" ? props.type : "earthquake",
       status: typeof props.status === "string" ? props.status : "reviewed",
-      magType: typeof props.magType === "string" ? props.magType : null,
+      magType:
+        mag == null
+          ? typeof props.magType === "string"
+            ? props.magType
+            : "N/D"
+          : typeof props.magType === "string"
+            ? props.magType
+            : null,
       net: sesSource,
-      detail: sesSource,
+      sources: typeof props.sources === "string" ? props.sources : null,
+      detail: typeof props.detail === "string" ? props.detail : sesSource,
     },
     geometry: {
       type: "Point",

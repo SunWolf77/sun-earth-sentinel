@@ -66,7 +66,8 @@ export function ShareEventCard({
 
   const payload = useMemo(() => payloadForPickedEvent(event, url), [event, url]);
   const web = typeof navigator !== "undefined" && canWebShare(url, payload.title);
-  const magLabel = Number.isFinite(event.mag) ? `M${event.mag.toFixed(1)}` : "EQ";
+  const magLabel =
+    event.mag != null && Number.isFinite(event.mag) ? `M${event.mag.toFixed(1)}` : "M–";
   const place = event.place || "Event";
 
   if (!SHARE_FOCUS_UI_ENABLED) return null;

@@ -207,7 +207,8 @@ export function shareUrlForPickedEvent(
 }
 
 export function payloadForPickedEvent(ev: PickedEvent, url: string): SharePayload {
-  const mag = Number.isFinite(ev.mag) ? `M${ev.mag.toFixed(1)}` : "Quake";
+  const mag =
+    ev.mag != null && Number.isFinite(ev.mag) ? `M${ev.mag.toFixed(1)}` : "M–";
   const place = (ev.place || "event").trim();
   const title = `${mag} · ${place} · Sun-Earth Sentinel`;
   const when =

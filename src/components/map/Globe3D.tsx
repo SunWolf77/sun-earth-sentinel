@@ -2258,9 +2258,17 @@ export function Globe3D() {
             <div className="min-w-0">
               <span
                 className="font-mono font-semibold tabular-nums"
-                style={{ color: globeMagStyle(pickedEvent.mag).color }}
+                style={{
+                  color: globeMagStyle(
+                    pickedEvent.mag != null && Number.isFinite(pickedEvent.mag)
+                      ? pickedEvent.mag
+                      : 1.2,
+                  ).color,
+                }}
               >
-                M{pickedEvent.mag.toFixed(1)}
+                {pickedEvent.mag != null && Number.isFinite(pickedEvent.mag)
+                  ? `M${pickedEvent.mag.toFixed(1)}`
+                  : "M–"}
               </span>
               <p className="mt-0.5 line-clamp-2 text-fg">{pickedEvent.place}</p>
               <p className="text-[0.62rem] text-dim">

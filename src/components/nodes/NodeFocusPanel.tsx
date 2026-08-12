@@ -364,7 +364,9 @@ export function NodeFocusBanner() {
             <>
               Aviation {AVIATION_LABEL[focus.aviationCode]} · {STATUS_LABEL[st]}
               {stats.count > 0
-                ? ` · ${stats.count} eq · max M${stats.maxMag.toFixed(1)}`
+                ? ` · ${stats.count} eq · max ${
+                    stats.maxMag > 0 ? `M${stats.maxMag.toFixed(1)}` : "M–"
+                  }${stats.nullMag ? ` · ${stats.nullMag} N/D` : ""}`
                 : " · volcano watch"}
               {pub ? ` · ${pub.authority}` : ""}
             </>
@@ -378,8 +380,9 @@ export function NodeFocusBanner() {
             </>
           ) : (
             <>
-              {STATUS_LABEL[st]} · {stats.count} events · max M
-              {stats.maxMag > 0 ? stats.maxMag.toFixed(1) : "—"}
+              {STATUS_LABEL[st]} · {stats.count} events · max{" "}
+              {stats.maxMag > 0 ? `M${stats.maxMag.toFixed(1)}` : "—"}
+              {stats.nullMag ? ` · ${stats.nullMag} N/D` : ""}
               {pub ? ` · ${pub.authority}` : ""}
             </>
           )}
