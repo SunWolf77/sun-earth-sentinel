@@ -1,6 +1,46 @@
-/** Near-term catalog (2026–2028). Expand as needed. */
-export const ECLIPSE_CATALOG: EclipseEvent[] = (
-  [
+/**
+ * Eclipse Watch — curated solar / lunar eclipse calendar + awareness windows.
+ * Observational sky context only. Not a forecast product.
+ * Safety: never look at the Sun without certified eclipse glasses (solar only).
+ *
+ * Sources: NASA eclipse pages, timeanddate / EclipseWise public catalogs.
+ * Times are approximate UTC peaks for ops briefing (verify official ephemerides).
+ */
+
+export type EclipseKind = "solar" | "lunar";
+export type EclipseType =
+  | "total"
+  | "annular"
+  | "partial"
+  | "penumbral"
+  | "hybrid";
+
+export type EclipseEvent = {
+  id: string;
+  kind: EclipseKind;
+  type: EclipseType;
+  name: string;
+  peakMs: number;
+  peakLabel: string;
+  watchStartMs: number;
+  watchEndMs: number;
+  path: string;
+  regions: string;
+  nasaUrl?: string;
+  mapUrl?: string;
+  syzygy: "new" | "full";
+  safety: string;
+  note: string;
+};
+
+const H = 3_600_000;
+const D = 24 * H;
+
+function utc(y: number, m: number, d: number, hh = 12, mm = 0): number {
+  return Date.UTC(y, m - 1, d, hh, mm, 0);
+}
+
+const RAW_CATALOG: EclipseEvent[] = [
   {
     id: "se-2026-02-17-annular",
     kind: "solar",
@@ -122,5 +162,151 @@ export const ECLIPSE_CATALOG: EclipseEvent[] = (
     safety: "Solar — glasses required for all partial phases.",
     note: "One of the longer totalities of the decade along the African path.",
   },
-] satisfies EclipseEvent[]
-).slice().sort((a, b) => a.peakMs - b.peakMs);
+];
+
+export const ECLIPSE_CATALOG: EclipseEvent[] = RAW_CATALOG.slice().sort(
+  (a, b) => a.peakMs - b.peakMs,
+);
+
+export type EclipseAwareness =
+  | "dormant"
+  | "approaching"
+  | "elevated"
+  | "active"
+  | "recent";
+
+export type EclipseWatchState = {
+  nowMs: number;
+  next: EclipseEvent | null;
+  elevated: EclipseEvent | null;
+  active: EclipseEvent | null;
+  awareness: EclipseAwareness;
+  hoursToPeak: number | null;
+  daysToNext: number | null;
+  chip: string;
+  headline: string;
+  upcoming: EclipseEvent[];
+  seasonNote: string | null;
+};
+
+function awarenessFor(
+  now: number,
+  focus: EclipseEvent | null,
+  next: EclipseEvent | null,
+): EclipseAwareness {
+  if (focus) {
+    const dt = Math.abs(now - focus.peakMs);
+    if (dt <= 6 * H) return "active";
+    if (now >= focus.watchStartMs && now <= focus.watchEndMs) return "elevated";
+    if (now > focus.peakMs && now - focus.peakMs < 3 * D) return "recent";
+  }
+  if (next) {
+    const days = (next.peakMs - now) / D;
+    if (days <= 14) return "approaching";
+  }
+  return "dormant";
+}
+
+export function formatEclipseType(e: EclipseEvent): string {
+  const k = e.kind === "solar" ? "Solar" : "Lunar";
+  const t =
+    e.type === "total"
+      ? "total"
+      : e.type === "annular"
+        ? "annular"
+        : e.type === "partial"
+          ? "partial"
+          : e.type === "penumbral"
+            ? "penumbral"
+            : e.type;
+  return `${k} · ${t}`;
+}
+
+export function computeEclipseWatch(nowMs: number = Date.now()): EclipseWatchState {
+  const catalog = ECLIPSE_CATALOG;
+  const elevated =
+    catalog.find((e) => nowMs >= e.watchStartMs && nowMs <= e.watchEndMs) ?? null;
+
+  const active =
+    catalog.find((e) => Math.abs(nowMs - e.peakMs) <= 6 * H) ?? null;
+
+  const next =
+    catalog.find((e) => e.peakMs + 12 * H >= nowMs) ??
+    catalog[catalog.length - 1] ??
+    null;
+
+  const focus = active ?? elevated ?? next;
+  const awareness = awarenessFor(nowMs, elevated ?? active, next);
+
+  const hoursToPeak = focus != null ? (focus.peakMs - nowMs) / H : null;
+  const daysToNext = next != null ? (next.peakMs - nowMs) / D : null;
+
+  const upcoming = catalog
+    .filter((e) => e.peakMs + 6 * H >= nowMs)
+    .slice(0, 4);
+
+  let seasonNote: string | null = null;
+  for (let i = 0; i < catalog.length - 1; i++) {
+    const a = catalog[i]!;
+    const b = catalog[i + 1]!;
+    const gap = Math.abs(b.peakMs - a.peakMs);
+    if (gap <= 35 * D) {
+      const mid = (a.peakMs + b.peakMs) / 2;
+      if (Math.abs(nowMs - mid) < 40 * D) {
+        seasonNote = `Eclipse season · ${formatEclipseType(a)} ↔ ${formatEclipseType(b)} (~${Math.round(gap / D)} d apart)`;
+        break;
+      }
+    }
+  }
+
+  let chip = "Eclipse watch · quiet";
+  let headline = "No eclipse in the near elevated window.";
+
+  if (active) {
+    chip =
+      active.kind === "solar"
+        ? "Eclipse · ACTIVE solar shadow"
+        : "Eclipse · ACTIVE lunar shadow";
+    headline = `${active.name} near peak · ${active.peakLabel}`;
+  } else if (elevated) {
+    const h = hoursToPeak != null ? hoursToPeak : 0;
+    const when =
+      h > 24
+        ? `in ${Math.round(h / 24)} d`
+        : h >= 0
+          ? `in ${Math.round(h)} h`
+          : `${Math.round(-h)} h past peak`;
+    chip = `Eclipse · elevated · ${elevated.kind === "solar" ? "solar" : "lunar"} ${when}`;
+    headline = `${elevated.name} · elevated awareness · ${when}`;
+  } else if (next && daysToNext != null && daysToNext < 45) {
+    chip = `Next eclipse · ${Math.max(0, Math.round(daysToNext))} d · ${next.kind}`;
+    headline = `Next: ${next.name} · ${next.peakLabel}`;
+  } else if (next) {
+    chip = `Next eclipse · ${next.peakLabel.slice(0, 10)}`;
+    headline = `Next: ${next.name}`;
+  }
+
+  return {
+    nowMs,
+    next,
+    elevated,
+    active,
+    awareness,
+    hoursToPeak,
+    daysToNext,
+    chip,
+    headline,
+    upcoming,
+    seasonNote,
+  };
+}
+
+export function eclipseTone(
+  a: EclipseAwareness,
+): "danger" | "warn" | "gold" | "primary" | "muted" {
+  if (a === "active") return "danger";
+  if (a === "elevated") return "warn";
+  if (a === "approaching") return "gold";
+  if (a === "recent") return "primary";
+  return "muted";
+}
