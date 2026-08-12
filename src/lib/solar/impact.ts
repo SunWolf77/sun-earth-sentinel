@@ -107,7 +107,7 @@ export function buildImpactBrief(opts: {
     bullets.push("R/S/G at baseline. No urgent scale-driven impacts.");
   }
 
-  bullets.push("Observation only — verify watches/warnings on NOAA SWPC.");
+  bullets.push("Observation only — SWPC is authority for watches/warnings.");
 
   // Escalate only on real drivers — not "lots of catalog CMEs"
   let level: ImpactLevel = "quiet";

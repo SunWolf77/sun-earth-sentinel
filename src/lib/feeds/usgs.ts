@@ -485,7 +485,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #1 — Tonga–Kermadec trench corridor (USGS authority). Open full swarm board for Core / North / South / Nearby zones. Not a forecast.",
+      "SES node #1 — Tonga–Kermadec trench corridor (USGS authority). Open full swarm board for Core / North / South / Nearby zones.",
     aliases: ["tonga-kermadec", "tk", "kermadec"],
   },
   {
@@ -508,7 +508,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #6 — South Sandwich trench, Scotia Arc & Drake Passage. Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Full board opens USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential for South Atlantic. Not a forecast.",
+      "SES node #6 — South Sandwich trench, Scotia Arc & Drake Passage. Remote mid-ocean / island-arc seismicity; USGS primary (GEOFON/EMSC fill). Full board opens USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential for South Atlantic.",
     aliases: [
       "ss",
       "sandwich",
@@ -536,7 +536,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #7 — Chile–Andes / Nazca megathrust. CSN densify (HTML catalog + EMSC-CSN) is exclusive in-box authority — never dual-read USGS. High tsunami source potential Pacific. Not a forecast.",
+      "SES node #7 — Chile–Andes / Nazca megathrust. CSN densify (HTML catalog + EMSC-CSN) is exclusive in-box authority — never dual-read USGS. High tsunami source potential Pacific.",
     aliases: [
       "chile",
       "andes",
@@ -565,7 +565,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #2 — Campi Flegrei caldera west of Naples. Live official alert from INGV/Protezione Civile (giallo = ADVISORY/YELLOW) when elevated — not USGS HANS. Open full board for INGV-OV GOSSIP microseismicity & SUPT continuum. Not a forecast.",
+      "SES node #2 — Campi Flegrei caldera west of Naples. Live official alert from INGV/Protezione Civile (giallo = ADVISORY/YELLOW) when elevated — not USGS HANS. Open full board for INGV-OV GOSSIP microseismicity & SUPT continuum.",
     aliases: ["campi-flegrei", "campi", "cf", "flegrei"],
   },
   {
@@ -582,7 +582,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #3 — Japan archipelago (JMA Bosai authority). Tsunami watch first-class on the Japan board. Open full board for Kamchatka (#4) companion, volcano watch, SUPT continuum. Not a forecast.",
+      "SES node #3 — Japan archipelago (JMA Bosai authority). Tsunami watch first-class on the Japan board. Open full board for Kamchatka (#4) companion, volcano watch, SUPT continuum.",
     aliases: ["jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
   },
   {
@@ -599,7 +599,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #4 — Kamchatka / Kurils (USGS authority, KVERT volcano links). High tsunami source potential. Hosted on Japan–Kamchatka board. Not a forecast.",
+      "SES node #4 — Kamchatka / Kurils (USGS authority, KVERT volcano links). High tsunami source potential. Hosted on Japan–Kamchatka board.",
     aliases: ["km", "kuril", "kurils", "kvert", "okhotsk"],
   },
   {
@@ -620,7 +620,7 @@ export const DRAGON_NODES: DragonNode[] = [
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #5 — Iceland plate boundary + volcanic systems (Reykjanes, Katla, Askja…). IMO (Veðurstofa) is exclusive dense catalog + VALS/VONA. SUPT volcanic desk segments by system box. Not a forecast.",
+      "SES node #5 — Iceland plate boundary + volcanic systems (Reykjanes, Katla, Askja…). IMO (Veðurstofa) is exclusive dense catalog + VALS/VONA. SUPT volcanic desk segments by system box.",
     aliases: [
       "is",
       "imo",

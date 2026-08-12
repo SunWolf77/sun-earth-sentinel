@@ -301,7 +301,7 @@ export function buildVisitDiff(
       kind: "eq",
       urgency,
       label: `New M${e.mag.toFixed(1)} · ${e.place.split(" of ").pop() || e.place}`,
-      detail: "Catalog event since last visit · not a forecast",
+      detail: "Catalog event since last visit",
       eventId: e.id,
       lat: e.lat,
       lon: e.lon,
@@ -391,7 +391,7 @@ export function buildVisitDiff(
       kind: "solar",
       urgency: current.kp >= 7 ? "watch" : "elevated",
       label: `Kp ${current.kp.toFixed(0)} (was ${previous.kp.toFixed(0)})`,
-      detail: "Geomagnetic index rise · not a forecast",
+      detail: "Geomagnetic index rise",
       tab: "solar",
     });
   }

@@ -70,7 +70,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     authority: "USGS FDSN / realtime",
     aliases: ["tonga", "tonga-kermadec", "tk", "kermadec"],
     focusNote:
-      "SES node #1 — Tonga–Kermadec trench corridor. Full swarm board: Core / North / South / Nearby zones (USGS). Not a forecast.",
+      "SES node #1 — Tonga–Kermadec trench corridor. Full swarm board: Core / North / South / Nearby zones (USGS).",
   },
   {
     sesNodeId: "mediterranean",
@@ -87,7 +87,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     authority: "INGV-OV (GOSSIP → FDSN)",
     aliases: ["mediterranean", "campi-flegrei", "campi", "cf", "flegrei"],
     focusNote:
-      "SES node #2 — Campi Flegrei caldera (Naples). Dense shallow swarm catalog is INGV-OV GOSSIP; USGS under-samples here. Open board for depth / SUPT continuum. Merge via catalogFeedUrl — never dual-read USGS. Not a forecast.",
+      "SES node #2 — Campi Flegrei caldera (Naples). Dense shallow swarm catalog is INGV-OV GOSSIP; USGS under-samples here. Open board for depth / SUPT continuum. Merge via catalogFeedUrl — never dual-read USGS.",
   },
   {
     sesNodeId: "japan",
@@ -104,7 +104,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     authority: "JMA Bosai (→ USGS fill)",
     aliases: ["japan", "jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
     focusNote:
-      "SES node #3 — Japan archipelago + Nansei / Tokara. JMA Bosai is exclusive domestic authority (Mj + shindo); tsunami watch first-class. Open board for Kamchatka companion. Not a forecast.",
+      "SES node #3 — Japan archipelago + Nansei / Tokara. JMA Bosai is exclusive domestic authority (Mj + shindo); tsunami watch first-class. Open board for Kamchatka companion.",
   },
   {
     sesNodeId: "kamchatka",
@@ -121,7 +121,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     authority: "USGS FDSN / realtime",
     aliases: ["kamchatka", "km", "kuril", "kurils", "klyuchevskoy"],
     focusNote:
-      "SES node #4 — Kamchatka Peninsula / Kurils (companion board to Japan #3). USGS exclusive; KVERT for volcano status links. High tsunami source potential. Not a forecast.",
+      "SES node #4 — Kamchatka Peninsula / Kurils (companion board to Japan #3). USGS exclusive; KVERT for volcano status links. High tsunami source potential.",
   },
   {
     sesNodeId: "iceland",
@@ -145,7 +145,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "iceland-arc",
     ],
     focusNote:
-      "SES node #5 — Iceland. Dense IMO SeisComP replaces USGS in-box (never dual-read). SUPT volcanic desk segments Reykjanes / Katla / Askja…. Not a forecast.",
+      "SES node #5 — Iceland. Dense IMO SeisComP replaces USGS in-box (never dual-read). SUPT volcanic desk segments Reykjanes / Katla / Askja….",
   },
   {
     sesNodeId: "southsandwich",
@@ -170,7 +170,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "scotia-arc",
     ],
     focusNote:
-      "SES node #6 — South Sandwich trench / Scotia Arc / Drake Passage. Remote; USGS primary. Full board = USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential South Atlantic. Not a forecast.",
+      "SES node #6 — South Sandwich trench / Scotia Arc / Drake Passage. Remote; USGS primary. Full board = USGS 30-day M2.5+ satellite view of this corridor. Tsunami source potential South Atlantic.",
   },
   {
     sesNodeId: "andes",
@@ -198,7 +198,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "sa",
     ],
     focusNote:
-      "SES node #7 — Chile–Andes / Nazca. Dense CSN catalog replaces USGS in-box (never dual-read). Phase A EMSC-CSN + Phase B sismologia.cl daily HTML. Attribution: Centro Sismológico Nacional de la Universidad de Chile. Not a forecast.",
+      "SES node #7 — Chile–Andes / Nazca. Dense CSN catalog replaces USGS in-box (never dual-read). Phase A EMSC-CSN + Phase B sismologia.cl daily HTML. Attribution: Centro Sismológico Nacional de la Universidad de Chile.",
   },
   {
     sesNodeId: "newzealand",
@@ -223,7 +223,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
       "taupo",
     ],
     focusNote:
-      "SES node #8 — New Zealand. GeoNet FDSN densify replaces USGS in-box (never dual-read). Attribution: GeoNet / GNS Science. Not a forecast.",
+      "SES node #8 — New Zealand. GeoNet FDSN densify replaces USGS in-box (never dual-read). Attribution: GeoNet / GNS Science.",
   },
 ];
 

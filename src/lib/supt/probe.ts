@@ -239,8 +239,8 @@ export function readingSummary(score: ResonanceScore): string {
 
   if (!score.separated) {
     return (
-      `The spacing between quakes looks ordinary for this window — like a random mix of the same gaps. ` +
-      `That is a real, useful reading (the feed is fine). It does not mean “all clear,” and it is not a forecast.${short}`
+      `Spacing looks ordinary for this window (like a random mix of the same gaps). ` +
+      `Useful null read — not “all clear.”${short}`
     );
   }
 
@@ -249,29 +249,26 @@ export function readingSummary(score: ResonanceScore): string {
     score.d_ij <= SUPT_ANCHORS.clutchCusp[1]
   ) {
     return (
-      `Spacing looks a bit different from pure chance, but still sits in a band that noise can hit fairly often. ` +
-      `Worth a glance at the chart — not an alert, not a forecast.${short}`
+      `Spacing differs mildly from chance — band noise often hits. Glance the chart; not an alert.${short}`
     );
   }
 
   if (score.band === "COHERENCE") {
     return (
-      `Event spacing is more ordered than a random reordering of the same gaps. ` +
-      `This is about timing only — not size, not where, not a prediction of a bigger quake.${short}`
+      `Spacing is more ordered than a random reordering of the same gaps. Timing only — not size or place.${short}`
     );
   }
   if (score.band === "CLUTCH") {
     return (
-      `Spacing sits in a mixed / transitional pattern — neither strongly ordered nor fully random. ` +
-      `Interesting for study; not an operational alert.${short}`
+      `Mixed / transitional spacing — neither strongly ordered nor fully random. Study interest only.${short}`
     );
   }
   if (score.band === "SUB-FLOOR") {
     return (
-      `Only weak structure shows up versus chance. Timing and magnitude are separate stacks — this does not speak to size.${short}`
+      `Weak structure vs chance. Timing and magnitude are separate — this does not speak to size.${short}`
     );
   }
-  return `Sparse / low-structure spacing on this window’s scale. Still not a forecast.${short}`;
+  return `Sparse / low-structure spacing on this window’s scale.${short}`;
 }
 
 /** Operator / SUPT detail line — optional UI disclosure. */

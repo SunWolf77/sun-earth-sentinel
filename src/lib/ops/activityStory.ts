@@ -324,7 +324,7 @@ function storyForZone(p: ZonePulse): ActivityStory | null {
   let summary: string;
   if (p.m6_48h >= 1 && p.strongest) {
     const place = p.strongest.properties.place || "region";
-    summary = `Recent strong event M${p.maxMag.toFixed(1)} near ${place}. ${pacePhrase(p)}. Catalog signal only — not a forecast. ${
+    summary = `Recent strong event M${p.maxMag.toFixed(1)} near ${place}. ${pacePhrase(p)}. ${
       pub ? `Authority ${pub.authority}.` : ""
     }`;
   } else if (urgency === "watch" || urgency === "now") {

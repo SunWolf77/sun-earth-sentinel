@@ -285,7 +285,7 @@ export const VOLCANIC_DESK_CONFIGS: Record<string, VolcDeskConfig> = {
       },
     ],
     disclaimer:
-      "Educational volcanic analytics · IMO is authority · not a forecast · SUPT spacing is a timing probe, not hazard · relative rate is vs peer zones in this window.",
+      "IMO is authority · SUPT timing only · rates vs peer zones this window.",
   },
   newzealand: {
     deskId: "newzealand",
@@ -302,7 +302,7 @@ export const VOLCANIC_DESK_CONFIGS: Record<string, VolcDeskConfig> = {
       { label: "GeoNet volcanoes", href: "https://www.geonet.org.nz/volcano" },
     ],
     disclaimer:
-      "Educational volcanic / system analytics · GeoNet / GNS is authority · not a forecast · SUPT spacing is a timing probe · relative rate vs peer zones.",
+      "GeoNet / GNS is authority · SUPT timing only · rates vs peer zones.",
   },
   japan: {
     deskId: "japan",
@@ -325,7 +325,7 @@ export const VOLCANIC_DESK_CONFIGS: Record<string, VolcDeskConfig> = {
       },
     ],
     disclaimer:
-      "Educational arc analytics · JMA is domestic authority · not a forecast · SUPT spacing is a timing probe · relative rate vs peer zones.",
+      "JMA is domestic authority · SUPT timing only · rates vs peer zones.",
   },
   andes: {
     deskId: "andes",
@@ -345,7 +345,7 @@ export const VOLCANIC_DESK_CONFIGS: Record<string, VolcDeskConfig> = {
       },
     ],
     disclaimer:
-      "Educational megathrust / arc analytics · CSN / SERNAGEOMIN are authorities · not a forecast · SUPT spacing is a timing probe · relative rate vs peer zones.",
+      "CSN / SERNAGEOMIN are authorities · SUPT timing only · rates vs peer zones.",
   },
   kamchatka: {
     deskId: "kamchatka",
@@ -368,7 +368,7 @@ export const VOLCANIC_DESK_CONFIGS: Record<string, VolcDeskConfig> = {
       },
     ],
     disclaimer:
-      "Educational arc analytics · KVERT / USGS remain authorities · not a forecast · SUPT spacing is a timing probe · relative rate vs peer zones.",
+      "KVERT / USGS are authorities · SUPT timing only · rates vs peer zones.",
   },
 };
 

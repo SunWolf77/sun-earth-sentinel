@@ -275,21 +275,18 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-primary sm:text-xl">Solar</h2>
             <p className="text-xs text-muted">
-              Live space weather · NOAA SWPC + NASA feeds · observation only
+              Live NOAA SWPC + NASA ·{" "}
+              <a
+                href="https://www.swpc.noaa.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                SWPC
+              </a>{" "}
+              is authority
             </p>
           </div>
-          <p className="max-w-xs text-right text-[0.62rem] leading-snug text-dim">
-            Not a forecast product. Verify with{" "}
-            <a
-              href="https://www.swpc.noaa.gov/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              SWPC
-            </a>
-            .
-          </p>
         </div>
 
         <div
@@ -971,8 +968,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       )}
 
       <footer className="border-t border-border/60 pb-2 pt-2 text-[0.62rem] leading-relaxed text-dim">
-        Sources: NOAA SWPC · NASA SDO / SOHO / STEREO · Solar Orbiter (Helioviewer) · DONKI · NeoWs.
-        Free public feeds. Not an official forecast — always verify with SWPC.
+        Free feeds · observation desk · not an official forecast product.
       </footer>
     </div>
   );

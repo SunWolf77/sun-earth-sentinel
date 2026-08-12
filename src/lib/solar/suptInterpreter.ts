@@ -115,10 +115,10 @@ function channelReading(score: ResonanceScore, kind: string): string {
       : `No ${kind} probe score.`;
   }
   if (!score.separated) {
-    return `${kind} spacing looks like normal scatter vs shuffle (null is valid). Not a forecast.`;
+    return `${kind} spacing looks like normal scatter vs shuffle (null is valid).`;
   }
   const band = bandPlainLabel(score.band);
-  return `${kind} timing is ${band.toLowerCase()} vs chance (d=${score.d_ij.toFixed(3)}, z=${score.z}). Rhythm only — not arrival prediction.`;
+  return `${kind} timing is ${band.toLowerCase()} vs chance (d=${score.d_ij.toFixed(3)}, z=${score.z}).`;
 }
 
 function latestProton(protons: ProtonPoint[], energy: string): { flux: number; time: string } | null {
@@ -300,10 +300,9 @@ export function interpretSolar(opts: {
   }
 
   const caveats = [
-    "SUPT on solar catalogs measures ordered structure in event spacing only — not flare class, not CME hit/miss, not Kp.",
-    "DONKI times are analyst-cataloged; GOES X-ray peaks are automatic — the two channels can disagree.",
-    "Solar Orbiter / STEREO frames are contextual imagery; they do not enter the SUPT numeric probe.",
-    "Not an official NOAA/ESA product. Cross-check SWPC watches/warnings for ops.",
+    "SUPT measures ordered structure in event spacing only — not class, hit/miss, or Kp.",
+    "DONKI is analyst-cataloged; GOES peaks are automatic — channels can disagree.",
+    "Solo / STEREO imagery is context only — not in the numeric probe.",
   ];
 
   // Attention score 0-100

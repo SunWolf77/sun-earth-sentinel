@@ -223,7 +223,7 @@ export function buildTodayBrief(opts: {
       id: "earth-supt",
       priority: "context",
       title: "EQ timing unusual",
-      detail: "Catalog spacing differs from random — Rhythm for detail. Not a forecast.",
+      detail: "Catalog spacing differs from random — see Rhythm.",
       tab: "resonance",
     });
   }

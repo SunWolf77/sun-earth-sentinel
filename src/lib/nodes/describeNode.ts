@@ -54,15 +54,15 @@ export function nodeWhyLine(node: DragonNode): string {
   if (node.focusNote) return node.focusNote;
   switch (nodeMarkKind(node)) {
     case "ses-published":
-      return "Published Sun Earth Sentinel focus node — tap to zoom the live catalog into this corridor. Not a forecast.";
+      return "Published SES focus node — tap to zoom the catalog into this corridor.";
     case "volcano-elevated":
-      return "Elevated volcano watch (live) — marked while aviation color is above green; drops when normal. Not a forecast.";
+      return "Elevated volcano watch — marked while aviation color is above green.";
     case "volcano-watch":
-      return "Static volcano watch region — seismic/volcanic context for this box. Not a forecast.";
+      return "Volcano watch region — seismic/volcanic context for this box.";
     case "corridor":
-      return "Priority seismic corridor tracked for swarm context. Tap to focus events in this box.";
+      return "Priority seismic corridor — tap to focus events in this box.";
     default:
-      return "Named focus zone — tap to filter the map/globe to earthquakes inside this region.";
+      return "Named focus zone — tap to filter events in this region.";
   }
 }
 

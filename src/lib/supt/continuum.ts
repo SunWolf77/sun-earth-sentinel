@@ -100,7 +100,7 @@ export function buildContinuum(opts: {
 
   const plain =
     "We look at the clock between events (quakes · flares · CMEs · X-ray peaks) — not how big they are. " +
-    "Quiet or ordinary spacing is a real status. Official size/intensity scales (magnitude, R/S/G) stay separate. Not a forecast.";
+    "Quiet or ordinary spacing is a real status. Size/intensity scales (M, R/S/G) stay separate.";
 
   return {
     generatedAt: Date.now(),

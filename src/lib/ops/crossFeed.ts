@@ -94,7 +94,7 @@ export function buildCrossFeed(opts: {
       id: "timing",
       tone: "watch",
       label: "Quake timing unusual",
-      detail: "Rhythm spacing differs from random shuffle — pattern only, not a forecast.",
+      detail: "Rhythm spacing differs from random shuffle.",
     });
   }
 

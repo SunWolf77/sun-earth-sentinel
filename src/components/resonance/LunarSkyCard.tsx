@@ -75,7 +75,7 @@ export function LunarSkyCard() {
             Sky context
           </h3>
           <p className="mt-0.5 text-[0.65rem] text-dim">
-            Lunar phase · local compute · observational only
+            Lunar phase · local compute
           </p>
         </div>
         <span className={`rounded-md border px-1.5 py-0.5 text-[0.58rem] font-semibold ${aspectTone}`}>
@@ -132,8 +132,7 @@ export function LunarSkyCard() {
       </dl>
 
       <p className="mt-2 text-[0.65rem] leading-snug text-muted">
-        Compare with catalog timing above if you like — this does{" "}
-        <strong className="text-fg">not</strong> change the spacing score. Not a forecast.
+        Sky context only — does <strong className="text-fg">not</strong> feed the spacing score.
       </p>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">

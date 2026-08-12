@@ -162,7 +162,7 @@ function tonePlain(t: ZoneActivityTone, count: number, maxMag: number): string {
     case "background":
       return `Background microseismicity · n=${count} · max M${maxMag.toFixed(1)}`;
     case "elevated":
-      return `Above typical local clutter · n=${count} · max M${maxMag.toFixed(1)} — not a forecast`;
+      return `Above typical local clutter · n=${count} · max M${maxMag.toFixed(1)}`;
     case "swarm":
       return `Dense burst relative to peers · n=${count} · max M${maxMag.toFixed(1)} — context only`;
   }
@@ -175,7 +175,7 @@ function spacingPlainFor(
   if (!spacing) return `Waiting for enough M≥${minMag.toFixed(1)} events`;
   if (spacing.n < 4) return `Need more M≥${minMag.toFixed(1)} events for spacing`;
   if (spacing.separated) {
-    return `${bandPlainLabel(spacing.band)} · unusual vs random — still not a forecast`;
+    return `${bandPlainLabel(spacing.band)} · unusual vs random`;
   }
   return `${bandPlainLabel(spacing.band)} · ordinary inter-event spacing`;
 }

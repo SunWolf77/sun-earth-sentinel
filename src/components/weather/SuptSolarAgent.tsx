@@ -25,7 +25,7 @@ export function SuptSolarAgent({ assessment }: { assessment: SolarAssessment }) 
             Timing read
           </h3>
           <p className="mt-0.5 text-[0.68rem] text-dim">
-            Deterministic spacing of flares / CMEs · not an official forecast · not an LLM
+            Deterministic flare/CME spacing · not an LLM
           </p>
         </div>
         <div className="text-right">
