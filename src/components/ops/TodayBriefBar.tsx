@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useObservatory } from "@/store/observatory";
 import { buildTodayBrief } from "@/lib/ops/todayBrief";
+import { EclipseWatchChip } from "@/components/weather/EclipseWatch";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { ChevronDown, ChevronUp, Sun } from "lucide-react";
 
@@ -90,26 +91,29 @@ export function TodayBriefBar({
   // Collapsed chip — always on screen, one line
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={toggle}
-        className={`flex w-full max-w-full min-h-7 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left sm:min-h-7 ${tone} ${
-          dense || mobile ? "text-[0.55rem]" : "text-[0.6rem]"
-        }`}
-        aria-expanded={false}
-        aria-label="Show space weather brief"
-        title={brief.headline}
-      >
-        <Sun className="h-3 w-3 shrink-0 opacity-90" />
-        <span className="shrink-0 font-semibold uppercase tracking-wide opacity-80">SW</span>
-        <span className="min-w-0 flex-1 truncate font-medium text-fg">
-          {mobile ? brief.scales : brief.headline}
-        </span>
-        {age != null && (
-          <span className="shrink-0 tabular-nums text-dim">{age}m</span>
-        )}
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
-      </button>
+      <div className="flex w-full max-w-full flex-col gap-0.5">
+        <EclipseWatchChip />
+        <button
+          type="button"
+          onClick={toggle}
+          className={`flex w-full max-w-full min-h-7 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left sm:min-h-7 ${tone} ${
+            dense || mobile ? "text-[0.55rem]" : "text-[0.6rem]"
+          }`}
+          aria-expanded={false}
+          aria-label="Show space weather brief"
+          title={brief.headline}
+        >
+          <Sun className="h-3 w-3 shrink-0 opacity-90" />
+          <span className="shrink-0 font-semibold uppercase tracking-wide opacity-80">SW</span>
+          <span className="min-w-0 flex-1 truncate font-medium text-fg">
+            {mobile ? brief.scales : brief.headline}
+          </span>
+          {age != null && (
+            <span className="shrink-0 tabular-nums text-dim">{age}m</span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </button>
+      </div>
     );
   }
 

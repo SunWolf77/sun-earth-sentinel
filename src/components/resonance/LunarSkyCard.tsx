@@ -11,6 +11,7 @@ import {
   formatDaysUntil,
   type LunarPhaseSnapshot,
 } from "@/lib/astro/lunar";
+import { computeEclipseWatch } from "@/lib/astro/eclipses";
 import { formatUtc } from "@/lib/utils";
 import { useObservatory } from "@/store/observatory";
 
@@ -56,6 +57,7 @@ export function LunarSkyCard() {
   }, []);
 
   const snap = useMemo(() => computeLunarPhase(new Date(now)), [now]);
+  const eclipse = useMemo(() => computeEclipseWatch(now), [now]);
 
   const aspectTone =
     snap.aspectTag === "syzygy_full" || snap.aspectTag === "syzygy_new"
@@ -80,6 +82,19 @@ export function LunarSkyCard() {
           {snap.aspectLabel}
         </span>
       </div>
+
+      {(eclipse.awareness === "active" ||
+        eclipse.awareness === "elevated" ||
+        eclipse.awareness === "approaching") && (
+        <button
+          type="button"
+          onClick={() => setTab("solar")}
+          className="mb-2 w-full rounded-md border border-warn/40 bg-warn/10 px-2 py-1.5 text-left text-[0.68rem] text-warn hover:bg-warn/15"
+        >
+          <span className="font-semibold">Eclipse watch · {eclipse.awareness}</span>
+          <span className="mt-0.5 block text-[0.62rem] text-muted">{eclipse.headline} · open Solar</span>
+        </button>
+      )}
 
       <div className="flex items-center gap-3">
         <MoonDisc snap={snap} />

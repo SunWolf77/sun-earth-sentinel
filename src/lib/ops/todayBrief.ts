@@ -8,6 +8,7 @@ import type { SolarAssessment } from "@/lib/solar/suptInterpreter";
 import { earthDirectedCmes, cmeImpactSummary } from "@/lib/feeds/donki";
 import type { DonkiCme } from "@/lib/feeds/donki";
 import type { NoaaScales, KpPoint } from "@/lib/feeds/swpc";
+import { computeEclipseWatch } from "@/lib/astro/eclipses";
 
 export type RecPriority = "now" | "watch" | "context" | "ok";
 
@@ -146,6 +147,26 @@ export function buildTodayBrief(opts: {
   ].filter(Boolean);
 
   const recs: Recommendation[] = [];
+
+  // Eclipse elevated / active — sky geometry awareness (not SWPC storm)
+  const eclipse = computeEclipseWatch();
+  if (eclipse.awareness === "active" || eclipse.awareness === "elevated") {
+    const focus = eclipse.active ?? eclipse.elevated;
+    recs.push({
+      id: "eclipse",
+      priority: eclipse.awareness === "active" ? "now" : "watch",
+      title:
+        focus?.kind === "solar"
+          ? eclipse.awareness === "active"
+            ? "Solar eclipse · shadow active"
+            : "Solar eclipse · elevated"
+          : eclipse.awareness === "active"
+            ? "Lunar eclipse · shadow active"
+            : "Lunar eclipse · elevated",
+      detail: eclipse.headline + (focus?.kind === "solar" ? " · eye safety on Solar tab." : ""),
+      tab: "solar",
+    });
+  }
 
   const R = scaleNum(opts.scales?.R);
   const S = scaleNum(opts.scales?.S);

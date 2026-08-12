@@ -43,6 +43,7 @@ import { DeepEarthContextCard } from "@/components/weather/DeepEarthContextCard"
 import { SwpcStormWarnings } from "@/components/weather/SwpcStormWarnings";
 import { ModelAccuracyDisclaimer } from "@/components/ops/ModelAccuracyDisclaimer";
 import { KIndexScalesPanel } from "@/components/weather/KIndexScalesPanel";
+import { EclipseWatch } from "@/components/weather/EclipseWatch";
 import {
   Activity,
   AlertTriangle,
@@ -320,6 +321,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       {/* ── NOW: one-screen ops ─────────────────────────────────────── */}
       {solarView === "now" && (
         <div className="space-y-3">
+          <EclipseWatch />
+
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
             <AttentionSparkline />
             {kpUpcoming.length > 0 && (
@@ -952,9 +955,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       {solarView === "context" && (
         <div className="space-y-3">
           <p className="rounded-lg border border-border/80 bg-panel/60 px-3 py-2 text-[0.7rem] leading-relaxed text-muted">
-            Optional depth — historical storms, K-index education, magnetometer, and the deterministic
-            timing read. None of this is an official forecast.
+            Optional depth — eclipses, historical storms, K-index education, magnetometer, and the
+            deterministic timing read. None of this is an official forecast.
           </p>
+          <EclipseWatch />
           <SuptContinuumStrip compact />
           <MagnetoPanel />
           <HistoricalStormDesk compact />
