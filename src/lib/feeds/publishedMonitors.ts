@@ -78,9 +78,9 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     networkOrder: 2,
     shortCode: "CF",
     navLabel: "CF",
-    chipName: "Campi",
+    chipName: "Campi Flegrei",
     region: "europe",
-    role: "Published focus · SES #2 · INGV authority",
+    role: "Published focus · SES #2 · INGV-OV Italy",
     monitorUrl: "https://campi-flegrei-monitor.vercel.app/",
     catalogFeedUrl:
       "https://campi-flegrei-monitor.vercel.app/api/ses/catalog?window=7d&node=mediterranean",

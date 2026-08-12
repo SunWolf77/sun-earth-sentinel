@@ -88,12 +88,28 @@ export function nodePopupHtml(
   const st = opts.status
     ? `<div style="margin-top:4px">Activity: <b style="color:${opts.statusColor || "#e2e8f0"}">${opts.status}</b></div>`
     : "";
-  const boardLink = node.monitorUrl
-    ? `<div style="margin-top:6px"><a href="${node.monitorUrl}" target="_blank" rel="noopener noreferrer" style="color:${
-        node.kind === "volcano" ? "#fb923c" : "#ca8a04"
-      };font-weight:600">${
-        node.kind === "volcano" ? "Volcano profile →" : "Full swarm board →"
-      }</a></div>`
+  const boardHref = node.monitorUrl;
+  const isPubBoard =
+    !!boardHref &&
+    (node.publishedFocus ||
+      node.id === "mediterranean" ||
+      boardHref.includes("monitor.vercel.app"));
+  const boardLabel =
+    node.id === "mediterranean"
+      ? "Campi Flegrei board (INGV) →"
+      : isPubBoard
+        ? "Full swarm board →"
+        : node.kind === "volcano"
+          ? "Volcano profile →"
+          : "Full swarm board →";
+  const boardColor =
+    node.id === "mediterranean" || isPubBoard
+      ? "#fbbf24"
+      : node.kind === "volcano"
+        ? "#fb923c"
+        : "#ca8a04";
+  const boardLink = boardHref
+    ? `<div style="margin-top:6px"><a href="${boardHref}" target="_blank" rel="noopener noreferrer" style="color:${boardColor};font-weight:600">${boardLabel}</a></div>`
     : "";
   const gvp = node.gvpUrl
     ? `<div style="margin-top:4px"><a href="${node.gvpUrl}" target="_blank" rel="noopener noreferrer" style="color:#fb923c">Smithsonian GVP →</a></div>`

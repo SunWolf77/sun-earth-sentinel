@@ -192,14 +192,16 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
           })()}
 
           <div className="mt-1.5 flex flex-wrap gap-2">
-            {boardUrl && focus.kind !== "volcano" && (
+            {boardUrl && (
               <a
                 href={boardUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1 text-[0.68rem] font-semibold text-gold hover:bg-gold/20"
               >
-                Full swarm board
+                {pub?.sesNodeId === "mediterranean"
+                  ? "Campi Flegrei board (INGV)"
+                  : "Full swarm board"}
                 <ExternalLink className="h-3 w-3" />
               </a>
             )}
@@ -364,6 +366,7 @@ export function NodeFocusBanner() {
               {stats.count > 0
                 ? ` · ${stats.count} eq · max M${stats.maxMag.toFixed(1)}`
                 : " · volcano watch"}
+              {pub ? ` · ${pub.authority}` : ""}
             </>
           ) : isVolc ? (
             <>
@@ -371,6 +374,7 @@ export function NodeFocusBanner() {
               {stats.count > 0
                 ? ` · ${stats.count} eq · max M${stats.maxMag.toFixed(1)}`
                 : ""}
+              {pub ? ` · ${pub.authority}` : ""}
             </>
           ) : (
             <>
@@ -381,14 +385,19 @@ export function NodeFocusBanner() {
           )}
         </div>
       </div>
-      {boardUrl && !isVolc && (
+      {boardUrl && (
         <a
           href={boardUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1 text-[0.68rem] font-semibold text-gold hover:bg-gold/20"
+          title={
+            pub
+              ? `Open ${pub.name} swarm board (${pub.authority})`
+              : "Open full swarm board"
+          }
         >
-          Full board
+          {pub?.sesNodeId === "mediterranean" ? "INGV board" : "Full board"}
           <ExternalLink className="h-3 w-3" />
         </a>
       )}
@@ -403,7 +412,7 @@ export function NodeFocusBanner() {
           <ExternalLink className="h-3 w-3" />
         </a>
       )}
-      {focus.agencyUrl && isVolc && (
+      {focus.agencyUrl && (isVolc || pub) && (
         <a
           href={focus.agencyUrl}
           target="_blank"

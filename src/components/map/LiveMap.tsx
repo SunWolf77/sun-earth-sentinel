@@ -983,19 +983,21 @@ export function LiveMap() {
           statusColor: color,
           isFocus,
         });
-        // Prefer SES board URL when published
+        // Prefer SES board URL when published (incl. Campi / volcanic desks)
         let html = popupHtml;
-        if (!isVolc && node.monitorUrl) {
+        if (node.monitorUrl || node.publishedFocus) {
           const board = monitorHandoffUrl(node.id) || node.monitorUrl;
           if (board && !html.includes(board)) {
             html = html.replace(
-              "Full swarm board →",
-              "Full swarm board →",
-            );
-            // rewrite monitor href if handoff differs
-            html = html.replace(
               `href="${node.monitorUrl}"`,
               `href="${board}"`,
+            );
+          }
+          // Ensure board CTA exists for published desks even if template omitted it
+          if (board && !html.includes(board) && !html.includes("swarm board")) {
+            html = html.replace(
+              "</div>",
+              `<a class="ww-node-popup__board" href="${board}" target="_blank" rel="noopener noreferrer">Full swarm board →</a></div>`,
             );
           }
         }

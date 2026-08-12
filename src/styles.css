@@ -454,7 +454,7 @@
   display: none;
   font-weight: 500;
   opacity: 0.88;
-  max-width: 5.5rem;
+  max-width: 7.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -467,6 +467,13 @@
   .ww-nodes-seg__btn {
     padding-inline: 0.55rem;
   }
+}
+/* Focused desk: always show full caption when selected */
+.ww-nodes-seg__btn--on .ww-nodes-seg__name {
+  display: inline;
+  max-width: 9rem;
+  opacity: 1;
+  font-weight: 600;
 }
 
 .ww-nodes-rail__all {
@@ -2513,5 +2520,91 @@
 @media (max-width: 640px) {
   .ww-header .ww-tablist--inline {
     gap: 0.25rem !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Focus-visible system — keyboard rings without mouse noise
+ * ═══════════════════════════════════════════════════════════════ */
+:root {
+  --ww-focus-ring: 2px solid color-mix(in oklab, var(--color-primary) 70%, #67e8f9);
+  --ww-focus-offset: 2px;
+  --ww-focus-glow: 0 0 0 1px color-mix(in oklab, var(--color-bg) 80%, transparent),
+    0 0 0 3px color-mix(in oklab, var(--color-primary) 45%, transparent);
+}
+
+/* Kill default outline only when we replace with focus-visible */
+:where(
+  a,
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="switch"],
+  [role="menuitem"],
+  summary,
+  input,
+  select,
+  textarea
+):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Baseline ring — low specificity so component rules can refine */
+:where(
+  a,
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="switch"],
+  [role="menuitem"],
+  summary,
+  .ww-btn,
+  .ww-tab,
+  .ww-seg__btn,
+  .ww-toggle,
+  .ww-nodes-seg__btn,
+  .ww-nodes-rail__all,
+  .ww-map-dock__icon-btn,
+  .ww-map-dock__chip,
+  .ww-map-view-toggle__btn,
+  .ww-event-row,
+  .ww-back-ses,
+  .ww-sunwolf-id
+):focus-visible {
+  outline: var(--ww-focus-ring);
+  outline-offset: var(--ww-focus-offset);
+  z-index: 1;
+}
+
+/* Dense chrome: ring via shadow so overflow:hidden parents don't clip */
+.ww-map-dock__icon-btn:focus-visible,
+.ww-map-dock__chip:focus-visible,
+.ww-toggle:focus-visible,
+.ww-nodes-seg__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ww-focus-glow);
+}
+
+/* Align existing component rings to the token */
+.ww-btn:focus-visible,
+.ww-tab:focus-visible,
+.ww-seg__btn:focus-visible,
+.ww-event-row:focus-visible,
+.ww-back-ses:focus-visible,
+.ww-map-view-toggle__btn:focus-visible {
+  outline: var(--ww-focus-ring);
+  outline-offset: var(--ww-focus-offset);
+}
+
+/* Banner / board links on map overlays */
+.ww-map-stage a:focus-visible,
+.ww-map-stage button:focus-visible {
+  outline: var(--ww-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(a, button, [role="button"], [role="tab"]):focus-visible {
+    transition: none;
   }
 }
