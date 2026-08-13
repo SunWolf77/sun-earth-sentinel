@@ -101,8 +101,9 @@ export function WaveformHarmonicDesk() {
             Waveform bands
           </h3>
           <p className="mt-0.5 text-[0.65rem] leading-snug text-dim">
-            Same 0.5–5 / 5–15 / 15–40 Hz split as the SAC laptop pipeline. One nearest IRIS BHZ,
-            150 s after origin. On-demand — not a live worldwide stream.
+            Same 0.5–5 / 5–15 / 15–40 Hz split as the SAC laptop pipeline. One nearest BHZ via
+            EarthScope dataselect (GeoCSV), 150 s after origin. On-demand — not a live stream.
+
           </p>
         </div>
         <button
