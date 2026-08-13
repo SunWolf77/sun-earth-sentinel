@@ -26,6 +26,7 @@ import { GicExplainer } from "@/components/magneto/GicExplainer";
 import { IgrfFieldNote } from "@/components/magneto/IgrfFieldNote";
 import { Igrf14Explorer } from "@/components/magneto/Igrf14Explorer";
 import { Wmm2025Sampler } from "@/components/magneto/Wmm2025Sampler";
+import { StationEntityDesk } from "@/components/magneto/StationEntityDesk";
 
 /**
  * Magnetic anomaly desk — data via Richard Cordaro’s public INTERMAGNET tool
@@ -88,6 +89,7 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
         lat: 0,
         lon: 0,
         region: "?",
+        elevationM: null,
       };
       setAssessment(
         assessMagneto({
@@ -214,7 +216,7 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
             </a>{" "}
             · method & public tool by{" "}
             <XHandle profile="cordaro" /> · data matching
-            to catalog quakes is exploratory only
+            to catalog quakes is exploratory only — magnetometers, not seismometers
           </p>
         </div>
         <a
@@ -244,6 +246,7 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
             {MAG_STATIONS.map((s) => (
               <option key={s.code} value={s.code}>
                 {s.code} — {s.name}
+                {s.elevationM != null ? ` · ${s.elevationM} m` : ""}
                 {s.priority ? " ★" : ""}
               </option>
             ))}
@@ -408,6 +411,8 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
           </ul>
         )}
       </div>
+
+      <StationEntityDesk />
 
       {assessment && assessment.matches.length > 0 && (
         <div>
