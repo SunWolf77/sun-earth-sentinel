@@ -31,7 +31,8 @@ import {
   fetchGeonetQuakes,
   mergeGeonetIntoCollection,
 } from "@/lib/feeds/geonet";
-import { alertNewEvents } from "@/lib/audio/alerts";
+import { relayNewEvents } from "@/lib/audio/alerts";
+import type { CatalogNotice } from "@/lib/ops/catalogNotice";
 import {
   fetchKp,
   fetchXrays,
@@ -301,6 +302,9 @@ type ObservatoryState = {
 
   useGeofon: boolean;
   audioAlerts: boolean;
+  /** Opt-in OS/browser notice when a new M4.5+ origin appears in the catalog. */
+  desktopNotify: boolean;
+  lastCatalogNotice: CatalogNotice | null;
   globeAutoSpin: boolean;
   /** Bumps when user re-asserts Spin (resume after focus). */
   globeSpinEpoch: number;
@@ -396,6 +400,8 @@ type ObservatoryState = {
   pulseIss: () => Promise<void>;
   setUseGeofon: (v: boolean) => void;
   setAudioAlerts: (v: boolean) => void;
+  setDesktopNotify: (v: boolean) => void;
+  dismissCatalogNotice: () => void;
   setGlobeAutoSpin: (v: boolean) => void;
   /** Re-enable spin even if already ON (after focus pause). */
   resumeGlobeSpin: () => void;
@@ -587,6 +593,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   },
   useGeofon: false,
   audioAlerts: false,
+  desktopNotify: false,
+  lastCatalogNotice: null,
   globeAutoSpin: true,
   globeSpinEpoch: 0,
   globeStemScale: 0.2,
@@ -991,6 +999,27 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }
     set({ audioAlerts: v });
   },
+  setDesktopNotify: (v) => {
+    try {
+      localStorage.setItem("wolfwatch_notify", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    if (!v) {
+      set({ desktopNotify: false });
+      return;
+    }
+    void import("@/lib/ops/catalogNotice").then(async ({ requestOsNotify }) => {
+      const ok = await requestOsNotify();
+      try {
+        localStorage.setItem("wolfwatch_notify", ok ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      set({ desktopNotify: ok });
+    });
+  },
+  dismissCatalogNotice: () => set({ lastCatalogNotice: null }),
   setGlobeAutoSpin: (v) => {
     try {
       localStorage.setItem("wolfwatch_globe_spin", v ? "1" : "0");
@@ -1148,7 +1177,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }),
 
   refresh: async (force = false) => {
-    const { mode, timeWindow, loading, useGeofon, audioAlerts } = get();
+    const { mode, timeWindow, loading, useGeofon, audioAlerts, desktopNotify } = get();
     if (loading && !force) return;
     const cfg = MODES[mode];
     try {
@@ -1554,10 +1583,15 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       const newestEventAgeMs = latestEventAgeMs(eqFinal?.features);
 
       if (eqFinal?.features) {
-        seenEqIds = alertNewEvents(eqFinal.features, seenEqIds, {
-          enabled: audioAlerts,
+        const relayed = relayNewEvents(eqFinal.features, seenEqIds, {
+          sound: audioAlerts,
+          desktop: desktopNotify,
           minMag: 4.5,
         });
+        seenEqIds = relayed.nextIds;
+        if (relayed.fresh[0]) {
+          set({ lastCatalogNotice: relayed.fresh[0]! });
+        }
       }
 
       let resonance = get().resonance;
@@ -1700,6 +1734,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         auroraOfficial: loadBool("wolfwatch_aurora_official", false),
         useGeofon: loadBool("wolfwatch_geofon", false),
         audioAlerts: loadBool("wolfwatch_audio", false),
+        desktopNotify: loadBool("wolfwatch_notify", false),
         globeAutoSpin: loadBool("wolfwatch_globe_spin", true),
         globeStemScale: loadNum("wolfwatch_globe_stem", 0.2, 0.08, 0.4),
         globeMarkerScale: loadNum("wolfwatch_globe_hex", 1.25, 0.6, 2.2),
@@ -1797,10 +1832,15 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         };
       }
       if (eqFinal?.features) {
-        seenEqIds = alertNewEvents(eqFinal.features, seenEqIds, {
-          enabled: get().audioAlerts,
+        const relayed = relayNewEvents(eqFinal.features, seenEqIds, {
+          sound: get().audioAlerts,
+          desktop: get().desktopNotify,
           minMag: 4.5,
         });
+        seenEqIds = relayed.nextIds;
+        if (relayed.fresh[0]) {
+          set({ lastCatalogNotice: relayed.fresh[0]! });
+        }
       }
       const now = Date.now();
       set({

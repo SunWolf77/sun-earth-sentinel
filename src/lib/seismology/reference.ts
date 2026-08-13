@@ -123,19 +123,19 @@ export const ATTENUATION_NOTES = {
  * Earthquake early warning — investigate only; Sentinel is not an EEW client.
  */
 export const EEW_NOTES = {
-  title: "Earthquake early warning (EEW) systems",
+  title: "Earthquake early warning vs catalog notice",
   summary:
-    "EEW uses the P-wave / S-wave speed gap: detect near the source, estimate magnitude, alert areas still waiting for damaging S-waves and surface waves. Seconds to tens of seconds of notice when geometry allows.",
+    "EEW uses the P-wave / S-wave speed gap: detect near the source, estimate magnitude, notify areas still waiting for damaging S-waves. Seconds to tens of seconds when geometry allows. That is a civil system. SES is not on that pipe.",
   systems: [
     {
       name: "ShakeAlert® (USGS)",
       region: "US West Coast",
-      notes: "Public / institutional alerts; not a browser GeoJSON feed for third-party apps.",
+      notes: "Public / institutional delivery (WEA, MyShake, licensed partners). Not a browser GeoJSON feed.",
     },
     {
       name: "JMA EEW (Japan)",
       region: "Japan",
-      notes: "Mature national system; cell broadcast + apps.",
+      notes: "Mature national system; cell broadcast + official apps.",
     },
     {
       name: "SASMEX / Mexican EEW",
@@ -143,17 +143,17 @@ export const EEW_NOTES = {
       notes: "Coastal sensors → inland cities (e.g. Mexico City).",
     },
     {
-      name: "OpenEEW / community",
-      region: "Research / pilot",
-      notes: "Low-cost sensors; not a substitute for official EEW.",
+      name: "OpenEEW / unofficial relays",
+      region: "Research / hobby",
+      notes: "Not a substitute for official EEW. SES does not subscribe.",
     },
   ],
   limits: [
     "Blind zone near epicenter — too close for useful lead time",
     "Mag estimates update as more stations report (early under/over-shoot)",
     "Offshore / sparse networks reduce reliability",
-    "Browser apps cannot replace certified alert paths (cell broadcast, IPAWS, etc.)",
+    "A browser tab cannot replace cell broadcast / IPAWS / J-Alert",
   ],
   sentinelStance:
-    "WolfWatch Sentinel is a monitoring observatory on public USGS + SWPC feeds. It is not connected to ShakeAlert or any EEW pipeline and must not be used for life-safety alerting.",
+    "SES relays public catalog origins (USGS, JMA, INGV, …) as soon as a pulse sees them. That is a notice, not an alert: we are not the provider, not the source, and not the civil authority. Official seconds-class warning stays on ShakeAlert / JMA EEW / local WEA.",
 };

@@ -1,7 +1,13 @@
 /**
- * Lightweight Web Audio alerts for new seismic events (no external files).
- * Inspired by public seismic globe patterns — short beep only, user-toggleable.
+ * Optional sound on a new catalog notice (not a civil alert).
  */
+
+import {
+  collectFreshNotices,
+  showOsRelay,
+  type CatalogNotice,
+} from "@/lib/ops/catalogNotice";
+import type { EqFeature } from "@/lib/feeds/usgs";
 
 let ctx: AudioContext | null = null;
 
@@ -32,7 +38,6 @@ export function playQuakeAlert(mag: number): void {
   gain.connect(audio.destination);
 
   const m = Math.max(2, Math.min(8, mag));
-  // M3 ~ 520 Hz, M6 ~ 880 Hz, M7+ higher
   const freq = 420 + m * 70;
   osc.type = m >= 6 ? "triangle" : "sine";
   osc.frequency.setValueAtTime(freq, t0);
@@ -47,43 +52,47 @@ export function playQuakeAlert(mag: number): void {
   osc.stop(t0 + 0.3);
 }
 
+export type NoticeRelayOpts = {
+  sound?: boolean;
+  desktop?: boolean;
+  minMag?: number;
+  max?: number;
+};
+
 /**
- * Compare previous id set to new features; alert on fresh M≥minMag events.
- * Returns the updated id set.
+ * Detect fresh M≥minMag origins vs last pulse.
+ * Sound / OS notice are opt-in relays — never a civil alert path.
  */
-export function alertNewEvents(
-  features: { id?: string; properties: { mag: number | null; time: number | null } }[],
+export function relayNewEvents(
+  features: EqFeature[],
   prevIds: Set<string>,
-  opts: { enabled: boolean; minMag?: number; maxAlerts?: number } = { enabled: true },
+  opts: NoticeRelayOpts = {},
+): { nextIds: Set<string>; fresh: CatalogNotice[] } {
+  const { nextIds, fresh } = collectFreshNotices(features, prevIds, {
+    minMag: opts.minMag ?? 4.5,
+    max: opts.max ?? 3,
+  });
+
+  if (opts.sound) {
+    for (const n of fresh) playQuakeAlert(n.mag ?? 4.5);
+  }
+  if (opts.desktop) {
+    for (const n of fresh) showOsRelay(n);
+  }
+
+  return { nextIds, fresh };
+}
+
+/** @deprecated use relayNewEvents — kept for older call sites */
+export function alertNewEvents(
+  features: EqFeature[],
+  prevIds: Set<string>,
+  opts: { enabled?: boolean; minMag?: number; maxAlerts?: number } = { enabled: true },
 ): Set<string> {
-  const minMag = opts.minMag ?? 4.5;
-  const maxAlerts = opts.maxAlerts ?? 3;
-  const next = new Set<string>();
-  const fresh: number[] = [];
-
-  for (const f of features) {
-    const id =
-      f.id ||
-      `${f.properties.time ?? 0}_${f.properties.mag ?? 0}`;
-    next.add(String(id));
-    if (
-      opts.enabled &&
-      prevIds.size > 0 &&
-      !prevIds.has(String(id)) &&
-      (f.properties.mag ?? 0) >= minMag
-    ) {
-      // only very recent (last 30 min) to avoid burst on first load of old catalog
-      const age = Date.now() - (f.properties.time ?? 0);
-      if (age < 30 * 60_000) fresh.push(f.properties.mag ?? minMag);
-    }
-  }
-
-  if (opts.enabled && prevIds.size > 0) {
-    fresh
-      .sort((a, b) => b - a)
-      .slice(0, maxAlerts)
-      .forEach((m) => playQuakeAlert(m));
-  }
-
-  return next;
+  const { nextIds } = relayNewEvents(features, prevIds, {
+    sound: opts.enabled,
+    minMag: opts.minMag,
+    max: opts.maxAlerts,
+  });
+  return nextIds;
 }

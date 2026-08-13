@@ -43,6 +43,7 @@ import { X_PROFILES } from "@/lib/site";
 import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
+import { CatalogNoticeBanner } from "@/components/ops/CatalogNoticeBanner";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
 import { VolcWatchSmart } from "@/components/map/VolcWatchSmart";
 import { startRealtime } from "@/lib/realtime/transport";
@@ -127,6 +128,8 @@ function ObservatoryApp() {
   const setUseGeofon = useObservatory((s) => s.setUseGeofon);
   const audioAlerts = useObservatory((s) => s.audioAlerts);
   const setAudioAlerts = useObservatory((s) => s.setAudioAlerts);
+  const desktopNotify = useObservatory((s) => s.desktopNotify);
+  const setDesktopNotify = useObservatory((s) => s.setDesktopNotify);
   const antipodeOf = useObservatory((s) => s.antipodeOf);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const setReplayActive = useObservatory((s) => s.setReplayActive);
@@ -618,7 +621,15 @@ function ObservatoryApp() {
             checked={audioAlerts}
             onChange={(e) => setAudioAlerts(e.target.checked)}
           />
-          Audio M4.5+
+          Sound on new M4.5+
+        </label>
+        <label className="inline-flex items-center gap-1.5 text-[0.7rem] text-muted">
+          <input
+            type="checkbox"
+            checked={desktopNotify}
+            onChange={(e) => setDesktopNotify(e.target.checked)}
+          />
+          OS notice M4.5+
         </label>
       </div>
       <div>
@@ -916,6 +927,7 @@ function ObservatoryApp() {
         </div>
       )}
       <OfflineBanner />
+      <CatalogNoticeBanner />
       {toast && (
         <div
           className="pointer-events-none absolute inset-x-0 top-14 z-[800] flex justify-center px-3 sm:top-[4.5rem]"

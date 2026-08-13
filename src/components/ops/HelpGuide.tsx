@@ -98,6 +98,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "Fires: NASA EONET open wildfires (opt-in ambient).",
       "NEOs: Solar tab list of today’s approaches (NASA NeoWs).",
       "Cross-feed chips: rule-based multi-domain pulse (not AI).",
+      "Catalog notice: when a new M4.5+ origin appears, SES shows a sourced relay (agency + place). Optional OS notice. Not a civil alert.",
     ],
   },
   {

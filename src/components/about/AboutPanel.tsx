@@ -322,8 +322,8 @@ export function AboutPanel() {
             </Section>
 
             <Section title={EEW_NOTES.title}>
-              <p className="rounded-md border border-danger/30 bg-danger/10 px-2.5 py-2 text-xs text-danger/90">
-                <strong>Not an early-warning product.</strong> {EEW_NOTES.sentinelStance}
+              <p className="rounded-md border border-border bg-panel/80 px-2.5 py-2 text-xs text-muted">
+                <strong className="text-fg">Notice, not alert.</strong> {EEW_NOTES.sentinelStance}
               </p>
             </Section>
 
