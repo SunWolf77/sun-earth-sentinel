@@ -43,6 +43,99 @@ const VERDICT: Record<CouplingThread["verdict"], { label: string; cls: string }>
   background: { label: "Background", cls: "border-border bg-panel text-muted" },
 };
 
+function ThreadList({
+  title,
+  hint,
+  threads,
+  empty,
+  onOpen,
+  mute = false,
+}: {
+  title: string;
+  hint: string;
+  threads: CouplingThread[];
+  empty: string;
+  onOpen: (t: CouplingThread) => void;
+  mute?: boolean;
+}) {
+  return (
+    <div className="mt-3">
+      <div className="mb-1.5">
+        <h4 className="text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
+          {title}
+        </h4>
+        <p className="text-[0.58rem] text-dim">{hint}</p>
+      </div>
+      {threads.length === 0 ? (
+        <p className="text-[0.68rem] text-muted">{empty}</p>
+      ) : (
+        <div className="space-y-2">
+          {threads.map((t) => {
+            const v = mute
+              ? { label: "Geometry", cls: "border-border bg-elevated/40 text-muted" }
+              : VERDICT[t.verdict];
+            return (
+              <article key={t.id} className={`rounded-lg border px-2.5 py-2 ${v.cls}`}>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                  <p className="text-[0.78rem] font-semibold text-fg">{t.headline}</p>
+                  <span className="text-[0.58rem] font-semibold uppercase tracking-wider">
+                    {v.label}
+                    {!mute && ` · ${t.attention}`}
+                  </span>
+                </div>
+                <p className="mt-1 text-[0.65rem] leading-snug text-muted">{t.reading}</p>
+                {t.antipode && (
+                  <p className="mt-1 font-mono text-[0.6rem] text-dim">
+                    offset {t.antipode.offsetDeg.toFixed(1)}° · {t.antipode.lagHours.toFixed(0)} h apart
+                    · sep {t.antipode.sepDeg.toFixed(1)}°
+                  </p>
+                )}
+                {t.lagHours != null && t.kind === "sun-led" && !t.antipode && (
+                  <p className="mt-1 font-mono text-[0.6rem] text-dim">
+                    lag {t.lagHours.toFixed(0)} h after X-ray peak
+                  </p>
+                )}
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    className="ww-btn min-h-8 text-[0.62rem]"
+                    onClick={() => onOpen(t)}
+                  >
+                    <Compass className="h-3 w-3" />
+                    {t.antipode ? "Show antipode pair" : "Show on map"}
+                  </button>
+                  {t.flare?.link && (
+                    <a
+                      href={t.flare.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
+                    >
+                      <Sun className="h-3 w-3" />
+                      DONKI X-ray {t.flare.classType}
+                    </a>
+                  )}
+                  {t.quakes[0]?.url && (
+                    <a
+                      href={t.quakes[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Agency
+                    </a>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
   const donki = useObservatory((s) => s.donki);
   const eq = useObservatory((s) => s.eq);
@@ -81,7 +174,9 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
     });
   }, [donki, eq, month]);
 
-  const top = report.threads[0];
+  const sunLed = report.threads.filter((t) => t.kind === "sun-led");
+  const geometry = report.threads.filter((t) => t.kind === "geometry");
+  const top = sunLed[0] ?? null;
 
   const openThread = (t: CouplingThread) => {
     const pair = t.antipode;
@@ -127,8 +222,8 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
             Field coupling
           </h3>
           <p className="mt-0.5 text-[0.65rem] leading-snug text-dim">
-            Last {report.windowDays} days · M5+ flares (DONKI) × M6+ ruptures (USGS) ×
-            antipodal offset. Pairing for discernment — not a forecast, not a cause.
+            Sun first: X-ray M/X-class (GOES) then Mw 6.5+ (USGS), 0–120 h after the peak.
+            Antipodes without a preceding flare are geometry, not coupling. Not a forecast.
           </p>
         </div>
         {busy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-dim" />}
@@ -136,67 +231,21 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
 
       {err && <p className="mt-2 text-[0.68rem] text-danger">{err}</p>}
 
-      {top ? (
-        <div className="mt-3 space-y-2">
-          {report.threads.map((t) => {
-            const v = VERDICT[t.verdict];
-            return (
-              <article key={t.id} className={`rounded-lg border px-2.5 py-2 ${v.cls}`}>
-                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                  <p className="text-[0.78rem] font-semibold text-fg">{t.headline}</p>
-                  <span className="text-[0.58rem] font-semibold uppercase tracking-wider">
-                    {v.label} · {t.attention}
-                  </span>
-                </div>
-                <p className="mt-1 text-[0.65rem] leading-snug text-muted">{t.reading}</p>
-                {t.antipode && (
-                  <p className="mt-1 font-mono text-[0.6rem] text-dim">
-                    offset {t.antipode.offsetDeg.toFixed(1)}° · lag {t.antipode.lagHours.toFixed(0)} h
-                    · sep {t.antipode.sepDeg.toFixed(1)}°
-                  </p>
-                )}
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    className="ww-btn min-h-8 text-[0.62rem]"
-                    onClick={() => openThread(t)}
-                  >
-                    <Compass className="h-3 w-3" />
-                    {t.antipode ? "Show antipode pair" : "Show on map"}
-                  </button>
-                  {t.flare?.link && (
-                    <a
-                      href={t.flare.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
-                    >
-                      <Sun className="h-3 w-3" />
-                      DONKI {t.flare.classType}
-                    </a>
-                  )}
-                  {t.quakes[0]?.url && (
-                    <a
-                      href={t.quakes[0].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Agency
-                    </a>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="mt-3 text-[0.7rem] text-muted">
-          No M5+ flare sitting next to an M6.5+ rupture, and no two M6.5+ events within 40° of
-          antipode in this window. Quiet is a result.
-        </p>
-      )}
+      <ThreadList
+        title="Sun-led"
+        hint="X-ray class peaked first. Then Earth."
+        threads={sunLed}
+        empty="No X-ray M5+ followed by Mw 6.5+ within 120 h. Quiet is a result."
+        onOpen={openThread}
+      />
+      <ThreadList
+        title="Antipode geometry"
+        hint="Earth–Earth only. No solar lead claimed."
+        threads={geometry}
+        empty="No two Mw 6.5+ within 40° of antipode this window."
+        onOpen={openThread}
+        mute
+      />
 
       <details className="mt-3 text-[0.62rem] text-dim">
         <summary className="cursor-pointer font-semibold text-muted">Drivers in window</summary>
@@ -205,16 +254,16 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
             {report.flares.length === 0 && <li>No M5+ flares in DONKI 14 d.</li>}
             {report.flares.slice(0, 6).map((f) => (
               <li key={f.id} className="font-mono">
-                {f.classType} · {utcShort(f.peakMs)}
+                X-ray {f.classType} · {utcShort(f.peakMs)}
                 {f.sourceLocation ? ` · ${f.sourceLocation}` : ""}
               </li>
             ))}
           </ul>
           <ul className="space-y-0.5">
-            {report.quakes.length === 0 && <li>No M6+ in the month catalog.</li>}
+            {report.quakes.length === 0 && <li>No Mw 6+ in the month catalog.</li>}
             {report.quakes.slice(0, 6).map((q) => (
               <li key={q.id}>
-                M{q.mag.toFixed(1)} · {q.place} · {utcShort(q.time)}
+                Mw {q.mag.toFixed(1)} · {q.place} · {utcShort(q.time)}
               </li>
             ))}
           </ul>

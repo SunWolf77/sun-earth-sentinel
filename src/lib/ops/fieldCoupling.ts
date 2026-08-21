@@ -64,6 +64,8 @@ export type FlareQuakeLink = {
 
 export type CouplingThread = {
   id: string;
+  /** sun-led = flare peak before every listed rupture. geometry = antipodes only. */
+  kind: "sun-led" | "geometry";
   attention: number;
   verdict: "read" | "look" | "background";
   headline: string;
@@ -164,8 +166,12 @@ export function asCouplingFlare(f: DonkiFlare): CouplingFlare | null {
   };
 }
 
-function magLabel(m: number): string {
-  return `M${m.toFixed(1)}`;
+function mwLabel(m: number): string {
+  return `Mw ${m.toFixed(1)}`;
+}
+
+function xrayLabel(f: CouplingFlare): string {
+  return `X-ray ${f.classType}`;
 }
 
 function hoursBetween(a: number, b: number): number {
@@ -279,86 +285,119 @@ export function buildCouplingReport(opts: {
   const flareLinks = linkFlares(flares, quakes.filter((q) => q.mag >= 6.5));
 
   const threads: CouplingThread[] = [];
-  const used = new Set<string>();
 
-  for (const pair of antipodes.slice(0, 6)) {
-    const after = pair.a.time <= pair.b.time ? pair.a.time : pair.b.time;
-    const flare =
-      flares.find((f) => f.peakMs <= after + 6 * 3_600_000 && after - f.peakMs <= 120 * 3_600_000) ??
-      flareLinks.find(
-        (l) => l.quake.id === pair.a.id || l.quake.id === pair.b.id,
-      )?.flare ??
-      null;
-    const lagHours = flare
-      ? Math.min(
-          hoursBetween(flare.peakMs, pair.a.time),
-          hoursBetween(flare.peakMs, pair.b.time),
-        )
-      : pair.lagHours;
+  // 1. Sun-led only: flare peak BEFORE the rupture. No reverse stories.
+  for (const link of flareLinks.slice(0, 10)) {
+    const afterSameFlare = flareLinks
+      .filter((l) => l.flare.id === link.flare.id && l.quake.id !== link.quake.id)
+      .map((l) => l.quake);
+    let antipode: AntipodePair | null = null;
+    for (const other of afterSameFlare) {
+      const offset = antipodeOffsetDeg(
+        link.quake.lat,
+        link.quake.lon,
+        other.lat,
+        other.lon,
+      );
+      if (offset > 40) continue;
+      const first = link.quake.time <= other.time ? link.quake : other;
+      const second = first === link.quake ? other : link.quake;
+      antipode = {
+        a: first,
+        b: second,
+        offsetDeg: offset,
+        lagHours: hoursBetween(first.time, second.time),
+        sepDeg: gcDeg(first.lat, first.lon, second.lat, second.lon),
+      };
+      break;
+    }
     const attention = scoreThread({
-      flare,
-      quakes: [pair.a, pair.b],
-      antipode: pair,
-      lagHours,
+      flare: link.flare,
+      quakes: antipode ? [antipode.a, antipode.b] : [link.quake],
+      antipode,
+      lagHours: link.lagHours,
     });
-    const headline = flare
-      ? `${flare.classType} then ${magLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${magLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`
-      : `${magLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${magLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`;
-    const reading = flare
-      ? `${flare.classType} (heliographic ${flare.sourceLocation || "n/a"}) then two M6.5+ ruptures ${pair.lagHours.toFixed(0)} h apart. Antipodal offset ${pair.offsetDeg.toFixed(1)}° (0° = exact opposite). Not a cause — a measured coincidence for you to read.`
-      : `Two M6.5+ ruptures ${pair.lagHours.toFixed(0)} h apart, antipodal offset ${pair.offsetDeg.toFixed(1)}°. No M5+ flare in the 120 h before the later event. Geometry first; solar second.`;
-    const id = `anti:${pair.a.id}:${pair.b.id}`;
-    used.add(pair.a.id);
-    used.add(pair.b.id);
+    const id = antipode
+      ? `sun:${link.flare.id}:${antipode.a.id}:${antipode.b.id}`
+      : `sun:${link.flare.id}:${link.quake.id}`;
+    if (threads.some((t) => t.id === id)) continue;
+    const loc = link.flare.sourceLocation || "n/a";
+    const headline = antipode
+      ? `${xrayLabel(link.flare)} → ${mwLabel(antipode.a.mag)} ${shortPlace(antipode.a.place)} ↔ ${mwLabel(antipode.b.mag)} ${shortPlace(antipode.b.place)}`
+      : `${xrayLabel(link.flare)} → ${mwLabel(link.quake.mag)} ${shortPlace(link.quake.place)}`;
+    const reading = antipode
+      ? `${xrayLabel(link.flare)} peaked first (heliographic ${loc}). Both ruptures are after that peak. Antipodal offset ${antipode.offsetDeg.toFixed(1)}° among the post-flare events. Pairing — not a cause.`
+      : `${mwLabel(link.quake.mag)} ${link.lagHours.toFixed(0)} h after ${xrayLabel(link.flare)} (heliographic ${loc}). X-ray class is GOES flare size, not earthquake magnitude. Pairing — not a cause.`;
     threads.push({
       id,
+      kind: "sun-led",
       attention,
       verdict: verdictOf(attention),
       headline,
       reading,
-      flare,
+      flare: link.flare,
+      quakes: antipode ? [antipode.a, antipode.b] : [link.quake],
+      antipode,
+      lagHours: link.lagHours,
+    });
+  }
+
+  // 2. Geometry only — never prefix a flare that did not lead both events.
+  const sunIds = new Set(threads.flatMap((t) => t.quakes.map((q) => q.id)));
+  for (const pair of antipodes.slice(0, 6)) {
+    if (sunIds.has(pair.a.id) && sunIds.has(pair.b.id)) continue;
+    const flareLedBoth = flares.find(
+      (f) => f.peakMs <= pair.a.time && f.peakMs <= pair.b.time &&
+        Math.min(pair.a.time, pair.b.time) - f.peakMs <= 120 * 3_600_000,
+    );
+    if (flareLedBoth) continue; // already represented as sun-led if both after
+    const attention = scoreThread({
+      flare: null,
       quakes: [pair.a, pair.b],
       antipode: pair,
-      lagHours,
+      lagHours: pair.lagHours,
     });
-  }
-
-  for (const link of flareLinks.slice(0, 8)) {
-    if (used.has(link.quake.id) && threads.some((t) => t.flare?.id === link.flare.id)) continue;
-    const attention = scoreThread({
-      flare: link.flare,
-      quakes: [link.quake],
-      antipode: null,
-      lagHours: link.lagHours,
-    });
-    if (attention < 36) continue;
-    const id = `flq:${link.flare.id}:${link.quake.id}`;
-    if (threads.some((t) => t.id === id)) continue;
     threads.push({
-      id,
+      id: `geo:${pair.a.id}:${pair.b.id}`,
+      kind: "geometry",
       attention,
       verdict: verdictOf(attention),
-      headline: `${link.flare.classType} → ${magLabel(link.quake.mag)} ${shortPlace(link.quake.place)}`,
-      reading: `${link.lagHours.toFixed(0)} h after ${link.flare.classType}. Source ${link.flare.sourceLocation || "n/a"} is on the Sun, not an Earth antipode. Pairing only.`,
-      flare: link.flare,
-      quakes: [link.quake],
-      antipode: null,
-      lagHours: link.lagHours,
+      headline: `${mwLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${mwLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`,
+      reading: `Antipodal offset ${pair.offsetDeg.toFixed(1)}° · ${pair.lagHours.toFixed(0)} h apart. No X-ray M5+ peaked before both ruptures — this is plate geometry, not Sun-led coupling.`,
+      flare: null,
+      quakes: [pair.a, pair.b],
+      antipode: pair,
+      lagHours: pair.lagHours,
     });
   }
 
-  threads.sort((a, b) => b.attention - a.attention);
-  const top = threads.slice(0, 5);
+  const sunLedRaw = threads.filter((t) => t.kind === "sun-led").sort((a, b) => b.attention - a.attention);
+  const seenFlare = new Set<string>();
+  const sunLed: CouplingThread[] = [];
+  for (const t of sunLedRaw) {
+    const fid = t.flare?.id;
+    if (t.antipode) {
+      if (fid) seenFlare.add(fid);
+      sunLed.push(t);
+      continue;
+    }
+    if (fid && seenFlare.has(fid)) continue;
+    if (fid) seenFlare.add(fid);
+    sunLed.push(t);
+  }
+  const geo = threads.filter((t) => t.kind === "geometry").sort((a, b) => a.antipode!.offsetDeg - b.antipode!.offsetDeg);
+  const top = [...sunLed.slice(0, 4), ...geo.slice(0, 3)];
 
   const earthCme = (opts.cmes ?? []).filter((c) => cmeImpactSummary(c).earth).length;
 
   const caveats = [
-    "Pairing is not causation. M-flares are common near solar max; M6+ ruptures happen on their own.",
-    "A flare’s source location (NxxExx) is heliographic — it does not map to an Earth epicentre.",
+    "Sun-led means the X-ray peak is earlier than the rupture. An earthquake that already happened is not ‘coupled’ to a later flare.",
+    "X-ray M / X is GOES flare class (solar). Mw is earthquake magnitude (Earth). They are not the same M.",
+    "A flare’s NxxExx is heliographic — not an Earth epicentre.",
     earthCme
-      ? `${earthCme} Earth-directed CME(s) in DONKI this window — arrival is a solar-wind clock, not a quake trigger.`
+      ? `${earthCme} Earth-directed CME(s) in DONKI this window — that is a solar-wind arrival clock, not a quake trigger.`
       : "No Earth-directed CME tagged in this DONKI window.",
-    "If two large events are 20–30° off antipode, that is ‘vicinity’, not a bullseye. Read the offset.",
+    "Pacific subduction often sits opposite Pacific subduction. Antipode geometry is cheap on the Ring. Read the offset.",
   ];
 
   return {
@@ -371,7 +410,7 @@ export function buildCouplingReport(opts: {
     threads: top,
     caveats,
     ringNote:
-      "Pacific subduction often sits opposite Pacific subduction. An Indonesia ↔ Andes pair is geographically cheap. A tight offset plus two M7s plus an M8-class flare is still worth reading — as geometry, not as a prediction.",
+      "Sun first, then Earth. Geometry is a separate folder. An Indonesia ↔ Andes pair without a preceding X-ray M5+ is not Sun-led coupling.",
   };
 }
 
