@@ -44,6 +44,7 @@ import { SwpcStormWarnings } from "@/components/weather/SwpcStormWarnings";
 import { ModelAccuracyDisclaimer } from "@/components/ops/ModelAccuracyDisclaimer";
 import { KIndexScalesPanel } from "@/components/weather/KIndexScalesPanel";
 import { EclipseWatch } from "@/components/weather/EclipseWatch";
+import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
 import {
   Activity,
   AlertTriangle,
@@ -65,7 +66,7 @@ type MediaTab = "disk" | "corona" | "farside" | "models";
 type SolarView = "now" | "images" | "catalogs" | "context";
 
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
-  { id: "now", label: "Now", hint: "Impact · gauges · NOAA scales" },
+  { id: "now", label: "Now", hint: "Field pairing · impact · NOAA scales" },
   { id: "images", label: "Images", hint: "Disk · corona · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
   { id: "context", label: "Context", hint: "History · timing · education" },
@@ -126,7 +127,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
   const applySolarFocus = (t: FocusTarget) => {
     if (t.tab !== "solar") return;
-    if (t.solarDeep === "catalogs") selectSolarView("catalogs");
+    if (t.anchor === "field-coupling") selectSolarView("now");
+    else if (t.solarDeep === "catalogs") selectSolarView("catalogs");
     else if (t.solarDeep === "alerts") selectSolarView("now");
     else if (t.solarDeep === "farside" || t.solarDeep === "models") {
       selectSolarView("images");
@@ -318,6 +320,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       {/* ── NOW: one-screen ops ─────────────────────────────────────── */}
       {solarView === "now" && (
         <div className="space-y-3">
+          <FieldCouplingDesk />
           <EclipseWatch />
 
           {/* Kp next + attention on one thin strip (skip empty “builds after…” noise) */}

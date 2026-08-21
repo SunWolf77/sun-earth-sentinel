@@ -34,6 +34,7 @@ import { FocusedNodeCard } from "@/components/nodes/FocusedNodeCard";
 import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
+import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
 import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
 import { ModeHonestyChip } from "@/components/ops/ModeHonestyChip";
 import { ActivityStoryPanel } from "@/components/ops/ActivityStoryPanel";
@@ -947,21 +948,27 @@ function ObservatoryApp() {
           }`}
         >
           {tab === "live" ? (
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 flex-col gap-1">
+              <FieldCouplingDesk compact />
+              <div className="flex min-w-0 items-center gap-1.5">
               <div className="min-w-0 flex-1">
                 <MobilePulseStrip />
               </div>
               <div className="hidden shrink-0 sm:block">
                 <ModeHonestyChip liveMap />
               </div>
+              </div>
             </div>
           ) : (
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 flex-col gap-1">
+              {tab !== "solar" && <FieldCouplingDesk compact />}
+              <div className="flex min-w-0 items-center gap-1.5">
               <div className="min-w-0 flex-1">
                 <TodayBriefBar dense />
               </div>
               <div className="hidden shrink-0 sm:block">
                 <ModeHonestyChip liveMap={false} />
+              </div>
               </div>
             </div>
           )}

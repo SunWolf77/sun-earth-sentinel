@@ -41,7 +41,7 @@ async function getJson<T>(url: string): Promise<T> {
 /** DONKI is Origin-blocked in browsers — always pull server-side. */
 export const fetchDonkiBundle = createServerFn({ method: "GET" }).handler(
   async (): Promise<DonkiBundle> => {
-    const start = daysAgoIso(7);
+    const start = daysAgoIso(14);
     const end = isoDate();
     try {
       const [cmes, flares] = await Promise.all([
@@ -59,8 +59,8 @@ export const fetchDonkiBundle = createServerFn({ method: "GET" }).handler(
         (b.peakTime || b.beginTime || "").localeCompare(a.peakTime || a.beginTime || ""),
       );
       return {
-        cmes: sortedCmes.slice(0, 24),
-        flares: sortedFlares.slice(0, 24),
+        cmes: sortedCmes.slice(0, 36),
+        flares: sortedFlares.slice(0, 48),
         fetchedAt: Date.now(),
       };
     } catch (e) {
