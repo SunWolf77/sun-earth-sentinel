@@ -20,6 +20,7 @@ import {
 import { SITE, APP_VERSION, ogImageUrl, shareCardUrl, absoluteUrl, xCardDebugReport } from "@/lib/site";
 import { XHandle, XPerson, XProfileChips } from "@/components/ui/XProfileLink";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
+import { HarmonicCopyDesk } from "@/components/supt/HarmonicCopyDesk";
 import { CacheAndSwpcDocs } from "@/components/about/CacheAndSwpcDocs";
 import { AntipodeExplainer } from "@/components/ops/AntipodeExplainer";
 import { CitationRow } from "@/components/ops/CitationLink";
@@ -127,11 +128,22 @@ export function AboutPanel() {
         <p className="mt-2 text-sm text-muted">
           Under the hood, the fixed method is <strong className="text-fg">SUPT</strong> (Sheppard’s
           Universal Proxy Theory): same probe on ordered gaps. Full symbols and math are in the
-          section below and under “Technical detail” on Rhythm / Solar.
+          section below and under “Technical detail” on Rhythm / Solar. A separate lexicon from{" "}
+          <a
+            href="https://github.com/SunWolf77/harmonic-ai-supt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            harmonic-ai-supt
+          </a>{" "}
+          scores our own copy (forecast diction) — not event times.
         </p>
       </Section>
 
       <SuptMathSection />
+
+      <HarmonicCopyDesk />
 
       <Section title="Key data layers">
         <ul className="list-disc space-y-1.5 pl-5 text-sm">

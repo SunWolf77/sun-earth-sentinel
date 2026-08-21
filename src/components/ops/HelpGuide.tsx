@@ -84,6 +84,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "Ring-of-Fire antipodes often land on the Ring — geography, not a signal.",
       "Wave focusing at the opposite point is physics. Triggering is a 2018 paper, not USGS consensus.",
       "Solar → Field coupling → “Context vs shuffle” reads pair-rate against a destroyed clock. Not a forecast.",
+      "Two SUPT uses: frozen gap probe (Rhythm / coupling clocks) vs harmonic-ai-supt lexicon (About → Harmonic copy). Lexicon is words, not physics.",
     ],
   },
   {

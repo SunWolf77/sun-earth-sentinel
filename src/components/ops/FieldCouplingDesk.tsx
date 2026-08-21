@@ -23,6 +23,7 @@ import { findPeaks, seriesFromProcessed, type MagPeak } from "@/lib/magneto/anal
 import { fetchDrmagnetoChart } from "@/lib/magneto/proxy";
 import { getStation } from "@/lib/magneto/stations";
 import { buildCouplingContext } from "@/lib/ops/couplingContext";
+import { scoreCopy } from "@/lib/supt/harmonicCopy";
 import {
   buildCordaroThreads,
   utcDateStr,
@@ -252,6 +253,15 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
     [report.flares, report.quakes, hPeaks],
   );
 
+  const copyLint = useMemo(() => {
+    const blob = [...sunLed, ...geometry, ...cordaro.map((c) => ({ headline: c.headline }))]
+      .map((t) => t.headline)
+      .join(" · ");
+    if (!blob) return null;
+    const s = scoreCopy(blob);
+    return s.flags.length ? s : null;
+  }, [sunLed, geometry, cordaro]);
+
   const openThread = (t: CouplingThread) => {
     const pair = t.antipode;
     if (pair) {
@@ -383,6 +393,11 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
 
       <AntipodeExplainer compact />
       <CouplingContextCard report={context} />
+      {copyLint && (
+        <p className="mt-2 text-[0.62rem] text-warn">
+          Copy lint · {copyLint.hint} · About → Harmonic copy
+        </p>
+      )}
       <details className="mt-3 text-[0.62rem] text-dim">
         <summary className="cursor-pointer font-semibold text-muted">Window</summary>
         <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
