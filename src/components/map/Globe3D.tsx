@@ -31,6 +31,7 @@ import {
 import { formatUtc } from "@/lib/utils";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useLookZones } from "@/components/ops/WatchZoneStrip";
 import { registerGlobeChrome } from "@/lib/map/globeChrome";
 import {
   nodeWhyLine,
@@ -99,6 +100,9 @@ export function Globe3D() {
   const issPosition = useObservatory((s) => s.issPosition);
   const wildfires = useObservatory((s) => s.wildfires);
   const kp = useObservatory((s) => s.kp);
+  const lookReport = useLookZones();
+  const lookIdsRef = useRef<Set<string>>(new Set());
+  lookIdsRef.current = new Set(lookReport.looks.map((z) => z.id));
 
   const cleanupRef = useRef<(() => void) | null>(null);
   const updateRef = useRef<((features: EqFeature[], focusId: string | null) => void) | null>(
@@ -1310,17 +1314,19 @@ export function Globe3D() {
             (node.bounds[0][1] <= node.bounds[1][1]
               ? (node.bounds[0][1] + node.bounds[1][1]) / 2
               : -175);
-          // Node markers: discrete dots on short stems (labels only when close)
-          const important = !!(node.publishedFocus || node.kind === "volcano" || node.watchPriority);
+          const isLook = lookIdsRef.current.has(node.id);
+          const important = !!(node.publishedFocus || node.kind === "volcano" || node.watchPriority || isLook);
           const stemLen = important ? 0.04 : 0.028;
           const elev = 1.005 + stemLen;
           const v = latLonToVec(clat, clon, elev);
           const col =
-            node.kind === "volcano"
-              ? 0xfb923c
-              : node.publishedFocus
-                ? 0xfbbf24
-                : 0x22d3ee;
+            isLook
+              ? 0xf59e0b
+              : node.kind === "volcano"
+                ? 0xfb923c
+                : node.publishedFocus
+                  ? 0xfbbf24
+                  : 0x22d3ee;
           const g = new THREE.Group();
           g.position.copy(v);
           g.lookAt(0, 0, 0);

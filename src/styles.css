@@ -1665,6 +1665,25 @@
 .ww-node-marker__inner--volc .ww-node-marker__dot {
   border-color: #fb923c;
 }
+.ww-node-marker__inner--look .ww-node-marker__dot {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.45);
+  animation: ww-look-pulse 2.4s ease-out infinite;
+}
+@keyframes ww-look-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ww-node-marker__inner--look .ww-node-marker__dot {
+    animation: none;
+  }
+}
 .ww-node-marker__text {
   display: flex;
   flex-direction: column;

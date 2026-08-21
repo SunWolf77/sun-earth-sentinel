@@ -83,7 +83,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "Antipode = the point opposite an epicentre. The desk measures offset (0° = exact opposite) and lag.",
       "Ring-of-Fire antipodes often land on the Ring — geography, not a signal.",
       "Wave focusing at the opposite point is physics. Triggering is a 2018 paper, not USGS consensus.",
-      "Solar → Field coupling → “Context vs shuffle” reads pair-rate against a destroyed clock. Not a forecast.",
+      "Look zones: Pulse chips + amber boxes on map/globe. Stacked signals (rate, sun-led, spacing, agency). Click flies there. Pattern this window — not a civil watch.",
       "Two SUPT uses: frozen gap probe (Rhythm / coupling clocks) vs harmonic-ai-supt lexicon (About → Harmonic copy). Lexicon is words, not physics.",
     ],
   },

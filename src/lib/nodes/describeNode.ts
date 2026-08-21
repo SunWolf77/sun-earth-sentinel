@@ -80,13 +80,16 @@ export function nodeShortName(node: DragonNode, max = 22): string {
 /** HTML fragment for Leaflet popup body (no outer wrapper). */
 export function nodePopupHtml(
   node: DragonNode,
-  opts: { status?: string; statusColor?: string; isFocus?: boolean },
+  opts: { status?: string; statusColor?: string; isFocus?: boolean; lookWhy?: string },
 ): string {
   const chip = nodeMarkChip(node);
   const why = nodeWhyLine(node);
   const role = nodeRoleLine(node);
   const st = opts.status
     ? `<div style="margin-top:4px">Activity: <b style="color:${opts.statusColor || "#e2e8f0"}">${opts.status}</b></div>`
+    : "";
+  const look = opts.lookWhy
+    ? `<div style="margin-top:4px;color:#f59e0b;font-size:11px">Look · ${opts.lookWhy}<br/><span style="color:#94a3b8">Pattern this window — not a civil watch.</span></div>`
     : "";
   const boardHref = node.monitorUrl;
   const isPubBoard =
@@ -128,6 +131,7 @@ export function nodePopupHtml(
       ${why}
     </div>
     ${st}
+    ${look}
     ${boardLink}${gvp}${agency}
     <button type="button" class="ww-focus-btn" data-node="${node.id}" style="margin-top:8px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600">
       ${opts.isFocus ? "Exit focus · home view" : "Focus this zone"}

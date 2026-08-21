@@ -41,6 +41,7 @@ import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
 import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
+import { useLookZones } from "@/components/ops/WatchZoneStrip";
 import { formatUtc } from "@/lib/utils";
 import { fitWorldView, WORLD_MAP_INIT } from "@/lib/map/worldView";
 import { flyToEased, cancelFlyToEased, easeOutCubic } from "@/lib/map/flyToEased";
@@ -329,6 +330,8 @@ export function LiveMap() {
   const basemapStyle = useObservatory((s) => s.basemapStyle);
   const overlays = useObservatory((s) => s.overlays);
   const timeWindow = useObservatory((s) => s.timeWindow);
+  const donki = useObservatory((s) => s.donki);
+  const lookReport = useLookZones();
   const focusMmi = useObservatory((s) => s.focusMmi);
   const mapFlyTo = useObservatory((s) => s.mapFlyTo);
   const clearMapFlyTo = useObservatory((s) => s.clearMapFlyTo);
@@ -910,6 +913,7 @@ export function LiveMap() {
       }
     }
 
+    const lookById = new Map(lookReport.looks.map((z) => [z.id, z]));
     const allNodes = getAllFocusNodes();
     for (const node of allNodes) {
       const st = nodeStatus(all, node, { timeWindow });
@@ -922,6 +926,8 @@ export function LiveMap() {
       const isPublished = !!node.publishedFocus;
       const isVolc = node.kind === "volcano";
       const isPriority = !!node.watchPriority;
+      const isLook = lookById.has(node.id);
+      const lookZ = lookById.get(node.id);
       const dimmed = focusNodeId != null && !isFocus;
 
       const color =
@@ -929,15 +935,17 @@ export function LiveMap() {
           ? "#fb923c"
           : isVolc && node.aviationCode === "red"
             ? "#f43f5e"
-            : st === "watch"
-              ? "#e11d48"
-              : st === "active"
-                ? "#ea580c"
-                : st === "elevated"
-                  ? "#d97706"
-                  : isPublished || isFocus
-                    ? "#ca8a04"
-                    : "#0891b2";
+            : isLook
+              ? "#f59e0b"
+              : st === "watch"
+                ? "#e11d48"
+                : st === "active"
+                  ? "#ea580c"
+                  : st === "elevated"
+                    ? "#d97706"
+                    : isPublished || isFocus
+                      ? "#ca8a04"
+                      : "#0891b2";
 
       if (overlays.nodes) {
         const chip = nodeMarkChip(node);
@@ -949,6 +957,7 @@ export function LiveMap() {
             (node.aviationCode === "orange" ||
               node.aviationCode === "red" ||
               st === "watch")) ||
+          isLook ||
           z >= 4;
         const compact = !showCaption;
         const innerCls = [
@@ -957,6 +966,7 @@ export function LiveMap() {
           isFocus ? "ww-node-marker__inner--focus" : "",
           isPublished ? "ww-node-marker__inner--ses" : "",
           isVolc ? "ww-node-marker__inner--volc" : "",
+          isLook ? "ww-node-marker__inner--look" : "",
         ]
           .filter(Boolean)
           .join(" ");
@@ -995,7 +1005,7 @@ export function LiveMap() {
           }),
           keyboard: true,
           riseOnHover: true,
-          zIndexOffset: isFocus ? 900 : isPublished || isVolc ? 700 : 500,
+          zIndexOffset: isFocus ? 900 : isLook ? 820 : isPublished || isVolc ? 700 : 500,
           title: `${node.name} — ${chip}`,
           opacity: dimmed ? 0.45 : 1,
         });
@@ -1004,6 +1014,7 @@ export function LiveMap() {
           status: st,
           statusColor: color,
           isFocus,
+          lookWhy: lookZ?.why,
         });
         // Prefer SES board URL when published (incl. Campi / volcanic desks)
         let html = popupHtml;
@@ -1060,7 +1071,7 @@ export function LiveMap() {
         nodeLayer.current.addLayer(label);
       }
 
-      if (overlays.corridors && (isFocus || isPublished || isPriority)) {
+      if ((overlays.corridors && (isFocus || isPublished || isPriority)) || isLook) {
         const [[rLatMin, rLonMin], [rLatMax, rLonMax]] = boundsToPacificLeaflet(node.bounds);
         const rect = L.rectangle(
           [
@@ -1069,18 +1080,20 @@ export function LiveMap() {
           ],
           {
             renderer,
-            color: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
-            weight: isFocus ? 2.5 : isVolc ? 2 : 1.75,
-            dashArray: isFocus ? undefined : "6 4",
-            fillColor: isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
-            fillOpacity: isFocus ? 0.12 : isVolc ? 0.08 : 0.07,
+            color: isLook ? "#f59e0b" : isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
+            weight: isLook ? 2 + Math.min(lookZ?.strength ?? 1, 3) : isFocus ? 2.5 : isVolc ? 2 : 1.75,
+            dashArray: isLook ? "4 3" : isFocus ? undefined : "6 4",
+            fillColor: isLook ? "#f59e0b" : isVolc ? "#fb923c" : isFocus ? "#22d3ee" : "#ca8a04",
+            fillOpacity: isLook ? 0.08 + 0.03 * Math.min(lookZ?.strength ?? 1, 3) : isFocus ? 0.12 : isVolc ? 0.08 : 0.07,
             opacity: dimmed ? 0.25 : 0.95,
             interactive: true,
             bubblingMouseEvents: false,
           },
         );
         rect.bindTooltip(
-          `${node.name} · ${nodeMarkChip(node)} — click to focus`,
+          isLook
+            ? `${node.name} · Look · ${lookZ?.why ?? "pattern"} — not a forecast`
+            : `${node.name} · ${nodeMarkChip(node)} — click to focus`,
           { sticky: true, direction: "top", opacity: 0.95, className: "ww-node-tip" },
         );
         rect.on("click", (e) => {
@@ -1099,6 +1112,8 @@ export function LiveMap() {
     setFocusNode,
     exitToHomeView,
     timeWindow,
+    donki,
+    lookReport,
     basemapStyle,
     focusMmi.eventId,
     focusMmi.status,
