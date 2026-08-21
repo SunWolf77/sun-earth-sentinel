@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Undo2 } from "lucide-react";
 import { buildAuroraOval, latestKp } from "@/lib/feeds/auroraOval";
 import { AuroraOfficialPanel } from "@/components/map/AuroraOfficialPanel";
 import { issTrailPoints } from "@/lib/feeds/iss";
@@ -499,27 +500,40 @@ export function Globe3D() {
       const SPIN_RESUME_AFTER_DRAG_MS = 650;
       const SPIN_RESUME_AFTER_HOME_MS = 280;
       const spherical = { theta: 0.85, phi: 1.05, radius: HOME_RADIUS };
-      // Prior-view stack (camera before smooth aim / home)
+      // Prior-view stack (camera before antipode / aim / home)
       type CamSnap = { theta: number; phi: number; radius: number };
-      let priorCam: CamSnap | null = null;
+      const priorStack: CamSnap[] = [];
+      function snapCam(): CamSnap {
+        return { theta: spherical.theta, phi: spherical.phi, radius: spherical.radius };
+      }
       function pushPrior() {
-        priorCam = {
-          theta: spherical.theta,
-          phi: spherical.phi,
-          radius: spherical.radius,
-        };
+        const s = snapCam();
+        const last = priorStack[priorStack.length - 1];
+        if (
+          last &&
+          Math.abs(last.theta - s.theta) < 0.02 &&
+          Math.abs(last.phi - s.phi) < 0.02 &&
+          Math.abs(last.radius - s.radius) < 0.05
+        ) {
+          return;
+        }
+        priorStack.push(s);
+        if (priorStack.length > 8) priorStack.shift();
         setCanPriorRef.current(true);
       }
       function restorePrior() {
-        if (!priorCam) return;
+        const snap = priorStack.pop();
+        if (!snap) {
+          setCanPriorRef.current(false);
+          return;
+        }
         aimAnim = {
           t0: performance.now(),
           dur: 700,
-          from: { theta: spherical.theta, phi: spherical.phi, radius: spherical.radius },
-          to: { ...priorCam },
+          from: snapCam(),
+          to: { ...snap },
         };
-        priorCam = null;
-        setCanPriorRef.current(false);
+        setCanPriorRef.current(priorStack.length > 0);
       }
       priorViewRef.current = restorePrior;
       let rotating = false;
@@ -1474,23 +1488,28 @@ export function Globe3D() {
       }
 
       const ray = new THREE.Raycaster();
-      // Prefer closest hit; slightly generous for thin hex rings / spider pins
-      ray.params.Points = { threshold: 0.1 };
-      ray.params.Line = { threshold: 0.04 };
+      ray.params.Points = { threshold: 0.02 };
+      ray.params.Line = { threshold: 0.02 };
       const mouse = new THREE.Vector2();
+      const pickWorld = new THREE.Vector3();
 
       function pickAt(clientX: number, clientY: number): PickMeta | null {
         const rect = el.getBoundingClientRect();
         mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
         ray.setFromCamera(mouse, camera);
+        // Globe occludes far-side pins. Without this, a ray through Chile
+        // hits Alaska on the back of the Earth.
+        const earthHit = ray.intersectObject(earth, false)[0];
+        const earthDist = earthHit?.distance ?? Number.POSITIVE_INFINITY;
         const objs = pickList.map((p) => p.mesh);
         const hits = ray.intersectObjects(objs, true);
         if (!hits.length) return null;
-        // Prefer event pins over cluster badges when both under the cursor
-        // so a new EQ can replace the open card without closing first.
         const resolved: { meta: PickMeta; dist: number }[] = [];
         for (const h of hits) {
+          if (h.distance > earthDist + 0.06) continue;
+          h.object.getWorldPosition(pickWorld);
+          if (pickWorld.dot(camera.position) <= 0) continue;
           let o: InstanceType<typeof THREE.Object3D> | null = h.object;
           while (o) {
             const found = pickList.find((p) => p.mesh === o);
@@ -1509,6 +1528,11 @@ export function Globe3D() {
         return pool[0]!.meta;
       }
 
+      function onFrontFace(lat: number, lon: number): boolean {
+        const v = latLonToVec(lat, lon, 1);
+        return v.dot(camera.position) > 0.18;
+      }
+
       function applyPick(meta: PickMeta) {
         // Seamless switch: any pick replaces the previous detail card
         hideHoverTip();
@@ -1521,7 +1545,7 @@ export function Globe3D() {
             null;
           setPickedGlobeNodeRef.current(node);
           setFocusNode(meta.nodeId);
-          aimAt(meta.lat, meta.lon, true);
+          if (!onFrontFace(meta.lat, meta.lon)) aimAt(meta.lat, meta.lon, true);
           return;
         }
         // Cluster badge: expand / collapse spider pins (globe equivalent of 2D spiderfy)
@@ -1538,7 +1562,7 @@ export function Globe3D() {
             spiderExpandKey = meta.clusterKey;
           }
           updateMarkers(lastFeatureList, lastFocusId);
-          aimAt(meta.lat, meta.lon, true);
+          if (!onFrontFace(meta.lat, meta.lon)) aimAt(meta.lat, meta.lon, true);
           return;
         }
 
@@ -1558,7 +1582,7 @@ export function Globe3D() {
         };
         setPickedGlobeNodeRef.current(null);
         pickEvent(ev);
-        aimAt(meta.lat, meta.lon, true);
+        if (!onFrontFace(meta.lat, meta.lon)) aimAt(meta.lat, meta.lon, true);
         // highlight ring
         if (pickRing) {
           quakeGroup.remove(pickRing);
@@ -1654,6 +1678,13 @@ export function Globe3D() {
         if (was && !dragMoved && e.button === 0) {
           const meta = pickAt(e.clientX, e.clientY);
           if (meta) applyPick(meta);
+          else {
+            hideHoverTip();
+            clearHoverHighlight();
+            pickEvent(null);
+            setPickedGlobeNodeRef.current(null);
+            restorePrior();
+          }
         }
       };
       const ctx = (e: MouseEvent) => {
@@ -2280,8 +2311,11 @@ export function Globe3D() {
             <button
               type="button"
               className="ww-btn ww-btn--ghost px-1.5 text-[0.6rem]"
-              onClick={() => pickEvent(null)}
-              aria-label="Clear pick"
+              onClick={() => {
+                pickEvent(null);
+                priorViewRef.current?.();
+              }}
+              aria-label="Close and return"
             >
               ✕
             </button>
@@ -2350,6 +2384,17 @@ export function Globe3D() {
             >
               Antipode ⊕
             </button>
+            {canPrior && (
+              <button
+                type="button"
+                className="ww-btn text-[0.62rem]"
+                onClick={() => priorViewRef.current?.()}
+                title="Return to previous view"
+              >
+                <Undo2 className="h-3 w-3" />
+                Back
+              </button>
+            )}
           </div>
           </div>
         </div>
