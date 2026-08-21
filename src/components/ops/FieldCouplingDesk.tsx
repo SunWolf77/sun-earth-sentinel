@@ -18,9 +18,11 @@ import {
 } from "@/lib/ops/fieldCoupling";
 import { requestFocus } from "@/lib/ops/focusNav";
 import { AntipodeExplainer } from "@/components/ops/AntipodeExplainer";
+import { CouplingContextCard } from "@/components/ops/CouplingContextCard";
+import { findPeaks, seriesFromProcessed, type MagPeak } from "@/lib/magneto/analyze";
 import { fetchDrmagnetoChart } from "@/lib/magneto/proxy";
-import { findPeaks, seriesFromProcessed } from "@/lib/magneto/analyze";
 import { getStation } from "@/lib/magneto/stations";
+import { buildCouplingContext } from "@/lib/ops/couplingContext";
 import {
   buildCordaroThreads,
   utcDateStr,
@@ -149,6 +151,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
   const [err, setErr] = useState<string | null>(null);
   const [cordaro, setCordaro] = useState<CordaroThread[]>([]);
   const [cordaroErr, setCordaroErr] = useState<string | null>(null);
+  const [hPeaks, setHPeaks] = useState<MagPeak[]>([]);
 
   useEffect(() => {
     let live = true;
@@ -196,6 +199,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
         if (today.error && yday.error) {
           setCordaroErr(today.error || yday.error || "drmagneto");
           setCordaro([]);
+          setHPeaks([]);
           return;
         }
         const series = [
@@ -203,6 +207,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
           ...seriesFromProcessed(today.processed_data || [], today.raw_data, todayStart),
         ];
         const peaks = findPeaks(series, 0.4);
+        setHPeaks(peaks);
         const features = [...(month ?? []), ...(eq?.features ?? [])];
         const reportNow = buildCouplingReport({
           flares: donki?.flares ?? [],
@@ -223,6 +228,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
         if (live) {
           setCordaroErr(e instanceof Error ? e.message : "drmagneto");
           setCordaro([]);
+          setHPeaks([]);
         }
       }
     })();
@@ -234,6 +240,17 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
   const sunLed = report.threads.filter((t) => t.kind === "sun-led");
   const geometry = report.threads.filter((t) => t.kind === "geometry");
   const top = sunLed[0] ?? null;
+
+  const context = useMemo(
+    () =>
+      buildCouplingContext({
+        flares: report.flares,
+        quakes: report.quakes,
+        hPeaks,
+        windowDays: 14,
+      }),
+    [report.flares, report.quakes, hPeaks],
+  );
 
   const openThread = (t: CouplingThread) => {
     const pair = t.antipode;
@@ -365,6 +382,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
       )}
 
       <AntipodeExplainer compact />
+      <CouplingContextCard report={context} />
       <details className="mt-3 text-[0.62rem] text-dim">
         <summary className="cursor-pointer font-semibold text-muted">Window</summary>
         <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
