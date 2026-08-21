@@ -58,7 +58,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     body: [
       "Bottom dock: Map · Filters · Events · Layers — tap to slide a folder up. One at a time.",
       "Pulse (under the title) expands look zones and the story. Collapsed is one line.",
-      "Swipe the map left/right to change views (Live · Solar · Rhythm · Charts · About).",
+      "Swipe left/right off the map to change views (Live · Solar · Rhythm · Charts · About). The map itself stays pan/zoom — swipe there does not change tabs.",
       "Rhythm / Solar: tap a folder row (chevron) to open it. The hero stays on screen.",
     ],
   },

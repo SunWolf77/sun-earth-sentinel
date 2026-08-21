@@ -90,7 +90,7 @@ export function MobilePulseStrip() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.58rem] sm:min-h-8 sm:text-[0.62rem] ${tone}${
+          className={`flex w-full min-h-11 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] sm:min-h-8 sm:text-[0.62rem] ${tone}${
             hint ? " ww-pulse--hint" : ""
           }`}
           aria-expanded={false}
