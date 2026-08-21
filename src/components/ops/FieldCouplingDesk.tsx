@@ -10,6 +10,8 @@ import type { EqFeature } from "@/lib/feeds/usgs";
 import {
   buildCouplingReport,
   fetchMonthM45,
+  formatLagHours,
+  shortPlace,
   type CouplingQuake,
   type CouplingReport,
   type CouplingThread,
@@ -35,11 +37,6 @@ function utcShort(ms: number): string {
   } catch {
     return "—";
   }
-}
-
-function shortPlaceDesk(p: string): string {
-  const cut = p.split(",")[0]?.trim() || p;
-  return cut.length > 28 ? cut.slice(0, 26) + "…" : cut;
 }
 
 const VERDICT: Record<CouplingThread["verdict"], { label: string; cls: string }> = {
@@ -78,14 +75,18 @@ function ThreadList({
             <p className="text-[0.78rem] font-semibold text-fg">{t.headline}</p>
             {t.kind === "sun-led" && t.lagHours != null && (
               <p className="mt-0.5 font-mono text-[0.6rem] text-dim">
-                +{t.lagHours.toFixed(0)} h
+                +{formatLagHours(t.lagHours)}
                 {t.flare?.sourceLocation ? ` · Sun ${t.flare.sourceLocation}` : ""}
+                {t.flareNote ? ` · ${t.flareNote}` : ""}
               </p>
             )}
             {t.antipode && (
               <p className="mt-0.5 font-mono text-[0.6rem] text-dim">
-                antipode {t.antipode.offsetDeg.toFixed(1)}° · {t.antipode.lagHours.toFixed(0)} h
+                antipode {t.antipode.offsetDeg.toFixed(1)}° · {formatLagHours(t.antipode.lagHours)}
               </p>
+            )}
+            {t.when && (
+              <p className="mt-0.5 font-mono text-[0.58rem] text-dim/80">{t.when}</p>
             )}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <button
@@ -241,7 +242,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
             {report.quakes.length === 0 && <li>No EQ 6+</li>}
             {report.quakes.slice(0, 6).map((q) => (
               <li key={q.id}>
-                EQ {q.mag.toFixed(1)} · {shortPlaceDesk(q.place)} · {utcShort(q.time)}
+                EQ {q.mag.toFixed(1)} · {shortPlace(q.place)} · {utcShort(q.time)}
               </li>
             ))}
           </ul>

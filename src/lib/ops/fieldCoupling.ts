@@ -70,10 +70,14 @@ export type CouplingThread = {
   verdict: "read" | "look" | "background";
   headline: string;
   reading: string;
+  /** Compact clock line: "20 Aug 11:42Z → 18:00Z" */
+  when: string;
   flare: CouplingFlare | null;
   quakes: CouplingQuake[];
   antipode: AntipodePair | null;
   lagHours: number | null;
+  /** limb / CME away / CME Earth — honest geometry of the flare, not a sermon. */
+  flareNote: string | null;
 };
 
 export type CouplingReport = {
@@ -178,6 +182,37 @@ function hoursBetween(a: number, b: number): number {
   return Math.abs(b - a) / 3_600_000;
 }
 
+/** "31 km NW of Aniso, Peru" → "Aniso, Peru" */
+export function shortPlace(p: string): string {
+  const cleaned = p.replace(/^\d+(?:\.\d+)?\s*km\s+[NSEW]{1,3}\s+of\s+/i, "").trim();
+  return cleaned.length > 42 ? cleaned.slice(0, 40) + "…" : cleaned || p;
+}
+
+function utcStamp(ms: number): string {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "—";
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()];
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${day} ${mon} ${hh}:${mm}Z`;
+}
+
+export function formatLagHours(h: number): string {
+  if (h < 10) return `${h.toFixed(1)} h`;
+  return `${Math.round(h)} h`;
+}
+
+/** E/W ≥ 70° from disk center is a limb source — photons still hit Earth, CME usually does not. */
+export function flareLimbNote(loc: string | null | undefined): string | null {
+  if (!loc) return null;
+  const m = loc.toUpperCase().match(/[EW](\d{2,3})/);
+  if (!m) return null;
+  const deg = Number(m[1]);
+  if (!Number.isFinite(deg) || deg < 70) return null;
+  return "limb";
+}
+
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
@@ -249,9 +284,16 @@ function linkFlares(
   return links.sort((a, b) => b.quake.mag - a.quake.mag || a.lagHours - b.lagHours);
 }
 
-function shortPlace(p: string): string {
-  const cut = p.split(",")[0]?.trim() || p;
-  return cut.length > 36 ? cut.slice(0, 34) + "…" : cut;
+function cmeNoteForFlare(flare: CouplingFlare, cmes: DonkiCme[]): string | null {
+  const limb = flareLimbNote(flare.sourceLocation);
+  const nearby = cmes.filter((c) => {
+    const t = Date.parse(c.startTime);
+    return Number.isFinite(t) && Math.abs(t - flare.peakMs) < 8 * 3_600_000;
+  });
+  const earth = nearby.some((c) => cmeImpactSummary(c).earth);
+  if (earth) return limb ? "limb · CME Earth" : "CME Earth";
+  if (nearby.length) return limb ? "limb · CME away" : "CME away";
+  return limb;
 }
 
 export function buildCouplingReport(opts: {
@@ -283,6 +325,7 @@ export function buildCouplingReport(opts: {
 
   const antipodes = pairAntipodes(quakes);
   const flareLinks = linkFlares(flares, quakes.filter((q) => q.mag >= 6.5));
+  const cmes = opts.cmes ?? [];
 
   const threads: CouplingThread[] = [];
 
@@ -326,7 +369,10 @@ export function buildCouplingReport(opts: {
       : `${flareLabel(link.flare)} → ${eqLabel(link.quake.mag)} ${shortPlace(link.quake.place)}`;
     const reading = antipode
       ? `${antipode.offsetDeg.toFixed(1)}° antipode · both after flare`
-      : `+${link.lagHours.toFixed(0)} h`;
+      : `+${formatLagHours(link.lagHours)}`;
+    const when = antipode
+      ? `${utcStamp(link.flare.peakMs)} → ${utcStamp(antipode.a.time)} / ${utcStamp(antipode.b.time)}`
+      : `${utcStamp(link.flare.peakMs)} → ${utcStamp(link.quake.time)}`;
     threads.push({
       id,
       kind: "sun-led",
@@ -334,10 +380,12 @@ export function buildCouplingReport(opts: {
       verdict: verdictOf(attention),
       headline,
       reading,
+      when,
       flare: link.flare,
       quakes: antipode ? [antipode.a, antipode.b] : [link.quake],
       antipode,
       lagHours: link.lagHours,
+      flareNote: cmeNoteForFlare(link.flare, cmes),
     });
   }
 
@@ -362,11 +410,13 @@ export function buildCouplingReport(opts: {
       attention,
       verdict: verdictOf(attention),
       headline: `${eqLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${eqLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`,
-      reading: `${pair.offsetDeg.toFixed(1)}° antipode · ${pair.lagHours.toFixed(0)} h`,
+      reading: `${pair.offsetDeg.toFixed(1)}° antipode · ${formatLagHours(pair.lagHours)}`,
+      when: `${utcStamp(pair.a.time)} → ${utcStamp(pair.b.time)}`,
       flare: null,
       quakes: [pair.a, pair.b],
       antipode: pair,
       lagHours: pair.lagHours,
+      flareNote: null,
     });
   }
 
