@@ -92,7 +92,7 @@ export function MobilePulseStrip() {
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
         </button>
-        <WatchZoneStrip compact />
+        {/* WatchZone only when expanded — keeps collapsed pulse to one row */}
       </div>
     );
   }
