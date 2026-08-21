@@ -16,7 +16,7 @@ export function CatalogNoticeBanner() {
 
   useEffect(() => {
     if (!notice) return;
-    const t = window.setTimeout(() => dismiss(), 18_000);
+    const t = window.setTimeout(() => dismiss(), 12_000);
     return () => window.clearTimeout(t);
   }, [notice, dismiss]);
 
