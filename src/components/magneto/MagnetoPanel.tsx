@@ -17,7 +17,7 @@ import {
   type MagAssessment,
 } from "@/lib/magneto/analyze";
 import { fetchDrmagnetoChart } from "@/lib/magneto/proxy";
-import { scanDrmagnetoSteps, scanSuddenSteps, type SscScanResult } from "@/lib/magneto/ssc";
+import { scanDrmagnetoSteps, scanSuddenSteps, classifySscAgainstKp, pairGroundGoes, SSC_CITES, SSC_LINKS, type SscScanResult } from "@/lib/magneto/ssc";
 import { fetchGoesMagnetometer } from "@/lib/feeds/goesMagneto";
 import { INTERMAGNET_FORMATS } from "@/lib/magneto/intermagnetFormats";
 import { XHandle, XPerson } from "@/components/ui/XProfileLink";
@@ -27,6 +27,7 @@ import { IgrfFieldNote } from "@/components/magneto/IgrfFieldNote";
 import { Igrf14Explorer } from "@/components/magneto/Igrf14Explorer";
 import { Wmm2025Sampler } from "@/components/magneto/Wmm2025Sampler";
 import { StationEntityDesk } from "@/components/magneto/StationEntityDesk";
+import { CitationRow } from "@/components/ops/CitationLink";
 import { requestFocus } from "@/lib/ops/focusNav";
 
 /**
@@ -35,6 +36,7 @@ import { requestFocus } from "@/lib/ops/focusNav";
  */
 export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
   const eq = useObservatory((s) => s.eq);
+  const kp = useObservatory((s) => s.kp);
   const flyMapTo = useObservatory((s) => s.flyMapTo);
   const setTab = useObservatory((s) => s.setTab);
   const pickEvent = useObservatory((s) => s.pickEvent);
@@ -106,14 +108,17 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
           ? series.map((p) => ({ t: p.t, v: p.raw ?? p.v }))
           : series.map((p) => ({ t: p.t, v: p.v }));
       setSscResult(
-        series[0]?.raw != null
-          ? scanSuddenSteps(stepSeries, {
-              stepSec: 180,
-              minAbs: 8,
-              source: "ground-H",
-              unit: "nT-ish",
-            })
-          : scanDrmagnetoSteps(stepSeries, Math.max(0.25, thr * 0.8)),
+        classifySscAgainstKp(
+          series[0]?.raw != null
+            ? scanSuddenSteps(stepSeries, {
+                stepSec: 180,
+                minAbs: 8,
+                source: "ground-H",
+                unit: "nT-ish",
+              })
+            : scanDrmagnetoSteps(stepSeries, Math.max(0.25, thr * 0.8)),
+          useObservatory.getState().kp,
+        ),
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Magneto fetch failed");
@@ -139,12 +144,15 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
         v: g.Hp,
       }));
       setGoesSsc(
-        scanSuddenSteps(series, {
-          stepSec: 180,
-          minAbs: 12,
-          source: "goes-Hp",
-          unit: "nT",
-        }),
+        classifySscAgainstKp(
+          scanSuddenSteps(series, {
+            stepSec: 180,
+            minAbs: 12,
+            source: "goes-Hp",
+            unit: "nT",
+          }),
+          useObservatory.getState().kp,
+        ),
       );
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,6 +172,11 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
       }),
     );
   }, [eq?.features, fullSeries, station, threshold]);
+
+  useEffect(() => {
+    setSscResult((r) => (r ? classifySscAgainstKp(r, kp) : r));
+    setGoesSsc((r) => (r ? classifySscAgainstKp(r, kp) : r));
+  }, [kp]);
 
   const chartData = useMemo(
     () =>
@@ -374,31 +387,7 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
       )}
 
       {(sscResult || goesSsc) && (
-        <div className="rounded-lg border border-border bg-bg/40 px-3 py-2 text-xs text-muted">
-          <h4 className="mb-1 text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
-            Sudden commencement / SI watch
-          </h4>
-          <p className="text-[0.65rem] text-dim">
-            Heuristic step scan (not Kyoto/ISGI official SSC lists). Pressure pulses → step in H /
-            GOES Hp; if a storm follows, archives call it SSC.
-          </p>
-          {sscResult && (
-            <p className="mt-1.5 text-fg">
-              <strong className="text-accent">Ground/tool:</strong> {sscResult.plain}
-            </p>
-          )}
-          {goesSsc && (
-            <p className="mt-1 text-fg">
-              <strong className="text-primary">GOES Hp (SWPC):</strong> {goesSsc.plain}
-            </p>
-          )}
-          {goesSsc && goesSsc.candidates[0] && (
-            <p className="mt-1 font-mono text-[0.65rem] text-dim">
-              Largest GOES step: {goesSsc.candidates[0].note} ·{" "}
-              {new Date(goesSsc.candidates[0].t).toISOString()}
-            </p>
-          )}
-        </div>
+        <SscWatch ground={sscResult} goes={goesSsc} />
       )}
 
       <div className="rounded-lg border border-border/80 bg-bg/30 px-3 py-2">
@@ -482,5 +471,80 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
         </div>
       </details>
     </section>
+  );
+}
+
+function SscWatch({
+  ground,
+  goes,
+}: {
+  ground: SscScanResult | null;
+  goes: SscScanResult | null;
+}) {
+  const pairs = pairGroundGoes(ground?.candidates ?? [], goes?.candidates ?? []);
+  const rows = [
+    ...(goes?.candidates.slice(0, 4).map((c) => ({ ...c, where: "GOES Hp" })) ?? []),
+    ...(ground?.candidates.slice(0, 4).map((c) => ({ ...c, where: "H" })) ?? []),
+  ]
+    .sort((a, b) => Math.abs(b.dB) - Math.abs(a.dB))
+    .slice(0, 6);
+
+  return (
+    <div className="rounded-lg border border-border bg-bg/40 px-3 py-2 text-xs text-muted">
+      <h4 className="mb-1 text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+        SSC / SI
+      </h4>
+      <p className="text-[0.65rem] text-dim">
+        Pressure pulse → step in H. If Kp ≥ 4 in the next 12 h we call it SSC-like; quiet is
+        SI-like. Official list is ISGI / Ebre — we do not scrape it.
+      </p>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+        {SSC_LINKS.map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[0.62rem] text-primary hover:underline"
+          >
+            {l.label}
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        ))}
+      </div>
+      {goes && (
+        <p className="mt-1.5 text-fg">
+          <strong className="text-primary">GOES:</strong> {goes.plain}
+        </p>
+      )}
+      {ground && (
+        <p className="mt-1 text-fg">
+          <strong className="text-accent">Ground/tool:</strong> {ground.plain}
+        </p>
+      )}
+      {pairs.length > 0 && (
+        <p className="mt-1 font-mono text-[0.62rem] text-gold">
+          {pairs.length} GOES+H pair{pairs.length === 1 ? "" : "s"} within 8 min — same pulse,
+          two sensors.
+        </p>
+      )}
+      {rows.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5 font-mono text-[0.62rem] text-dim">
+          {rows.map((c) => (
+            <li key={`${c.source}-${c.t}`}>
+              {new Date(c.t).toISOString().slice(11, 16)}Z · {c.where} · {c.note} ·{" "}
+              <span className="text-fg">
+                {c.kind === "ssc-like"
+                  ? `SSC-like${c.kpAfter != null ? ` (Kp ${c.kpAfter.toFixed(1)})` : ""}`
+                  : c.kind === "si-like"
+                    ? "SI-like"
+                    : "step"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <CitationRow cites={SSC_CITES} compact />
+    </div>
   );
 }
