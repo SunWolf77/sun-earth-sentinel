@@ -1,13 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useObservatory, filteredEq } from "@/store/observatory";
 import {
-  DRAGON_NODES,
-  nodeEventStats,
-  nodeStatus,
-  type NodeStatus,
-} from "@/lib/feeds/usgs";
-import {
-  SUPT_ANCHORS,
   bandPlainLabel,
   resonanceScore,
   resonanceVerdict,
@@ -18,34 +11,13 @@ import {
   interpretEtasControl,
   OMORI_CONTROL,
 } from "@/lib/supt/etasWhiten";
-import {
-  ChevronDown,
-  ChevronRight,
-  Crosshair,
-  ExternalLink,
-  Info,
-  RefreshCw,
-  ShieldAlert,
-} from "lucide-react";
-import { XHandle, XPerson } from "@/components/ui/XProfileLink";
+import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { XHandle } from "@/components/ui/XProfileLink";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
 import { LunarSkyCard } from "@/components/resonance/LunarSkyCard";
 import { WaveformHarmonicDesk } from "@/components/resonance/WaveformHarmonicDesk";
-
-const STATUS_STYLE: Record<NodeStatus, string> = {
-  quiet: "bg-primary/30 border-primary",
-  elevated: "bg-gold/40 border-gold",
-  active: "bg-warn/50 border-warn",
-  watch: "bg-danger/60 border-danger animate-pulse-soft",
-};
-
-const STATUS_PLAIN: Record<NodeStatus, string> = {
-  quiet: "Quiet",
-  elevated: "Elevated",
-  active: "Active",
-  watch: "Watch",
-};
+import { WatchZoneStrip } from "@/components/ops/WatchZoneStrip";
 
 const TONE_CLASS = {
   none: "border-border bg-panel",
@@ -56,6 +28,46 @@ const TONE_CLASS = {
   null: "border-border bg-panel",
 } as const;
 
+function Folder({
+  id,
+  title,
+  hint,
+  children,
+}: {
+  id: string;
+  title: string;
+  hint: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-h-10 w-full items-center gap-2 text-left"
+        aria-expanded={open}
+        aria-controls={id}
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-dim" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-dim" />
+        )}
+        <div className="min-w-0">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-primary">{title}</h3>
+          <p className="text-[0.65rem] text-dim">{hint}</p>
+        </div>
+      </button>
+      {open && (
+        <div id={id} className="mt-3 space-y-3 border-t border-border/60 pt-3">
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function ResonancePanel() {
   const resonance = useObservatory((s) => s.resonance);
   const reading = useObservatory((s) => s.reading);
@@ -65,15 +77,10 @@ export function ResonancePanel() {
   const timeWindow = useObservatory((s) => s.timeWindow);
   const refresh = useObservatory((s) => s.refresh);
   const loading = useObservatory((s) => s.loading);
-  const setFocusNode = useObservatory((s) => s.setFocusNode);
   const setTab = useObservatory((s) => s.setTab);
-  const focusNodeId = useObservatory((s) => s.focusNodeId);
   const mode = useObservatory((s) => s.mode);
-  const [showTech, setShowTech] = useState(false);
-  const [showEtas, setShowEtas] = useState(false);
-  const [showSupTDetail, setShowSupTDetail] = useState(false);
+  const [how, setHow] = useState(false);
 
-  const features = filteredEq(eq?.features, minMag, maxMag);
   const verdict = resonanceVerdict(resonance);
   const techLine = resonance ? readingSummaryTech(resonance) : "";
 
@@ -133,86 +140,48 @@ export function ResonancePanel() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
-      <SuptContinuumStrip compact />
       <header>
-        <h2 className="text-lg font-semibold text-accent sm:text-xl">Catalog timing</h2>
+        <h2 className="text-lg font-semibold text-accent sm:text-xl">Timing</h2>
         <p className="mt-1 text-xs text-muted sm:text-sm">
-          How evenly recent quakes are spaced in time — not how big they are, not a forecast.
+          Gaps between quakes · {windowLabel} · not size · not a forecast
         </p>
       </header>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-lg border border-border bg-panel px-3 py-2 text-xs text-muted">
-          <p className="mb-0.5 font-semibold text-fg">What this does</p>
-          <p>
-            Looks at gaps between quakes ({windowLabel}) and asks: does that spacing look ordinary,
-            or more ordered / mixed than a random shuffle of the same times?
-          </p>
-        </div>
-        <div className="rounded-lg border border-danger/25 bg-danger/5 px-3 py-2 text-xs text-muted">
-          <p className="mb-0.5 flex items-center gap-1 font-semibold text-danger">
-            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
-            Not a prediction
-          </p>
-          <p>
-            Not magnitude, location, ShakeMap, or early warning. Use USGS and local agencies for
-            alerts.
-          </p>
-        </div>
-      </div>
-
-      <div className={`rounded-xl border p-4 text-center sm:p-6 ${TONE_CLASS[verdict.tone]}`}>
-        <div className="text-[0.65rem] uppercase tracking-widest text-dim sm:text-[0.7rem]">
-          Current window · {windowLabel}
-        </div>
-        <p className="mt-2 text-lg font-semibold leading-snug text-fg sm:text-2xl">
-          {verdict.title}
-        </p>
+      <div className={`rounded-xl border p-4 text-center sm:p-5 ${TONE_CLASS[verdict.tone]}`}>
+        <p className="text-lg font-semibold leading-snug text-fg sm:text-2xl">{verdict.title}</p>
         {resonance?.band && resonance.band !== "N/A" && (
           <p className="mt-1 text-xs text-muted sm:text-sm">
             {resonance.separated
               ? bandPlainLabel(resonance.band)
-              : "Consistent with random spacing"}
-            {resonance.separated ? (
-              <span className="text-dim"> · stronger than random</span>
-            ) : (
-              <span className="text-dim"> · within chance</span>
-            )}
+              : "Looks like random spacing"}
           </p>
         )}
-
-        <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-muted sm:mt-3 sm:text-sm">
+        <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-muted sm:text-sm">
           {reading || "Load live data to get a reading."}
         </p>
 
-        {techLine && (
-          <div className="mx-auto mt-2 max-w-lg">
-            <button
-              type="button"
-              onClick={() => setShowSupTDetail((v) => !v)}
-              className="inline-flex min-h-9 items-center gap-1 text-[0.65rem] font-medium text-dim hover:text-primary"
-              aria-expanded={showSupTDetail}
-            >
-              {showSupTDetail ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-              Technical detail
-            </button>
-            {showSupTDetail && (
-              <div className="mt-1 space-y-1.5 rounded-md border border-border/70 bg-bg/40 px-2 py-1.5 text-left">
-                <p className="font-mono text-[0.62rem] leading-relaxed text-dim">{techLine}</p>
-                <p className="text-[0.62rem] leading-snug text-muted">
-                  Method: SUPT frozen probe (Sheppard) · α=0.01 · shuffle null |z|≥3 = “unusual.”{" "}
-                  <XHandle profile="sheppard" /> · full math in About.
-                </p>
-              </div>
-            )}
+        <dl className="mx-auto mt-3 grid max-w-md grid-cols-3 gap-1.5 text-center text-[0.65rem] sm:text-xs">
+          <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5">
+            <dt className="text-dim">Intervals</dt>
+            <dd className="mt-0.5 font-mono text-sm font-semibold text-fg">
+              {resonance?.n ?? "—"}
+            </dd>
           </div>
-        )}
+          <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5">
+            <dt className="text-dim">Vs random</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-fg">
+              {resonance == null ? "—" : resonance.separated ? "Unusual" : "Typical"}
+            </dd>
+          </div>
+          <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5">
+            <dt className="text-dim">Sample</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-fg">
+              {resonance?.short_window ? "Short" : "OK"}
+            </dd>
+          </div>
+        </dl>
 
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:mt-4">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => void refresh(true)}
@@ -230,170 +199,59 @@ export function ResonancePanel() {
           </button>
         </div>
 
-        <dl className="mx-auto mt-4 grid max-w-md grid-cols-3 gap-1.5 text-center text-[0.65rem] sm:mt-5 sm:gap-2 sm:text-xs">
-          <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5 sm:px-2 sm:py-2">
-            <dt className="text-dim">Intervals</dt>
-            <dd className="mt-0.5 font-mono text-sm font-semibold text-fg">
-              {resonance?.n ?? "—"}
-            </dd>
+        {techLine && (
+          <div className="mx-auto mt-2 max-w-lg text-left">
+            <button
+              type="button"
+              onClick={() => setHow((v) => !v)}
+              className="inline-flex min-h-8 items-center gap-1 text-[0.62rem] font-medium text-dim hover:text-primary"
+              aria-expanded={how}
+            >
+              {how ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              How we got this
+            </button>
+            {how && (
+              <p className="mt-1 font-mono text-[0.62rem] leading-relaxed text-dim">
+                {techLine} · frozen probe · <XHandle profile="sheppard" /> · shuffle |z|≥3 unusual
+              </p>
+            )}
           </div>
-          <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5 sm:px-2 sm:py-2">
-            <dt className="text-dim">Vs random</dt>
-            <dd className="mt-0.5 text-sm font-semibold text-fg">
-              {resonance == null ? "—" : resonance.separated ? "Unusual" : "Typical"}
-            </dd>
-          </div>
-          <div className="rounded-md border border-border/80 bg-bg/50 px-1.5 py-1.5 sm:px-2 sm:py-2">
-            <dt className="text-dim">Sample</dt>
-            <dd className="mt-0.5 text-sm font-semibold text-fg">
-              {resonance?.short_window ? "Short" : "OK"}
-            </dd>
-          </div>
-        </dl>
+        )}
       </div>
 
-      <LunarSkyCard />
-      <WaveformHarmonicDesk />
+      <SuptContinuumStrip compact />
+      <WatchZoneStrip />
 
-      <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
-        <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-primary">
-          Watch zones
-        </h3>
-        <p className="mb-2 text-[0.65rem] text-dim sm:mb-3 sm:text-xs">
-          Focus a zone to zoom the map. Independent of the rhythm score.
+      <Folder id="rhythm-sky" title="Sky" hint="Moon phase · eclipse watch — not in the quake score">
+        <LunarSkyCard />
+      </Folder>
+
+      <Folder
+        id="rhythm-wave"
+        title="Waveform"
+        hint="Pick an event on the map, then fingerprint one BHZ trace"
+      >
+        <WaveformHarmonicDesk />
+      </Folder>
+
+      <Folder
+        id="rhythm-method"
+        title="Method"
+        hint="Aftershock control · frozen probe · math"
+      >
+        <p className="text-xs text-muted">
+          Aftershock check:{" "}
+          <strong className="text-fg">
+            {etasControl.verdict ?? etasControl.reason ?? "—"}
+          </strong>
+          {etasControl.n != null ? ` · n=${etasControl.n}` : ""}
         </p>
-        <ul className="space-y-2 text-sm">
-          {DRAGON_NODES.map((node) => {
-            const st = nodeStatus(features, node, { timeWindow });
-            const stats = nodeEventStats(features, node);
-            const active = focusNodeId === node.id;
-            return (
-              <li
-                key={node.id}
-                className="flex items-start gap-2 rounded-md border border-border/60 bg-bg/40 px-2 py-2 sm:px-2.5"
-              >
-                <span
-                  className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border ${STATUS_STYLE[st]}`}
-                  title={STATUS_PLAIN[st]}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[0.85rem] font-medium text-fg sm:text-sm">
-                      {node.name}
-                    </span>
-                    <span className="text-[0.65rem] text-dim">{STATUS_PLAIN[st]}</span>
-                  </div>
-                  {stats.count > 0 && (
-                    <div className="mt-0.5 text-[0.65rem] text-muted">
-                      {stats.count} eq · max M{stats.maxMag.toFixed(1)}
-                    </div>
-                  )}
-                  <div className="mt-1.5 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFocusNode(active ? null : node.id);
-                        setTab("live");
-                      }}
-                      className={`inline-flex min-h-9 items-center gap-1 rounded-md border border-border px-2 text-[0.72rem] font-medium ${
-                        active
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "text-muted hover:text-fg"
-                      }`}
-                    >
-                      <Crosshair className="h-3 w-3" />
-                      {active ? "Clear focus" : "Focus on map"}
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
-        <button
-          type="button"
-          onClick={() => setShowEtas((v) => !v)}
-          className="flex min-h-10 w-full items-center gap-2 text-left"
-          aria-expanded={showEtas}
-        >
-          {showEtas ? (
-            <ChevronDown className="h-4 w-4 text-dim" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-dim" />
-          )}
-          <div>
-            <h3 className="text-xs font-medium uppercase tracking-wider text-primary">
-              Aftershock control (ETAS residual)
-            </h3>
-            <p className="text-[0.65rem] text-dim">
-              Optional check — does order survive after a simple aftershock whitening?
-            </p>
-          </div>
-        </button>
-        {showEtas && (
-          <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs text-muted">
-            <p>
-              Status:{" "}
-              <strong className="text-fg">
-                {etasControl.verdict ?? etasControl.reason ?? "—"}
-              </strong>
-              {etasControl.n != null ? ` · n=${etasControl.n}` : ""}
-            </p>
-            <p className="text-[0.7rem] leading-relaxed">
-              {etasControl.plain ||
-                `Omori p≈${OMORI_CONTROL.p} residual whitening is a control, not a second forecast.`}
-            </p>
-          </div>
-        )}
-      </section>
-
-      <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
-        <button
-          type="button"
-          onClick={() => setShowTech((v) => !v)}
-          className="flex min-h-10 w-full items-center gap-2 text-left"
-          aria-expanded={showTech}
-        >
-          {showTech ? (
-            <ChevronDown className="h-4 w-4 text-dim" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-dim" />
-          )}
-          <div className="flex items-center gap-1.5">
-            <Info className="h-3.5 w-3.5 text-dim" />
-            <span className="text-xs font-medium uppercase tracking-wider text-primary">
-              Operator notes
-            </span>
-          </div>
-        </button>
-        {showTech && (
-          <div className="mt-3 space-y-2 border-t border-border/60 pt-3 text-[0.72rem] leading-relaxed text-muted">
-            <p>
-              Corpus axis bands (study language): COHERENCE {"(<1)"} · CLUTCH (1–2) · SUB-FLOOR (2–
-              {SUPT_ANCHORS.zetaFloor}) · VACUUM {"(≥ζ)"}. Cusp ~1.88–1.96 can appear under heavy
-              tails (~12%).
-            </p>
-            <p>
-              Probe by <XPerson profile="sheppard" />. Null is a permitted outcome — not a broken
-              meter.
-            </p>
-            <a
-              href="https://earthquake.usgs.gov/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary hover:underline"
-            >
-              USGS Earthquake Hazards
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-        )}
-      </section>
-
-      <SuptMathSection compact defaultOpen={false} />
+        <p className="text-[0.7rem] leading-relaxed text-muted">
+          {etasControl.plain ||
+            `Omori p≈${OMORI_CONTROL.p} residual is a control, not a second forecast.`}
+        </p>
+        <SuptMathSection compact defaultOpen={false} />
+      </Folder>
     </div>
   );
 }

@@ -71,7 +71,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "It does not measure size or location — only gaps between events.",
       "Quiet / ordinary spacing is normal and valid — not a broken feed.",
       "Solar has the same idea for flares and CMEs. Not a forecast.",
-      "Want the research name? Expand “Technical detail” or Method & credit (SUPT / Sheppard).",
+      "Want the research name? How we got this · Method folder (SUPT / Sheppard). Sky and waveform are separate drawers.",
       "Sky context shows lunar phase computed locally — compare with timing only; not a forecast.",
       "Ground magnetic series: Solar → Magneto (Cordaro / INTERMAGNET). Flare → H → EQ is exploratory.",
     ],
