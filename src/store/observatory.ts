@@ -99,6 +99,8 @@ import {
   loadBasemapStyle,
   loadOverlays,
   saveOverlays,
+  scrubOverlays,
+  CULLED_OVERLAY_IDS,
   type BasemapStyleId,
   type MapOverlayId,
 } from "@/lib/feeds/mapStyles";
@@ -809,7 +811,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     set({ basemapStyle: id });
   },
   setOverlay: (id, on) => {
-    const overlays = { ...get().overlays, [id]: on };
+    if ((CULLED_OVERLAY_IDS as readonly string[]).includes(id)) return;
+    const overlays = scrubOverlays({ ...get().overlays, [id]: on });
     try {
       saveOverlays(overlays);
     } catch {
@@ -834,7 +837,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }
   },
   setOverlaysBulk: (next) => {
-    const overlays = { ...next };
+    const overlays = scrubOverlays({ ...next });
     try {
       saveOverlays(overlays);
     } catch {

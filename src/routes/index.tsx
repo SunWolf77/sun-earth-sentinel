@@ -948,15 +948,12 @@ function ObservatoryApp() {
           }`}
         >
           {tab === "live" ? (
-            <div className="flex min-w-0 flex-col gap-1">
-              <FieldCouplingDesk compact />
-              <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               <div className="min-w-0 flex-1">
                 <MobilePulseStrip />
               </div>
               <div className="hidden shrink-0 sm:block">
                 <ModeHonestyChip liveMap />
-              </div>
               </div>
             </div>
           ) : (
@@ -1148,29 +1145,33 @@ function ObservatoryApp() {
 
               {/* Bottom dock track — layer bar reserved under map */}
               <div className="ww-map-stage__dock">
+                {isMobile && (mobileSheet === "filters" || mobileSheet === "events") && (
+                  <div
+                    className="ww-dock-sheet pointer-events-auto w-full"
+                    role="dialog"
+                    aria-label={mobileSheet === "filters" ? "Filters" : "Events"}
+                  >
+                    <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+                      <span className="text-[0.7rem] font-semibold text-fg">
+                        {mobileSheet === "filters" ? "Filters" : "Events"}
+                      </span>
+                      <button
+                        type="button"
+                        className="ww-btn ww-btn--icon ww-btn--compact"
+                        onClick={() => setMobileSheet("closed")}
+                        aria-label="Close sheet"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="scroll-thin max-h-[min(42dvh,20rem)] overflow-y-auto">
+                      {mobileSheet === "filters" ? filtersBlock : eventsBlock}
+                    </div>
+                  </div>
+                )}
                 <MapStyleControl placement="grid" />
               </div>
             </div>
-            {mobileSheet !== "closed" && mobileSheet !== "map" && mobileSheet !== "event" && (
-              <div className="absolute inset-x-0 bottom-0 z-[600] max-h-[min(55vh,calc(100%-4.5rem))] overflow-hidden rounded-t-xl border border-border bg-bg shadow-2xl lg:hidden">
-                <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                  <span className="text-xs font-semibold text-fg">
-                    {mobileSheet === "filters" ? "Filters" : "Events"}
-                  </span>
-                  <button
-                    type="button"
-                    className="ww-btn ww-btn--icon ww-btn--compact"
-                    onClick={() => setMobileSheet("closed")}
-                    aria-label="Close sheet"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="scroll-thin max-h-[48vh] overflow-y-auto">
-                  {mobileSheet === "filters" ? filtersBlock : eventsBlock}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 

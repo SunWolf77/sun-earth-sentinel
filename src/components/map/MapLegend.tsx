@@ -30,10 +30,7 @@ export function MapLegend() {
   const showDepth = overlays.quakes && overlays.depthColor;
   const showDecay = overlays.heatmap && overlays.timeDecay;
   const showPlates = overlays.plates;
-  const showWind = overlays.windParticles;
-  const showCape = overlays.cape;
-  const showAq = overlays.airQuality;
-  const hasContent = showDepth || showDecay || showPlates || showWind || showCape || showAq;
+  const hasContent = showDepth || showDecay || showPlates;
 
   const [open, setOpen] = useState(false);
   /** Mobile accordion: which block is expanded inside the panel */
@@ -285,74 +282,6 @@ export function MapLegend() {
               </table>
             </>
           )}
-        </div>
-      )}
-
-      {showWind && (
-        <div className="rounded-lg border border-border bg-bg/92 px-2 py-1.5 shadow-md backdrop-blur">
-          <div className="mb-1 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
-            Wind (km/h)
-          </div>
-          <ul className="space-y-0.5 text-[0.58rem] text-muted">
-            <li className="flex items-center gap-1.5">
-              <span className="h-1 w-3 rounded-full bg-sky-300" /> Light {"<"}15
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-1 w-3 rounded-full bg-sky-400" /> Moderate
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-1 w-3 rounded-full bg-cyan-400" /> Strong
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-1 w-3 rounded-full bg-yellow-400" /> Gale+
-            </li>
-          </ul>
-          <p className="mt-1 text-[0.52rem] text-dim">Open-Meteo · model</p>
-        </div>
-      )}
-
-      {showCape && (
-        <div className="rounded-lg border border-border bg-bg/92 px-2 py-1.5 shadow-md backdrop-blur">
-          <div className="mb-1 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
-            CAPE
-          </div>
-          <ul className="space-y-0.5 text-[0.58rem] text-muted">
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-green-500/50" /> Low
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-yellow-400/60" /> Moderate
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-orange-500/70" /> High
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-500/70" /> Extreme
-            </li>
-          </ul>
-        </div>
-      )}
-
-      {showAq && (
-        <div className="rounded-lg border border-border bg-bg/92 px-2 py-1.5 shadow-md backdrop-blur">
-          <div className="mb-1 text-[0.58rem] font-semibold uppercase tracking-wider text-dim">
-            PM2.5
-          </div>
-          <ul className="space-y-0.5 text-[0.58rem] text-muted">
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-green-500/50" /> Good
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-yellow-400/60" /> Moderate
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-orange-500/70" /> Unhealthy
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-500/70" /> Hazardous
-            </li>
-          </ul>
-          <p className="mt-1 text-[0.52rem] text-dim">Open-Meteo AQ</p>
         </div>
       )}
     </div>

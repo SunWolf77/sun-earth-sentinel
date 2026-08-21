@@ -10,6 +10,7 @@ import { ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
 import { SinceLastVisitStrip } from "@/components/ops/SinceLastVisitStrip";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
+import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
 import { useObservatory, filteredEq } from "@/store/observatory";
 import { buildActivityStory } from "@/lib/ops/activityStory";
 import { buildTodayBrief } from "@/lib/ops/todayBrief";
@@ -97,6 +98,7 @@ export function MobilePulseStrip() {
         <ChevronUp className="h-3.5 w-3.5" />
       </button>
       <TodayBriefBar dense showRecLink={false} />
+      <FieldCouplingDesk compact />
       <SinceLastVisitStrip dense />
       <ActivityStoryChip />
       {!isMobile && (

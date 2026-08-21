@@ -31,6 +31,7 @@ import { useObservatory } from "@/store/observatory";
 import {
   BASEMAP_STYLES,
   OVERLAY_META,
+  CULLED_OVERLAY_IDS,
   mobileLeanOverlays,
   type BasemapStyleId,
   type MapOverlayId,
@@ -79,6 +80,7 @@ export function MapStyleControl({
   placement?: "overlay" | "grid";
 }) {
   const [open, setOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string>("core");
   const panelRef = useRef<HTMLDivElement>(null);
   const basemapStyle = useObservatory((s) => s.basemapStyle);
   const overlays = useObservatory((s) => s.overlays);
@@ -92,13 +94,20 @@ export function MapStyleControl({
   const mapView = useObservatory((s) => s.mapView);
   const timeWindow = useObservatory((s) => s.timeWindow);
 
-  const HIDDEN_OVERLAYS = new Set<MapOverlayId>(["iss", "aurora"]);
+  const HIDDEN_OVERLAYS = new Set<MapOverlayId>([
+    "iss",
+    "aurora",
+    ...CULLED_OVERLAY_IDS,
+  ]);
   const quickIds = (mobile ? MOBILE_QUICK_LAYERS : DESKTOP_QUICK_LAYERS).filter(
     (id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId),
   );
 
   const onCount = useMemo(
-    () => OVERLAY_META.filter(({ id }) => overlays[id]).length,
+    () =>
+      OVERLAY_META.filter(
+        ({ id }) => overlays[id] && !HIDDEN_OVERLAYS.has(id),
+      ).length,
     [overlays],
   );
 
@@ -250,61 +259,76 @@ export function MapStyleControl({
               })}
             </div>
 
-            {LAYER_GROUPS.map((g) => (
-              <div key={g.id} className="mt-3">
-                <div className="ww-style-panel__label">{g.label}</div>
-                {g.id === "atmosphere" && (
-                  <p className="mb-1.5 text-[0.58rem] leading-snug text-dim">
-                    Free model/radar context (Open-Meteo · RainViewer). Not official forecasts.
-                    Best on 2D · keep seismic layers readable.
-                  </p>
-                )}
-                <ul className="space-y-1">
-                  {g.ids
-                    .filter((id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId))
-                    .map((id) => {
-                      const meta = OVERLAY_META.find((m) => m.id === id);
-                      if (!meta) return null;
-                      const Icon = OVERLAY_ICONS[id as MapOverlayId];
-                      const on = overlays[id as MapOverlayId];
-                      const focusOnly = id === "mmiContours";
-                      return (
-                        <li key={id}>
-                          <button
-                            type="button"
-                            onClick={() => setOverlay(id as MapOverlayId, !on)}
-                            className={`ww-layer-row ${on ? "ww-layer-row--on" : ""} ${
-                              focusOnly && !focusNodeId ? "opacity-70" : ""
-                            }`}
-                            disabled={focusOnly && !focusNodeId}
-                            title={
-                              focusOnly && !focusNodeId
-                                ? "Select a focus node first"
-                                : meta.hint
-                            }
-                          >
-                            <Icon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="min-w-0 flex-1 text-left">
-                              <span className="block text-[0.72rem] font-medium">
-                                {meta.label}
-                              </span>
-                              <span className="block text-[0.58rem] text-dim">
-                                {meta.hint}
-                              </span>
-                            </span>
-                            <span
-                              className={`ww-layer-state ${on ? "ww-layer-state--on" : "ww-layer-state--off"}`}
-                              aria-hidden
+            {LAYER_GROUPS.map((g) => {
+              const ids = g.ids.filter((id) => !HIDDEN_OVERLAYS.has(id as MapOverlayId));
+              if (!ids.length) return null;
+              const expanded = openGroup === g.id;
+              const onInGroup = ids.filter((id) => overlays[id as MapOverlayId]).length;
+              return (
+                <div key={g.id} className="mt-2">
+                  <button
+                    type="button"
+                    className="flex w-full min-h-9 items-center gap-1.5 rounded-md px-1 text-left"
+                    onClick={() => setOpenGroup(expanded ? "" : g.id)}
+                    aria-expanded={expanded}
+                  >
+                    {expanded ? (
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-dim" />
+                    ) : (
+                      <ChevronUp className="h-3.5 w-3.5 shrink-0 rotate-90 text-dim" />
+                    )}
+                    <span className="ww-style-panel__label m-0 flex-1">{g.label}</span>
+                    {onInGroup > 0 && (
+                      <span className="text-[0.55rem] tabular-nums text-primary">{onInGroup}</span>
+                    )}
+                  </button>
+                  {expanded && (
+                    <ul className="space-y-1 pt-1">
+                      {ids.map((id) => {
+                        const meta = OVERLAY_META.find((m) => m.id === id);
+                        if (!meta) return null;
+                        const Icon = OVERLAY_ICONS[id as MapOverlayId];
+                        const on = overlays[id as MapOverlayId];
+                        const focusOnly = id === "mmiContours";
+                        return (
+                          <li key={id}>
+                            <button
+                              type="button"
+                              onClick={() => setOverlay(id as MapOverlayId, !on)}
+                              className={`ww-layer-row ${on ? "ww-layer-row--on" : ""} ${
+                                focusOnly && !focusNodeId ? "opacity-70" : ""
+                              }`}
+                              disabled={focusOnly && !focusNodeId}
+                              title={
+                                focusOnly && !focusNodeId
+                                  ? "Select a focus node first"
+                                  : meta.hint
+                              }
                             >
-                              {on ? "ON" : "OFF"}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                </ul>
-              </div>
-            ))}
+                              <Icon className="h-3.5 w-3.5 shrink-0" />
+                              <span className="min-w-0 flex-1 text-left">
+                                <span className="block text-[0.72rem] font-medium">
+                                  {meta.label}
+                                </span>
+                                <span className="block text-[0.58rem] text-dim">
+                                  {meta.hint}
+                                </span>
+                              </span>
+                              <span
+                                className={`ww-layer-state ${on ? "ww-layer-state--on" : "ww-layer-state--off"}`}
+                                aria-hidden
+                              >
+                                {on ? "ON" : "OFF"}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -19,7 +19,6 @@ export type MapOverlayId =
   | "aurora"
   | "wildfires"
   | "neos"
-  /** Atmosphere (Windy-inspired, opt-in) */
   | "windParticles"
   | "radar"
   | "clouds"
@@ -27,6 +26,27 @@ export type MapOverlayId =
   | "waves"
   | "wxProbe"
   | "airQuality";
+
+/** Weather/radar/wind — culled. Dedicated apps do this; we do not. */
+export const CULLED_OVERLAY_IDS: readonly MapOverlayId[] = [
+  "windParticles",
+  "radar",
+  "clouds",
+  "cape",
+  "waves",
+  "wxProbe",
+  "airQuality",
+];
+
+export function scrubOverlays(
+  overlays: Record<MapOverlayId, boolean>,
+): Record<MapOverlayId, boolean> {
+  const next = { ...overlays };
+  for (const id of CULLED_OVERLAY_IDS) next[id] = false;
+  next.iss = false;
+  next.aurora = false;
+  return next;
+}
 
 export type MapStyleConfig = {
   id: BasemapStyleId;
@@ -84,7 +104,7 @@ export const BASEMAP_STYLES: Record<BasemapStyleId, MapStyleConfig> = {
 /**
  * Startup defaults — map readable first, layers opt-in.
  * Quakes on (filtered by minMag M4.5+), nodes on; plates/depth/zones off.
- * Atmosphere always off.
+ * Atmosphere always off (weather layers culled).
  */
 export const DEFAULT_OVERLAYS: Record<MapOverlayId, boolean> = {
   quakes: true,
@@ -299,7 +319,7 @@ export function loadBasemapStyle(): BasemapStyleId {
 }
 
 /** Bump key when defaults change so users get the lean map once. */
-const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v8";
+const OVERLAY_STORAGE_KEY = "wolfwatch_overlays_v9";
 
 export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, boolean> {
   if (typeof window === "undefined") return { ...DEFAULT_OVERLAYS };
@@ -307,7 +327,7 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
     const raw = localStorage.getItem(OVERLAY_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Record<MapOverlayId, boolean>>;
-      return { ...DEFAULT_OVERLAYS, ...parsed };
+      return scrubOverlays({ ...DEFAULT_OVERLAYS, ...parsed });
     }
     for (const k of [
       "wolfwatch_overlays_v7",
@@ -321,7 +341,7 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
       if (!legacy) continue;
       try {
         const parsed = JSON.parse(legacy) as Partial<Record<MapOverlayId, boolean>>;
-        const merged: Record<MapOverlayId, boolean> = {
+        const merged = scrubOverlays({
           ...DEFAULT_OVERLAYS,
           ...parsed,
           volcanoes: parsed.volcanoes ?? true,
@@ -330,14 +350,7 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
           aurora: false,
           heatmap: false,
           significant: false,
-          windParticles: false,
-          radar: false,
-          clouds: false,
-          cape: false,
-          waves: false,
-          wxProbe: false,
-          airQuality: false,
-        };
+        });
         localStorage.removeItem(k);
         try {
           localStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(merged));
@@ -352,18 +365,18 @@ export function loadOverlays(opts?: { mobile?: boolean }): Record<MapOverlayId, 
   } catch {
     /* ignore */
   }
-  if (opts?.mobile) return mobileLeanOverlays();
+  if (opts?.mobile) return scrubOverlays(mobileLeanOverlays());
   try {
-    if (window.matchMedia?.("(max-width: 767px)").matches) return mobileLeanOverlays();
+    if (window.matchMedia?.("(max-width: 767px)").matches) return scrubOverlays(mobileLeanOverlays());
   } catch {
     /* ignore */
   }
-  return { ...DEFAULT_OVERLAYS };
+  return scrubOverlays({ ...DEFAULT_OVERLAYS });
 }
 
 export function saveOverlays(overlays: Record<MapOverlayId, boolean>): void {
   try {
-    localStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(overlays));
+    localStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(scrubOverlays(overlays)));
   } catch {
     /* ignore */
   }
