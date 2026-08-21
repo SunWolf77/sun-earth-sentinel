@@ -17,6 +17,7 @@ import {
   type CouplingThread,
 } from "@/lib/ops/fieldCoupling";
 import { requestFocus } from "@/lib/ops/focusNav";
+import { AntipodeExplainer } from "@/components/ops/AntipodeExplainer";
 
 function toPicked(q: CouplingQuake): PickedEvent {
   return {
@@ -226,6 +227,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
         <p className="mt-3 font-mono text-[0.68rem] text-muted">None · 14 d</p>
       )}
 
+      <AntipodeExplainer compact />
       <details className="mt-3 text-[0.62rem] text-dim">
         <summary className="cursor-pointer font-semibold text-muted">Window</summary>
         <div className="mt-1.5 grid gap-2 sm:grid-cols-2">

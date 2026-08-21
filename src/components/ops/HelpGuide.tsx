@@ -77,6 +77,16 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     ],
   },
   {
+    id: "antipode",
+    title: "Antipode",
+    body: [
+      "Antipode = the point opposite an epicentre. The desk measures offset (0° = exact opposite) and lag.",
+      "Ring-of-Fire antipodes often land on the Ring — geography, not a signal.",
+      "Wave focusing at the opposite point is physics. Triggering is a 2018 paper, not USGS consensus.",
+      "Solar → Field coupling → “What antipode means” for papers (O’Malley 2018, Retailleau 2014, USGS).",
+    ],
+  },
+  {
     id: "keys",
     title: "Keyboard shortcuts",
     body: [

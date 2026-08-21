@@ -21,6 +21,7 @@ import { SITE, APP_VERSION, ogImageUrl, shareCardUrl, absoluteUrl, xCardDebugRep
 import { XHandle, XPerson, XProfileChips } from "@/components/ui/XProfileLink";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
 import { CacheAndSwpcDocs } from "@/components/about/CacheAndSwpcDocs";
+import { AntipodeExplainer } from "@/components/ops/AntipodeExplainer";
 
 export function AboutPanel() {
   const [gpu, setGpu] = useState<GpuCapabilities | null>(null);
@@ -111,6 +112,8 @@ export function AboutPanel() {
           <code className="text-primary">node=andes</code> (CL · Nazca).
         </p>
       </Section>
+
+      <AntipodeExplainer />
 
       <Section title="Timing patterns (method: SUPT)">
         <p>
