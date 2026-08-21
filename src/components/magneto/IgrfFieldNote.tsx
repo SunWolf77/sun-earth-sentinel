@@ -103,6 +103,17 @@ export function IgrfFieldNote({ defaultOpen = false }: { defaultOpen?: boolean }
               Official product page
               <ExternalLink className="h-3 w-3" />
             </a>
+            {active.doi && (
+              <a
+                href={`https://doi.org/${active.doi}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-2 inline-flex items-center gap-1 font-mono text-[0.65rem] text-primary hover:underline"
+              >
+                doi:{active.doi}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </article>
 
           <div className="flex items-start gap-1.5 rounded-md border border-border/70 bg-panel/60 px-2 py-1.5 text-[0.65rem] text-dim">

@@ -22,6 +22,7 @@ import { XHandle, XPerson, XProfileChips } from "@/components/ui/XProfileLink";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
 import { CacheAndSwpcDocs } from "@/components/about/CacheAndSwpcDocs";
 import { AntipodeExplainer } from "@/components/ops/AntipodeExplainer";
+import { CitationRow } from "@/components/ops/CitationLink";
 
 export function AboutPanel() {
   const [gpu, setGpu] = useState<GpuCapabilities | null>(null);
@@ -230,20 +231,7 @@ export function AboutPanel() {
                   <li key={p.slice(0, 40)}>{p}</li>
                 ))}
               </ul>
-              <div className="flex flex-wrap gap-2">
-                {MORVEL_NOTES.citations.map((c) => (
-                  <a
-                    key={c.url}
-                    href={c.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md border border-border bg-bg/60 px-2 py-1 text-[0.65rem] text-primary hover:bg-elevated"
-                  >
-                    {c.label}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                ))}
-              </div>
+              <CitationRow cites={MORVEL_NOTES.citations} />
             </Section>
 
             <Section title={EULER_CALC_NOTES.title}>
@@ -289,6 +277,7 @@ export function AboutPanel() {
               <p className="rounded-md border border-primary/25 bg-primary/5 px-2.5 py-2 text-xs text-dim">
                 <strong className="text-primary">Stance:</strong> {SHAKEMAP_NOTES.stance}
               </p>
+              <CitationRow cites={SHAKEMAP_NOTES.citations} />
             </Section>
 
             <Section title="Heat time-decay">
@@ -322,6 +311,26 @@ export function AboutPanel() {
 
             <Section title={ATTENUATION_NOTES.title}>
               <p className="mb-2">{ATTENUATION_NOTES.summary}</p>
+              <ul className="mb-2 list-disc space-y-1 pl-5 text-xs">
+                {ATTENUATION_NOTES.models.map((m) => (
+                  <li key={m.name}>
+                    <strong className="text-fg">{m.name}</strong> · {m.region}
+                    {m.doi && (
+                      <>
+                        {" "}
+                        <a
+                          href={`https://doi.org/${m.doi}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-primary hover:underline"
+                        >
+                          doi:{m.doi}
+                        </a>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </Section>
 
             <Section title={EEW_NOTES.title}>
@@ -417,8 +426,37 @@ export function AboutPanel() {
           <div>
             <p className="font-semibold text-fg">Tectonics (educational)</p>
             <p>
-              Bird (2003) PB2002 · DeMets et al. MORVEL / NNR-MORVEL56 — model credit with those
-              authors; community GeoJSON packaging only.
+              <a
+                href="https://doi.org/10.1029/2001GC000252"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Bird (2003) PB2002
+              </a>
+              <span className="font-mono text-dim"> doi:10.1029/2001GC000252</span>
+              {" · "}
+              <a
+                href="https://doi.org/10.1029/2009GC002892"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                DeMets et al. 2010 MORVEL
+              </a>
+              <span className="font-mono text-dim"> doi:10.1029/2009GC002892</span>
+              {" · "}
+              <a
+                href="https://doi.org/10.1029/2011GC003751"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Argus et al. 2011 NNR-MORVEL56
+              </a>
+              <span className="font-mono text-dim"> doi:10.1029/2011GC003751</span>
+              {" — "}
+              model credit with those authors; community GeoJSON packaging only.
             </p>
           </div>
 

@@ -98,21 +98,25 @@ export const ATTENUATION_NOTES = {
       name: "Boore–Atkinson / NGA-West2 family",
       region: "Active crust (e.g. WUS)",
       notes: "Distance, mag, depth, Vs30; standard for crustal events.",
+      doi: "10.1193/070113EQS184M",
     },
     {
-      name: "Abrahamson–Silva / ASK14 et al.",
+      name: "Abrahamson–Silva / ASK14",
       region: "NGA-West2",
       notes: "Next-generation attenuation; used in USGS hybrid products.",
+      doi: "10.1193/070913EQS198M",
     },
     {
       name: "Zhao / Si–Midorikawa style",
       region: "Subduction (Japan / similar)",
       notes: "Interface vs intraslab paths; relevant for Tonga–Kermadec context.",
+      doi: "10.1785/0120050122",
     },
     {
       name: "Atkinson–Boore subduction",
       region: "Cascadia / global subduction",
       notes: "Separate terms for interface and in-slab.",
+      doi: "10.1785/0120020156",
     },
   ],
   sentinelStance:

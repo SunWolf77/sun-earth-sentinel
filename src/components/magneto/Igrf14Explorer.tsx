@@ -206,6 +206,7 @@ export function Igrf14Explorer({ defaultOpen = true }: { defaultOpen?: boolean }
               className="inline-flex items-center gap-1 text-[0.65rem] text-primary hover:underline"
             >
               EPS paper · IGRF-14
+              <span className="font-mono text-dim"> doi:10.1186/s40623-025-02360-0</span>
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>

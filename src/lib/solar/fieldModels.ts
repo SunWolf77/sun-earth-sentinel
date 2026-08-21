@@ -16,6 +16,7 @@ export type FieldModel = {
   accuracy: string;
   use: string;
   href: string;
+  doi?: string;
 };
 
 export const FIELD_MODELS: FieldModel[] = [
@@ -32,6 +33,7 @@ export const FIELD_MODELS: FieldModel[] = [
       "Global smooth field only. SV stops at degree 8; n=9–13 hold constant after 2025.0. Not crustal, not Sq, not storm-time. Close to — but not the same as — WMM2025.",
     use: "Research standard · residual main field · SES IGRF-14 explorer under Magneto",
     href: "https://www.ncei.noaa.gov/products/international-geomagnetic-reference-field",
+    doi: "10.1186/s40623-025-02360-0",
   },
   {
     id: "wmm2025",
@@ -60,6 +62,7 @@ export const FIELD_MODELS: FieldModel[] = [
       "Research products change between versions. Excellent for science; not a substitute for SWPC storm scales or real-time INTERMAGNET.",
     use: "Core-flow research · secular acceleration · academic residual analysis",
     href: "https://www.spacecenter.dk/files/magnetic-models/CHAOS-7/",
+    doi: "10.1186/s40623-020-01280-5",
   },
 ];
 

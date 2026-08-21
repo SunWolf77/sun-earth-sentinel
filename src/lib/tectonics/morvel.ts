@@ -9,6 +9,7 @@
  */
 
 import { EULER_POLES, plateVelocity, type EnVelocity, type EulerPole } from "@/lib/tectonics/euler";
+import type { Citation } from "@/lib/cite";
 
 export const MORVEL_NOTES = {
   title: "MORVEL plate motion model",
@@ -24,17 +25,17 @@ export const MORVEL_NOTES = {
   citations: [
     {
       label: "MORVEL (DeMets et al. 2010)",
-      url: "https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GC002892",
+      doi: "10.1029/2009GC002892",
     },
     {
       label: "NNR-MORVEL56 (Argus et al. 2011)",
-      url: "https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2011GC003751",
+      doi: "10.1029/2011GC003751",
     },
     {
       label: "PB2002 plates (Bird 2003)",
-      url: "https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2001GC000252",
+      doi: "10.1029/2001GC000252",
     },
-  ],
+  ] satisfies Citation[],
 };
 
 export const EULER_CALC_NOTES = {

@@ -4,6 +4,7 @@
  */
 
 import { pointInBounds, type LatLonBounds } from "@/lib/geo/bounds";
+import type { Citation } from "@/lib/cite";
 
 export const SHAKEMAP_NOTES = {
   title: "USGS ShakeMap technology",
@@ -62,6 +63,16 @@ export const SHAKEMAP_NOTES = {
   },
   stance:
     "WolfWatch does not recompute ShakeMaps. Focused Node mode may draw official USGS cont_mmi.json contours for a single preferred event. Authoritative product remains USGS.",
+  citations: [
+    {
+      label: "Wald et al. 1999 ShakeMaps",
+      doi: "10.1193/1.1586057",
+    },
+    {
+      label: "Worden & Wald 2016 ShakeMap Manual",
+      doi: "10.3133/tm12A1",
+    },
+  ] satisfies Citation[],
 };
 
 export function shakeMapEventUrl(eventId: string | undefined | null): string | null {
