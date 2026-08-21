@@ -144,9 +144,8 @@ export function buildGuatemalaFromGvp(
     if (!hit) continue;
 
     const fromWeeklyHit = !!fromWeekly;
-    // Severity already encoded on weekly (ORANGE new eruptive, YELLOW continuing)
-    const colorCode = hit.colorCode;
-    const alertLevel = hit.alertLevel;
+    const colorCode = fromWeeklyHit ? "YELLOW" : "UNASSIGNED";
+    const alertLevel = fromWeeklyHit ? "ADVISORY" : "CATALOG";
     if ((colorCode || "").toUpperCase() === "GREEN") continue;
 
     const noticeUrl =

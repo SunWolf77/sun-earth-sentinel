@@ -4,7 +4,7 @@ import {
   colorCodeHex,
   type UsgsVolcanoAlert,
 } from "@/lib/feeds/usgsVolcanoAlerts";
-import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
+import { alertSourceLabel, isAgencyElevated } from "@/lib/feeds/globalVolcanoAlerts";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { AshCloudDesk } from "@/components/map/AshCloudDesk";
@@ -172,6 +172,8 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
   const gvpCount = useObservatory((s) => s.gvpVolcanoes.length);
   const gvpLoading = useObservatory((s) => s.gvpVolcanoesLoading);
   const memoryPins = pins.filter((k) => !alerts.some((a) => alertKey(a) === k));
+  const agencyN = alerts.filter((a) => isAgencyElevated(a)).length;
+  const weeklyN = alerts.length - agencyN;
   const focusedElevated =
     focusNodeId?.startsWith("usgs-volc-") ||
     focusNodeId?.startsWith("gvp-") ||
@@ -203,7 +205,7 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
     return (
       <div className="rounded-lg border border-border/80 bg-panel/60 px-2.5 py-2 text-[0.68rem] text-dim">
         <span className="inline-flex items-center gap-1 font-semibold text-muted">
-          <Mountain className="h-3.5 w-3.5" /> Official volcano alerts
+          <Mountain className="h-3.5 w-3.5" /> Agency elevated
         </span>
         <p className="mt-0.5">
           No elevated / weekly-report vents right now. Turn on{" "}
@@ -225,7 +227,10 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
       <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
         <span className="inline-flex items-center gap-1 text-[0.68rem] font-semibold text-orange-300">
           <Mountain className="h-3.5 w-3.5" />
-          Elevated world ({alerts.length})
+          Elevated · agency {agencyN}
+          {weeklyN > 0 && (
+            <span className="font-normal text-dim"> · GVP weekly {weeklyN}</span>
+          )}
           {pins.length > 0 && (
             <span className="font-normal text-dim">· {pins.length} pinned</span>
           )}

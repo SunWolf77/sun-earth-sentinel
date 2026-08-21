@@ -68,14 +68,14 @@ function colorForKind(kind: GvpActivityKind): {
 } {
   switch (kind) {
     case "new_eruptive":
-      return { colorCode: "ORANGE", alertLevel: "WATCH" };
+      return { colorCode: "UNASSIGNED", alertLevel: "WEEKLY" };
     case "new_unrest":
-      return { colorCode: "YELLOW", alertLevel: "ADVISORY" };
+      return { colorCode: "UNASSIGNED", alertLevel: "WEEKLY" };
     case "continuing":
-      return { colorCode: "YELLOW", alertLevel: "ADVISORY" };
+      return { colorCode: "UNASSIGNED", alertLevel: "WEEKLY" };
     case "erupting":
     default:
-      return { colorCode: "YELLOW", alertLevel: "ADVISORY" };
+      return { colorCode: "UNASSIGNED", alertLevel: "CATALOG" };
   }
 }
 

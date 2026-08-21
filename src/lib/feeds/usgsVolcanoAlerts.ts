@@ -227,6 +227,94 @@ export function diffVolcWatch(
   return transitions;
 }
 
+function shortObs(full: string, abbr?: string | null): string {
+  if (abbr && abbr.length <= 6) return abbr.toUpperCase();
+  const f = full.toLowerCase();
+  if (f.includes("alaska")) return "AVO";
+  if (f.includes("hawaiian") || f.includes("hawaii")) return "HVO";
+  if (f.includes("mariana")) return "NMI";
+  if (f.includes("cascade")) return "CVO";
+  if (f.includes("yellowstone")) return "YVO";
+  if (f.includes("california")) return "CalVO";
+  return full.replace(/[^A-Za-z]/g, "").slice(0, 4).toUpperCase() || "USGS";
+}
+
+function pick(r: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of keys) {
+    if (r[k] != null && r[k] !== "") return r[k];
+  }
+  return undefined;
+}
+
+function str(r: Record<string, unknown>, ...keys: string[]): string | null {
+  const v = pick(r, ...keys);
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s || null;
+}
+
+function num(r: Record<string, unknown>, ...keys: string[]): number | null {
+  const v = pick(r, ...keys);
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Map HANS getElevatedVolcanoes row — camelCase (live) and snake_case (older dumps). */
+export function parseHansElevatedRow(
+  r: Record<string, unknown>,
+  i = 0,
+): UsgsVolcanoAlert {
+  const vnum = str(r, "vnum", "volcano_number");
+  const name = str(r, "volcano_name", "volcanoName", "name") || "Volcano";
+  const observatory = str(r, "obs_fullname", "obsFullname", "observatory") || "USGS";
+  const abbrRaw = str(r, "obs_abbr", "obsAbbr");
+  const abbr = shortObs(observatory, abbrRaw);
+  return {
+    id: vnum || str(r, "notice_identifier", "noticeId") || name || `volc-${i}`,
+    name,
+    vnum,
+    alertLevel: (str(r, "alert_level", "alertLevel") || "ADVISORY") as UsgsAlertLevel,
+    colorCode: (str(r, "color_code", "colorCode") || "YELLOW") as UsgsColorCode,
+    obsAbbr: abbr,
+    obsName: observatory,
+    sentUtc: str(r, "sent_utc", "sent_time", "sentTime"),
+    sentUnix: num(r, "sent_unixtime", "sentUnixtime"),
+    noticeUrl: str(r, "notice_url", "noticeUrl"),
+    noticeId: str(r, "notice_identifier", "noticeId"),
+    lat: num(r, "latitude", "lat"),
+    lon: num(r, "longitude", "lon"),
+    elevationM: num(r, "elevation_meters", "elevationMeters"),
+    region: str(r, "region"),
+    volcanoUrl: str(r, "volcano_url", "volcanoUrl"),
+    source: "usgs",
+  };
+}
+
+export function parseHansVolcanoDetail(
+  v: UsgsVolcanoAlert,
+  d: Record<string, unknown>,
+): UsgsVolcanoAlert {
+  const lat = num(d, "latitude", "lat");
+  const lon = num(d, "longitude", "lon");
+  const elev = num(d, "elevation_meters", "elevationMeters");
+  const name = str(d, "volcano_name", "volcanoName", "name");
+  const region = str(d, "region");
+  const url = str(d, "volcano_url", "volcanoUrl");
+  const obsName = str(d, "obs_fullname", "obsFullname", "observatory");
+  const obsAbbr = str(d, "obs_abbr", "obsAbbr");
+  return {
+    ...v,
+    lat: lat ?? v.lat,
+    lon: lon ?? v.lon,
+    elevationM: elev ?? v.elevationM,
+    region: region ?? v.region,
+    volcanoUrl: url ?? v.volcanoUrl,
+    name: name ?? v.name,
+    obsName: obsName ?? v.obsName,
+    obsAbbr: obsAbbr ? obsAbbr.toUpperCase() : v.obsAbbr,
+  };
+}
+
 export async function fetchUsgsElevatedVolcanoes(): Promise<UsgsVolcanoAlert[]> {
   try {
     const res = await fetch(`${HANS}/volcano/getElevatedVolcanoes`, {
@@ -236,28 +324,7 @@ export async function fetchUsgsElevatedVolcanoes(): Promise<UsgsVolcanoAlert[]> 
     const raw = (await res.json()) as Record<string, unknown>[];
     if (!Array.isArray(raw)) return [];
 
-    const base: UsgsVolcanoAlert[] = raw.map((r, i) => {
-      const vnum = r.vnum != null ? String(r.vnum) : null;
-      const name = String(r.volcano_name || "Volcano");
-      return {
-        id: vnum || String(r.notice_identifier || name) || `volc-${i}`,
-        name,
-        vnum,
-        alertLevel: String(r.alert_level || "ADVISORY") as UsgsAlertLevel,
-        colorCode: String(r.color_code || "YELLOW") as UsgsColorCode,
-        obsAbbr: String(r.obs_abbr || "").toUpperCase(),
-        obsName: String(r.obs_fullname || r.obs_abbr || "USGS"),
-        sentUtc: r.sent_utc != null ? String(r.sent_utc) : null,
-        sentUnix: typeof r.sent_unixtime === "number" ? r.sent_unixtime : null,
-        noticeUrl: r.notice_url != null ? String(r.notice_url) : null,
-        noticeId: r.notice_identifier != null ? String(r.notice_identifier) : null,
-        lat: null,
-        lon: null,
-        elevationM: null,
-        region: null,
-        volcanoUrl: null,
-      };
-    });
+    const base: UsgsVolcanoAlert[] = raw.map((r, i) => parseHansElevatedRow(r, i));
 
     const enriched = await Promise.all(
       base.map(async (v) => {
@@ -268,18 +335,7 @@ export async function fetchUsgsElevatedVolcanoes(): Promise<UsgsVolcanoAlert[]> 
           });
           if (!r.ok) return v;
           const d = (await r.json()) as Record<string, unknown>;
-          const lat = Number(d.latitude);
-          const lon = Number(d.longitude);
-          return {
-            ...v,
-            lat: Number.isFinite(lat) ? lat : null,
-            lon: Number.isFinite(lon) ? lon : null,
-            elevationM:
-              typeof d.elevation_meters === "number" ? d.elevation_meters : null,
-            region: d.region != null ? String(d.region) : null,
-            volcanoUrl: d.volcano_url != null ? String(d.volcano_url) : null,
-            name: d.volcano_name != null ? String(d.volcano_name) : v.name,
-          };
+          return parseHansVolcanoDetail(v, d);
         } catch {
           return v;
         }

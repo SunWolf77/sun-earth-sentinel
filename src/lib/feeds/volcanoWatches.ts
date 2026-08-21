@@ -54,7 +54,7 @@ export const SHIVELUCH_WATCH: VolcanoWatch = {
   region: "Kamchatka Peninsula, Russia",
   aviationCode: "orange",
   aviationNote:
-    "KVERT Aviation Color Code Orange (second-highest). Ongoing lava-dome growth, ash plumes reported into mid/late July 2026. Not a forecast — operational watch only.",
+    "KVERT Aviation Color Code Orange (GVP week 6–12 Aug 2026). Ongoing lava-dome / ash. Not a forecast — operational look only.",
   gvpUrl: "https://volcano.si.edu/volcano.cfm?vn=300270",
   agencyUrl: "http://www.kscnet.ru/ivs/kvert/index_eng.php",
   monitorUrl: "https://volcano.si.edu/volcano.cfm?vn=300270",

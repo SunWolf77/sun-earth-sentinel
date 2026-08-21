@@ -182,19 +182,34 @@ export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
 
   const weekly = gvpParts.weekly;
   const erupting = gvpParts.erupting;
-  const gvp = [...weekly, ...erupting];
   const gt = buildGuatemalaFromGvp(weekly, erupting);
 
+  // Official elevated + weekly report. Not the Holocene "erupting" catalog —
+  // that is not an alert list.
   const merged = dedupeVolcanoAlerts([
     ...tagUsgs(usgs),
     ...tagUsgs(ingv),
     ...imo,
     ...curated,
     ...tagUsgs(gt),
-    ...tagUsgs(gvp),
-  ]).slice(0, 120);
+    ...tagUsgs(weekly),
+  ]).slice(0, 80);
 
   return merged;
+}
+
+export function isAgencyElevated(v: { source?: string | null }): boolean {
+  switch (v.source) {
+    case "usgs":
+    case "ingv":
+    case "imo":
+    case "kvert":
+    case "official":
+    case "gvp-gt":
+      return true;
+    default:
+      return false;
+  }
 }
 
 export function alertSourceLabel(v: GlobalVolcAlert): string {
