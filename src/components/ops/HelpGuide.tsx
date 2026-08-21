@@ -73,7 +73,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "Solar has the same idea for flares and CMEs. Not a forecast.",
       "Want the research name? Expand “Technical detail” or Method & credit (SUPT / Sheppard).",
       "Sky context shows lunar phase computed locally — compare with timing only; not a forecast.",
-      "Ground magnetic series stay on Solar → Magneto (Cordaro / INTERMAGNET).",
+      "Ground magnetic series: Solar → Magneto (Cordaro / INTERMAGNET). Flare → H → EQ is exploratory.",
     ],
   },
   {

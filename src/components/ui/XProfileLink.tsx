@@ -99,7 +99,7 @@ export function XPerson({
 
 /** Compact chip row for Credits / About — avatars when granted. */
 export function XProfileChips({
-  profiles = ["sunwolf", "sheppard"] as XProfileId[],
+  profiles = ["sunwolf", "sheppard", "cordaro"] as XProfileId[],
 }: {
   profiles?: XProfileId[];
 }) {

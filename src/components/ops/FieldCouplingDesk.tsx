@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Compass, ExternalLink, Loader2, Sun, Waypoints } from "lucide-react";
+import { Compass, ExternalLink, Loader2, Magnet, Sun, Waypoints } from "lucide-react";
 import { useObservatory, type PickedEvent } from "@/store/observatory";
 import type { EqFeature } from "@/lib/feeds/usgs";
 import {
@@ -18,6 +18,16 @@ import {
 } from "@/lib/ops/fieldCoupling";
 import { requestFocus } from "@/lib/ops/focusNav";
 import { AntipodeExplainer } from "@/components/ops/AntipodeExplainer";
+import { fetchDrmagnetoChart } from "@/lib/magneto/proxy";
+import { findPeaks, seriesFromProcessed } from "@/lib/magneto/analyze";
+import { getStation } from "@/lib/magneto/stations";
+import {
+  buildCordaroThreads,
+  utcDateStr,
+  utcDayStart,
+  type CordaroThread,
+} from "@/lib/magneto/cordaroCoupling";
+import { XHandle } from "@/components/ui/XProfileLink";
 
 function toPicked(q: CouplingQuake): PickedEvent {
   return {
@@ -137,6 +147,8 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
   const [month, setMonth] = useState<EqFeature[]>([]);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [cordaro, setCordaro] = useState<CordaroThread[]>([]);
+  const [cordaroErr, setCordaroErr] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -164,6 +176,59 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
       features,
       windowDays: 14,
     });
+  }, [donki, eq, month]);
+
+  useEffect(() => {
+    let live = true;
+    const st = getStation("HYB");
+    if (!st) return;
+    const todayStart = utcDayStart();
+    const ydayStart = todayStart - 86_400_000;
+    void (async () => {
+      try {
+        const [today, yday] = await Promise.all([
+          fetchDrmagnetoChart({ data: { station: "HYB", threshold: 0.4 } }),
+          fetchDrmagnetoChart({
+            data: { station: "HYB", threshold: 0.4, date: utcDateStr(ydayStart) },
+          }),
+        ]);
+        if (!live) return;
+        if (today.error && yday.error) {
+          setCordaroErr(today.error || yday.error || "drmagneto");
+          setCordaro([]);
+          return;
+        }
+        const series = [
+          ...seriesFromProcessed(yday.processed_data || [], yday.raw_data, ydayStart),
+          ...seriesFromProcessed(today.processed_data || [], today.raw_data, todayStart),
+        ];
+        const peaks = findPeaks(series, 0.4);
+        const features = [...(month ?? []), ...(eq?.features ?? [])];
+        const reportNow = buildCouplingReport({
+          flares: donki?.flares ?? [],
+          cmes: donki?.cmes ?? [],
+          features,
+          windowDays: 14,
+        });
+        setCordaro(
+          buildCordaroThreads({
+            station: st,
+            peaks,
+            flares: reportNow.flares,
+            quakes: reportNow.quakes,
+          }),
+        );
+        setCordaroErr(null);
+      } catch (e) {
+        if (live) {
+          setCordaroErr(e instanceof Error ? e.message : "drmagneto");
+          setCordaro([]);
+        }
+      }
+    })();
+    return () => {
+      live = false;
+    };
   }, [donki, eq, month]);
 
   const sunLed = report.threads.filter((t) => t.kind === "sun-led");
@@ -213,7 +278,8 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
             Field coupling
           </h3>
           <p className="mt-0.5 text-[0.65rem] text-dim">
-            Flare then EQ 6.5+ · 0–120 h
+            Flare then EQ 6.5+ · 0–120 h · H via{" "}
+            <XHandle profile="cordaro" /> · ~48 h
           </p>
         </div>
         {busy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-dim" />}
@@ -223,7 +289,78 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
 
       <ThreadList title="Flare → EQ" threads={sunLed} onOpen={openThread} />
       <ThreadList title="Antipode" threads={geometry} onOpen={openThread} mute />
-      {!busy && sunLed.length === 0 && geometry.length === 0 && (
+      {cordaro.length > 0 && (
+        <div className="mt-3">
+          <h4 className="mb-1.5 text-[0.68rem] font-semibold uppercase tracking-wider text-accent">
+            Flare → H → EQ
+          </h4>
+          <p className="mb-1.5 text-[0.6rem] text-dim">
+            HYB H from drmagneto · magnetometer · exploratory ·{" "}
+            <XHandle profile="cordaro" />
+          </p>
+          <div className="space-y-2">
+            {cordaro.map((t) => (
+              <article
+                key={t.id}
+                className="rounded-lg border border-accent/35 bg-accent/5 px-2.5 py-2"
+              >
+                <p className="text-[0.78rem] font-semibold text-fg">{t.headline}</p>
+                <p className="mt-0.5 font-mono text-[0.6rem] text-dim">{t.meta}</p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {t.quake && (
+                    <button
+                      type="button"
+                      className="ww-btn min-h-8 text-[0.62rem]"
+                      onClick={() => {
+                        pickEvent({
+                          id: t.quake!.id,
+                          lat: t.quake!.lat,
+                          lon: t.quake!.lon,
+                          mag: t.quake!.mag,
+                          place: t.quake!.place,
+                          depth: 0,
+                          time: t.quake!.time,
+                          url: t.quake!.url,
+                        });
+                        setTab("live");
+                      }}
+                    >
+                      <Compass className="h-3 w-3" />
+                      Map
+                    </button>
+                  )}
+                  {t.flare?.link && (
+                    <a
+                      href={t.flare.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
+                    >
+                      <Sun className="h-3 w-3" />
+                      Flare
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
+                    onClick={() => {
+                      setTab("solar");
+                      requestFocus({ tab: "solar", solarDeep: "magneto", anchor: "ses-magneto" });
+                    }}
+                  >
+                    <Magnet className="h-3 w-3" />
+                    Magneto
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+      {cordaroErr && (
+        <p className="mt-2 text-[0.62rem] text-dim">H desk: {cordaroErr}</p>
+      )}
+      {!busy && sunLed.length === 0 && geometry.length === 0 && cordaro.length === 0 && (
         <p className="mt-3 font-mono text-[0.68rem] text-muted">None · 14 d</p>
       )}
 

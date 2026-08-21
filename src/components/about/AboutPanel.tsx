@@ -54,7 +54,9 @@ export function AboutPanel() {
         <p className="mt-2">
           Free Sun-Earth observatory by{" "}
           <XPerson profile="sunwolf" /> — live seismic map, volcano watches, space weather, and
-          event-timing patterns. Optional method credit:{" "}
+          event-timing patterns. Magnetic H series via{" "}
+          <XPerson profile="cordaro" />’s public INTERMAGNET tool (drmagneto). Optional method
+          credit:{" "}
           <strong className="text-fg">SUPT</strong> (Sheppard) by{" "}
           <XPerson profile="sheppard" /> — technical depth when you open it.
         </p>
@@ -62,7 +64,7 @@ export function AboutPanel() {
           <p className="mb-1.5 text-[0.65rem] font-medium uppercase tracking-wider text-dim">
             Primary on X
           </p>
-          <XProfileChips profiles={["sunwolf", "sheppard"]} />
+          <XProfileChips profiles={["sunwolf", "sheppard", "cordaro"]} />
         </div>
       </header>
 

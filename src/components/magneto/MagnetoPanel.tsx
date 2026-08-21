@@ -20,13 +20,14 @@ import { fetchDrmagnetoChart } from "@/lib/magneto/proxy";
 import { scanDrmagnetoSteps, scanSuddenSteps, type SscScanResult } from "@/lib/magneto/ssc";
 import { fetchGoesMagnetometer } from "@/lib/feeds/goesMagneto";
 import { INTERMAGNET_FORMATS } from "@/lib/magneto/intermagnetFormats";
-import { XHandle } from "@/components/ui/XProfileLink";
+import { XHandle, XPerson } from "@/components/ui/XProfileLink";
 import { formatUtc } from "@/lib/utils";
 import { GicExplainer } from "@/components/magneto/GicExplainer";
 import { IgrfFieldNote } from "@/components/magneto/IgrfFieldNote";
 import { Igrf14Explorer } from "@/components/magneto/Igrf14Explorer";
 import { Wmm2025Sampler } from "@/components/magneto/Wmm2025Sampler";
 import { StationEntityDesk } from "@/components/magneto/StationEntityDesk";
+import { requestFocus } from "@/lib/ops/focusNav";
 
 /**
  * Magnetic anomaly desk — data via Richard Cordaro’s public INTERMAGNET tool
@@ -175,48 +176,64 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
   );
 
   if (compact) {
+    const peak = assessment?.peak;
+    const n = assessment?.matches.length ?? 0;
     return (
       <div className="rounded-lg border border-accent/30 bg-accent/5 p-2.5 text-[0.72rem]">
         <div className="mb-1 flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1 font-semibold text-accent">
-            <Magnet className="h-3.5 w-3.5" /> Magneto
+            <Magnet className="h-3.5 w-3.5" /> Magneto · Cordaro
           </span>
           <button
             type="button"
             className="ww-btn min-h-8 px-2 text-[0.62rem]"
-            onClick={() => setTab("solar")}
+            onClick={() => {
+              setTab("solar");
+              requestFocus({ tab: "solar", solarDeep: "magneto", anchor: "ses-magneto" });
+            }}
           >
             Open
           </button>
         </div>
         <p className="text-dim">
-          Cordaro-style INTERMAGNET relative probability · quake match exploratory
+          {error
+            ? error
+            : loading
+              ? "Loading HYB…"
+              : peak != null
+                ? `HYB peak ${peak.toFixed(2)} · ${n} H→EQ match${n === 1 ? "" : "es"} · exploratory`
+                : "INTERMAGNET relative H · drmagneto"}
+        </p>
+        <p className="mt-0.5 text-[0.6rem] text-dim">
+          Method: <XHandle profile="cordaro" />
         </p>
       </div>
     );
   }
 
   return (
-    <section className="space-y-3 rounded-xl border border-accent/30 bg-panel p-3 sm:p-4">
+    <section
+      id="ses-magneto"
+      className="space-y-3 rounded-xl border border-accent/30 bg-panel p-3 sm:p-4"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-accent">
             <Magnet className="h-4 w-4" />
-            Magnetic anomalies
+            Magneto
           </h3>
           <p className="mt-0.5 text-[0.68rem] text-dim">
-            INTERMAGNET via{" "}
+            Ground H via{" "}
             <a
               href="https://drmagneto.appspot.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              drmagneto.appspot.com
+              drmagneto
             </a>{" "}
-            · method & public tool by{" "}
-            <XHandle profile="cordaro" /> · data matching
-            to catalog quakes is exploratory only — magnetometers, not seismometers
+            by <XPerson profile="cordaro" />. INTERMAGNET stations. Magnetometer, not a
+            seismometer. Flare→H is often SSC. H→EQ is exploratory.
           </p>
         </div>
         <a
@@ -229,11 +246,6 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
           Full tool
         </a>
       </div>
-
-      <GicExplainer />
-      <Igrf14Explorer />
-      <IgrfFieldNote />
-      <Wmm2025Sampler />
 
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-[0.65rem] text-dim">
@@ -457,6 +469,18 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
           </ul>
         </div>
       )}
+
+      <details className="rounded-lg border border-border/70 bg-bg/30 px-3 py-2 text-[0.68rem] text-dim">
+        <summary className="cursor-pointer font-semibold text-muted">
+          Field models · GIC literacy
+        </summary>
+        <div className="mt-2 space-y-3">
+          <GicExplainer />
+          <Igrf14Explorer />
+          <IgrfFieldNote />
+          <Wmm2025Sampler />
+        </div>
+      </details>
     </section>
   );
 }

@@ -113,7 +113,7 @@ export const X_PROFILES = {
     name: "Richard Cordaro",
     handle: "rrichcord",
     url: "https://x.com/rrichcord",
-    role: "Magnetic anomaly / INTERMAGNET public tool (drmagneto)",
+    role: "Magneto · INTERMAGNET processing (drmagneto public tool)",
     avatarSrc: undefined as string | undefined,
     avatarRemote: undefined as string | undefined,
   },

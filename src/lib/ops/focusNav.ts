@@ -5,7 +5,7 @@
 
 import type { TabId } from "@/store/observatory";
 
-export type SolarDeepKey = "farside" | "models" | "alerts" | "catalogs";
+export type SolarDeepKey = "farside" | "models" | "alerts" | "catalogs" | "magneto";
 
 export type FocusTarget = {
   tab: TabId;

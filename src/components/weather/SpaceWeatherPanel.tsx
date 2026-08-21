@@ -63,12 +63,13 @@ import {
 
 type MediaTab = "disk" | "corona" | "farside" | "models";
 /** Top-level Solar IA — one job per view (stops the wall of mixed jargon). */
-type SolarView = "now" | "images" | "catalogs" | "context";
+type SolarView = "now" | "images" | "catalogs" | "magneto" | "context";
 
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
   { id: "now", label: "Now", hint: "Field pairing · impact · NOAA scales" },
   { id: "images", label: "Images", hint: "Disk · corona · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
+  { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
   { id: "context", label: "Context", hint: "History · timing · education" },
 ];
 
@@ -98,9 +99,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
     try {
       const q = new URLSearchParams(window.location.search);
       const v = q.get("solar");
-      if (v === "images" || v === "catalogs" || v === "context" || v === "now") return v;
+      if (v === "images" || v === "catalogs" || v === "context" || v === "now" || v === "magneto") return v;
       const raw = localStorage.getItem("ww_solar_view");
-      if (raw === "images" || raw === "catalogs" || raw === "context" || raw === "now") return raw;
+      if (raw === "images" || raw === "catalogs" || raw === "context" || raw === "now" || raw === "magneto") return raw;
     } catch {
       /* */
     }
@@ -129,6 +130,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
     if (t.tab !== "solar") return;
     if (t.anchor === "field-coupling") selectSolarView("now");
     else if (t.solarDeep === "catalogs") selectSolarView("catalogs");
+    else if (t.solarDeep === "magneto") selectSolarView("magneto");
     else if (t.solarDeep === "alerts") selectSolarView("now");
     else if (t.solarDeep === "farside" || t.solarDeep === "models") {
       selectSolarView("images");
@@ -952,6 +954,16 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
+      {solarView === "magneto" && (
+        <div className="space-y-3">
+          <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-[0.7rem] leading-relaxed text-muted">
+            Richard Cordaro’s public INTERMAGNET processing — ground H, not a seismometer.
+            Flare → H is often SSC. H → EQ is exploratory coincidence.
+          </p>
+          <MagnetoPanel />
+        </div>
+      )}
+
       {/* ── CONTEXT: education / timing / history (opt-in density) ── */}
       {solarView === "context" && (
         <div className="space-y-3">
@@ -960,7 +972,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           </p>
           <EclipseWatch compact />
           <SuptContinuumStrip compact />
-          <MagnetoPanel compact />
           <HistoricalStormDesk compact />
           <KIndexScalesPanel defaultOpen={false} />
           <SuptSolarAgent assessment={assessment} />
