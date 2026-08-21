@@ -46,6 +46,8 @@ import {
 } from "@/lib/map/mobileChrome";
 import { MobileMapToolsPanel } from "@/components/map/MobileMapToolsPanel";
 import { timeWindowChip } from "@/lib/map/timeWindowLabel";
+import { MobileFolderCoach } from "@/components/ops/MobileFolderCoach";
+import { UI_FOLDERS_KEY, markUiSeen, uiSeen } from "@/lib/ui/firstVisit";
 
 const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   quakes: Activity,
@@ -81,6 +83,7 @@ export function MapStyleControl({
 }) {
   const [open, setOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string>("core");
+  const [coach, setCoach] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const basemapStyle = useObservatory((s) => s.basemapStyle);
   const overlays = useObservatory((s) => s.overlays);
@@ -158,6 +161,31 @@ export function MapStyleControl({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const dismissCoach = () => {
+    setCoach(false);
+    markUiSeen(UI_FOLDERS_KEY);
+  };
+
+  useEffect(() => {
+    if (!mobile) return;
+    if (uiSeen(UI_FOLDERS_KEY)) return;
+    const t = window.setTimeout(() => setCoach(true), 4_000);
+    return () => window.clearTimeout(t);
+  }, [mobile]);
+
+  useEffect(() => {
+    if (!coach) return;
+    if (mobileSheet !== "closed" || open) dismissCoach();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coach, mobileSheet, open]);
+
+  useEffect(() => {
+    if (!coach) return;
+    const t = window.setTimeout(dismissCoach, 16_000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coach]);
 
   const applySimpleMap = () => {
     const lean = mobileLeanOverlays();
@@ -357,10 +385,14 @@ export function MapStyleControl({
         </div>
       )}
 
+      {coach && mobile && mobileSheet === "closed" && !open && (
+        <MobileFolderCoach onDismiss={dismissCoach} />
+      )}
+
       <div
         className={`ww-toggle-bar pointer-events-auto mx-auto sm:mx-0 ${
           mobile ? "ww-toggle-bar--mobile ww-toggle-bar--dock4" : ""
-        }`}
+        } ${coach ? "ww-toggle-bar--coach" : ""}`}
       >
         {quickIds.map((id) => {
           const meta = OVERLAY_META.find((m) => m.id === id)!;

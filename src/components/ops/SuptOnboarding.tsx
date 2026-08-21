@@ -43,8 +43,8 @@ export function SuptOnboarding() {
       role="status"
     >
       <p className="min-w-0 flex-1">
-        <strong className="text-fg">Timing</strong> = how evenly events are spaced — not size.
-        Quiet is a real status. Not a forecast.
+        <strong className="text-fg">Timing</strong> = spacing, not size. Tap a
+        folder to open it. Quiet is a real status. Not a forecast.
       </p>
       <button
         type="button"

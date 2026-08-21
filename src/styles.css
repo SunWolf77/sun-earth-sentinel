@@ -1073,6 +1073,50 @@
   white-space: nowrap;
 }
 
+/* First-visit: glow the four dock tabs so they get noticed */
+.ww-toggle-bar--coach .ww-toggle--dock {
+  animation: ww-dock-glow 1.5s ease-in-out 4;
+}
+@keyframes ww-dock-glow {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 70%, transparent);
+  }
+}
+.ww-folder-coach {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0 auto 0.25rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid color-mix(in oklab, var(--color-primary) 40%, var(--color-border));
+  background: color-mix(in oklab, var(--color-bg) 94%, transparent);
+  box-shadow: 0 -4px 18px color-mix(in oklab, #000 28%, transparent);
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+.ww-pulse--hint {
+  outline: 1px solid color-mix(in oklab, var(--color-primary) 45%, transparent);
+  animation: ww-pulse-hint 1.6s ease-in-out 5;
+}
+.ww-pulse--hint svg {
+  color: var(--color-primary);
+}
+@keyframes ww-pulse-hint {
+  0%,
+  100% {
+    outline-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
+  }
+  50% {
+    outline-color: color-mix(in oklab, var(--color-primary) 80%, transparent);
+  }
+}
+
 /* Mobile event sheet above dock */
 .ww-mobile-event-sheet {
   animation: ww-sheet-up 0.18s ease;

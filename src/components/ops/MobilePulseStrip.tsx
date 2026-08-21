@@ -3,7 +3,7 @@
  * Used on live map for **mobile and desktop** so chrome never stacks five rows.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { ActivityStoryChip } from "@/components/ops/ActivityStoryPanel";
@@ -17,9 +17,11 @@ import { buildActivityStory } from "@/lib/ops/activityStory";
 import { buildTodayBrief } from "@/lib/ops/todayBrief";
 import { resonanceVerdict } from "@/lib/supt/probe";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { UI_FOLDERS_KEY, uiSeen } from "@/lib/ui/firstVisit";
 
 export function MobilePulseStrip() {
   const [open, setOpen] = useState(false);
+  const [foldersSeen, setFoldersSeen] = useState(() => uiSeen(UI_FOLDERS_KEY));
   const isMobile = useIsMobile();
   const resonance = useObservatory((s) => s.resonance);
   const scales = useObservatory((s) => s.scales);
@@ -32,6 +34,12 @@ export function MobilePulseStrip() {
   const volcWatchNodes = useObservatory((s) => s.volcWatchNodes);
   const usgsVolcAlerts = useObservatory((s) => s.usgsVolcAlerts);
   const timeWindow = useObservatory((s) => s.timeWindow);
+
+  useEffect(() => {
+    const on = () => setFoldersSeen(true);
+    window.addEventListener("ww-ui-seen", on);
+    return () => window.removeEventListener("ww-ui-seen", on);
+  }, []);
 
   const brief = useMemo(
     () =>
@@ -76,12 +84,15 @@ export function MobilePulseStrip() {
         : "border-border/70 bg-panel/90 text-muted";
 
   if (!open) {
+    const hint = isMobile && !foldersSeen;
     return (
       <div className="min-w-0 space-y-0.5">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.58rem] sm:min-h-8 sm:text-[0.62rem] ${tone}`}
+          className={`flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.58rem] sm:min-h-8 sm:text-[0.62rem] ${tone}${
+            hint ? " ww-pulse--hint" : ""
+          }`}
           aria-expanded={false}
           aria-label="Expand pulse — space weather, story, feeds"
         >

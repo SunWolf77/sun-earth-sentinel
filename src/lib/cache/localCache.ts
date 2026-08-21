@@ -80,6 +80,8 @@ function pruneRank(fullKey: string): number {
   const k = bare(fullKey);
   // Protect primary seismic catalog + live tip
   if (/^eq_(hour|day|week|month)$/.test(k) || k === "eq_pulse") return 100;
+  // First-visit UI flags — keep until CACHE_VER wipe / site-data clear
+  if (k.startsWith("ui_")) return 99;
   // Protect resonance / attention history series
   if (k.startsWith("hist_")) return 90;
   // Small, useful ops
