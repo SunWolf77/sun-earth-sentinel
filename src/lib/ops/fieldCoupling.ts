@@ -321,13 +321,12 @@ export function buildCouplingReport(opts: {
       ? `sun:${link.flare.id}:${antipode.a.id}:${antipode.b.id}`
       : `sun:${link.flare.id}:${link.quake.id}`;
     if (threads.some((t) => t.id === id)) continue;
-    const loc = link.flare.sourceLocation || "n/a";
     const headline = antipode
       ? `${xrayLabel(link.flare)} → ${mwLabel(antipode.a.mag)} ${shortPlace(antipode.a.place)} ↔ ${mwLabel(antipode.b.mag)} ${shortPlace(antipode.b.place)}`
       : `${xrayLabel(link.flare)} → ${mwLabel(link.quake.mag)} ${shortPlace(link.quake.place)}`;
     const reading = antipode
-      ? `${xrayLabel(link.flare)} peaked first (heliographic ${loc}). Both ruptures are after that peak. Antipodal offset ${antipode.offsetDeg.toFixed(1)}° among the post-flare events. Pairing — not a cause.`
-      : `${mwLabel(link.quake.mag)} ${link.lagHours.toFixed(0)} h after ${xrayLabel(link.flare)} (heliographic ${loc}). X-ray class is GOES flare size, not earthquake magnitude. Pairing — not a cause.`;
+      ? `${antipode.offsetDeg.toFixed(1)}° antipode · both after ${xrayLabel(link.flare)}`
+      : `${link.lagHours.toFixed(0)} h after ${xrayLabel(link.flare)}`;
     threads.push({
       id,
       kind: "sun-led",
@@ -363,7 +362,7 @@ export function buildCouplingReport(opts: {
       attention,
       verdict: verdictOf(attention),
       headline: `${mwLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${mwLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`,
-      reading: `Antipodal offset ${pair.offsetDeg.toFixed(1)}° · ${pair.lagHours.toFixed(0)} h apart. No X-ray M5+ peaked before both ruptures — this is plate geometry, not Sun-led coupling.`,
+      reading: `${pair.offsetDeg.toFixed(1)}° antipode · ${pair.lagHours.toFixed(0)} h`,
       flare: null,
       quakes: [pair.a, pair.b],
       antipode: pair,
@@ -391,13 +390,10 @@ export function buildCouplingReport(opts: {
   const earthCme = (opts.cmes ?? []).filter((c) => cmeImpactSummary(c).earth).length;
 
   const caveats = [
-    "Sun-led means the X-ray peak is earlier than the rupture. An earthquake that already happened is not ‘coupled’ to a later flare.",
-    "X-ray M / X is GOES flare class (solar). Mw is earthquake magnitude (Earth). They are not the same M.",
-    "A flare’s NxxExx is heliographic — not an Earth epicentre.",
+    "X-ray M/X = GOES class. Mw = earthquake magnitude.",
     earthCme
-      ? `${earthCme} Earth-directed CME(s) in DONKI this window — that is a solar-wind arrival clock, not a quake trigger.`
-      : "No Earth-directed CME tagged in this DONKI window.",
-    "Pacific subduction often sits opposite Pacific subduction. Antipode geometry is cheap on the Ring. Read the offset.",
+      ? `${earthCme} Earth-directed CME in window.`
+      : "No Earth-directed CME in window.",
   ];
 
   return {
@@ -409,8 +405,7 @@ export function buildCouplingReport(opts: {
     flareLinks: flareLinks.slice(0, 12),
     threads: top,
     caveats,
-    ringNote:
-      "Sun first, then Earth. Geometry is a separate folder. An Indonesia ↔ Andes pair without a preceding X-ray M5+ is not Sun-led coupling.",
+    ringNote: "Sun first. Antipode without a preceding flare is plates.",
   };
 }
 
