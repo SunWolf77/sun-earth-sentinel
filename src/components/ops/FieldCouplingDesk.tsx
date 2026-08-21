@@ -78,8 +78,8 @@ function ThreadList({
             <p className="text-[0.78rem] font-semibold text-fg">{t.headline}</p>
             {t.kind === "sun-led" && t.lagHours != null && (
               <p className="mt-0.5 font-mono text-[0.6rem] text-dim">
-                {t.lagHours.toFixed(0)} h after X-ray peak
-                {t.flare?.sourceLocation ? ` · ${t.flare.sourceLocation}` : ""}
+                +{t.lagHours.toFixed(0)} h
+                {t.flare?.sourceLocation ? ` · Sun ${t.flare.sourceLocation}` : ""}
               </p>
             )}
             {t.antipode && (
@@ -104,7 +104,7 @@ function ThreadList({
                   className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
                 >
                   <Sun className="h-3 w-3" />
-                  {t.flare.classType}
+                  Flare
                 </a>
               )}
               {t.quakes[0]?.url && (
@@ -115,7 +115,7 @@ function ThreadList({
                   className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2 text-[0.62rem] text-muted"
                 >
                   <ExternalLink className="h-3 w-3" />
-                  USGS
+                  EQ
                 </a>
               )}
             </div>
@@ -211,7 +211,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
             Field coupling
           </h3>
           <p className="mt-0.5 text-[0.65rem] text-dim">
-            X-ray M/X → Mw 6.5+ · 0–120 h
+            Flare then EQ 6.5+ · 0–120 h
           </p>
         </div>
         {busy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-dim" />}
@@ -219,7 +219,7 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
 
       {err && <p className="mt-2 text-[0.68rem] text-danger">{err}</p>}
 
-      <ThreadList title="Sun-led" threads={sunLed} onOpen={openThread} />
+      <ThreadList title="Flare → EQ" threads={sunLed} onOpen={openThread} />
       <ThreadList title="Antipode" threads={geometry} onOpen={openThread} mute />
       {!busy && sunLed.length === 0 && geometry.length === 0 && (
         <p className="mt-3 font-mono text-[0.68rem] text-muted">None · 14 d</p>
@@ -229,19 +229,19 @@ export function FieldCouplingDesk({ compact = false }: { compact?: boolean }) {
         <summary className="cursor-pointer font-semibold text-muted">Window</summary>
         <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
           <ul className="space-y-0.5">
-            {report.flares.length === 0 && <li>No X-ray M5+</li>}
+            {report.flares.length === 0 && <li>No flare M5+</li>}
             {report.flares.slice(0, 6).map((f) => (
               <li key={f.id} className="font-mono">
-                {f.classType} · {utcShort(f.peakMs)}
-                {f.sourceLocation ? ` · ${f.sourceLocation}` : ""}
+                Flare {f.classType} · {utcShort(f.peakMs)}
+                {f.sourceLocation ? ` · Sun ${f.sourceLocation}` : ""}
               </li>
             ))}
           </ul>
           <ul className="space-y-0.5">
-            {report.quakes.length === 0 && <li>No Mw 6+</li>}
+            {report.quakes.length === 0 && <li>No EQ 6+</li>}
             {report.quakes.slice(0, 6).map((q) => (
               <li key={q.id}>
-                Mw {q.mag.toFixed(1)} · {shortPlaceDesk(q.place)} · {utcShort(q.time)}
+                EQ {q.mag.toFixed(1)} · {shortPlaceDesk(q.place)} · {utcShort(q.time)}
               </li>
             ))}
           </ul>

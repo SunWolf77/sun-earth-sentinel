@@ -166,12 +166,12 @@ export function asCouplingFlare(f: DonkiFlare): CouplingFlare | null {
   };
 }
 
-function mwLabel(m: number): string {
-  return `Mw ${m.toFixed(1)}`;
+function eqLabel(m: number): string {
+  return `EQ ${m.toFixed(1)}`;
 }
 
-function xrayLabel(f: CouplingFlare): string {
-  return `X-ray ${f.classType}`;
+function flareLabel(f: CouplingFlare): string {
+  return `Flare ${f.classType}`;
 }
 
 function hoursBetween(a: number, b: number): number {
@@ -322,11 +322,11 @@ export function buildCouplingReport(opts: {
       : `sun:${link.flare.id}:${link.quake.id}`;
     if (threads.some((t) => t.id === id)) continue;
     const headline = antipode
-      ? `${xrayLabel(link.flare)} → ${mwLabel(antipode.a.mag)} ${shortPlace(antipode.a.place)} ↔ ${mwLabel(antipode.b.mag)} ${shortPlace(antipode.b.place)}`
-      : `${xrayLabel(link.flare)} → ${mwLabel(link.quake.mag)} ${shortPlace(link.quake.place)}`;
+      ? `${flareLabel(link.flare)} → ${eqLabel(antipode.a.mag)} ${shortPlace(antipode.a.place)} ↔ ${eqLabel(antipode.b.mag)} ${shortPlace(antipode.b.place)}`
+      : `${flareLabel(link.flare)} → ${eqLabel(link.quake.mag)} ${shortPlace(link.quake.place)}`;
     const reading = antipode
-      ? `${antipode.offsetDeg.toFixed(1)}° antipode · both after ${xrayLabel(link.flare)}`
-      : `${link.lagHours.toFixed(0)} h after ${xrayLabel(link.flare)}`;
+      ? `${antipode.offsetDeg.toFixed(1)}° antipode · both after flare`
+      : `+${link.lagHours.toFixed(0)} h`;
     threads.push({
       id,
       kind: "sun-led",
@@ -361,7 +361,7 @@ export function buildCouplingReport(opts: {
       kind: "geometry",
       attention,
       verdict: verdictOf(attention),
-      headline: `${mwLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${mwLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`,
+      headline: `${eqLabel(pair.a.mag)} ${shortPlace(pair.a.place)} ↔ ${eqLabel(pair.b.mag)} ${shortPlace(pair.b.place)}`,
       reading: `${pair.offsetDeg.toFixed(1)}° antipode · ${pair.lagHours.toFixed(0)} h`,
       flare: null,
       quakes: [pair.a, pair.b],
@@ -390,7 +390,7 @@ export function buildCouplingReport(opts: {
   const earthCme = (opts.cmes ?? []).filter((c) => cmeImpactSummary(c).earth).length;
 
   const caveats = [
-    "X-ray M/X = GOES class. Mw = earthquake magnitude.",
+    "Flare class is GOES (Sun). EQ is earthquake magnitude. Not the same M.",
     earthCme
       ? `${earthCme} Earth-directed CME in window.`
       : "No Earth-directed CME in window.",
