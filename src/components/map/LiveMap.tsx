@@ -34,6 +34,7 @@ import { attachMapTouchGestures, type MapTouchHandle } from "@/lib/map/touchGest
 import { NodeFocusBanner } from "@/components/nodes/NodeFocusPanel";
 import { AuroraOfficialPanel } from "@/components/map/AuroraOfficialPanel";
 import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
+import { useAshCloudLayer } from "@/components/map/AshCloudLayer";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
@@ -1295,6 +1296,7 @@ export function LiveMap() {
   };
 
   useAmbientMapLayers(mapView === "2d" ? mapInstance : null);
+  useAshCloudLayer(mapView === "2d" ? mapInstance : null);
 
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden sm:min-h-[280px]">

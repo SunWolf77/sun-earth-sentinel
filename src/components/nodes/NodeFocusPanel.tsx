@@ -13,6 +13,7 @@ import {
 } from "@/lib/feeds/publishedMonitors";
 import { downloadNodesCsv } from "@/lib/nodes/exportNodesCsv";
 import { DeskGlyph } from "@/components/nodes/DeskGlyph";
+import { AshCloudDesk } from "@/components/map/AshCloudDesk";
 
 const STATUS_DOT: Record<NodeStatus, string> = {
   quiet: "bg-primary border-primary",
@@ -172,6 +173,8 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
               </span>
             </div>
           )}
+
+          {focus.kind === "volcano" && <AshCloudDesk compact />}
 
           {focus.focusNote && (
             <p className="mt-1.5 text-[0.65rem] leading-snug text-muted">{focus.focusNote}</p>

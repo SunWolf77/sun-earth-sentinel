@@ -7,6 +7,7 @@ import {
 import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
+import { AshCloudDesk } from "@/components/map/AshCloudDesk";
 import { alertKey, nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 
 function AlertChip({ v }: { v: UsgsVolcanoAlert }) {
@@ -283,6 +284,7 @@ export function VolcanoAlertsBar({ compact = false }: { compact?: boolean }) {
           Pinned baseline keys: {memoryPins.join(", ")} (map watch until unpin)
         </p>
       )}
+      {!compact && <div className="mt-2"><AshCloudDesk /></div>}
     </div>
   );
 }
