@@ -22,6 +22,7 @@ import { MapViewToggle } from "@/components/map/MapViewToggle";
 import { MapChromeDock } from "@/components/map/MapChromeDock";
 import { MobileEventSheet } from "@/components/map/MobileEventSheet";
 import { MapStyleControl } from "@/components/map/MapStyleControl";
+import { EventReplayBar } from "@/components/map/EventReplayBar";
 import { HelpGuide, HelpTipBanner } from "@/components/ops/HelpGuide";
 import { MODES, MODE_ORDER, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
@@ -1145,6 +1146,8 @@ function ObservatoryApp() {
 
               {/* Bottom dock track — layer bar reserved under map */}
               <div className="ww-map-stage__dock">
+                <div className="flex w-full flex-col items-center gap-1">
+                  <EventReplayBar />
                 {isMobile && (mobileSheet === "filters" || mobileSheet === "events") && (
                   <div
                     className="ww-dock-sheet pointer-events-auto w-full"
@@ -1170,6 +1173,7 @@ function ObservatoryApp() {
                   </div>
                 )}
                 <MapStyleControl placement="grid" />
+                </div>
               </div>
             </div>
           </div>

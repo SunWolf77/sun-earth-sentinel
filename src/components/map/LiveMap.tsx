@@ -37,7 +37,6 @@ import { useAmbientMapLayers } from "@/components/map/AmbientLayers";
 import { useAshCloudLayer } from "@/components/map/AshCloudLayer";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
-import { EventReplayBar } from "@/components/map/EventReplayBar";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
@@ -1313,7 +1312,6 @@ export function LiveMap() {
           </div>
           <MmiFocusBanner />
           <MapLegend />
-          <EventReplayBar hideIdleOnMobile />
         </>
       )}
       {/* Layer bar mounts in ww-map-stage__dock (grid) from index — not over canvas */}
