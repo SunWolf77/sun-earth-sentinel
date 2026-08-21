@@ -23,7 +23,7 @@ import { MapChromeDock } from "@/components/map/MapChromeDock";
 import { MobileEventSheet } from "@/components/map/MobileEventSheet";
 import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
-import { HelpGuide, HelpTipBanner } from "@/components/ops/HelpGuide";
+import { HelpGuide } from "@/components/ops/HelpGuide";
 import { MODES, MODE_ORDER, type PerformanceMode } from "@/lib/feeds/modes";
 import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
 import { ClientOnly } from "@/components/ops/ClientOnly";
@@ -253,21 +253,25 @@ function ObservatoryApp() {
     setBasemapStyle,
   ]);
 
-  // Surface stuck first load (never leave users on "updated —" with a black map)
+  // Silent retry at 5s if first pull hangs. Banner only if still empty after 10s.
   useEffect(() => {
     if (lastUpdate) {
       setBootWait(false);
       return;
     }
-    const t = window.setTimeout(() => setBootWait(true), 4000);
+    const t = window.setTimeout(() => setBootWait(true), 10_000);
     return () => window.clearTimeout(t);
   }, [lastUpdate]);
 
   useEffect(() => {
-    if (!bootWait || lastUpdate || bootRetried.current) return;
-    bootRetried.current = true;
-    void refresh(true);
-  }, [bootWait, lastUpdate, refresh]);
+    if (lastUpdate || bootRetried.current) return;
+    const t = window.setTimeout(() => {
+      if (useObservatory.getState().lastUpdate) return;
+      bootRetried.current = true;
+      void refresh(true);
+    }, 5_000);
+    return () => window.clearTimeout(t);
+  }, [lastUpdate, refresh]);
 
   useEffect(() => {
     const t = tabFromLocation();
@@ -649,11 +653,18 @@ function ObservatoryApp() {
   const eventsBlock = (
     <div className="space-y-2 p-3">
       <ActivityStoryPanel compact />
-      <VolcanicDesk />
-      <SuptContinuumStrip compact />
-      <VolcanoAlertsBar compact />
-      <FocusedNodeCard features={filteredEq(eq?.features, minMag, maxMag)} />
-      <NodeFocusPanel allFeatures={filteredEq(eq?.features, minMag, maxMag)} />
+      <details className="rounded-md border border-border/70 bg-panel/50">
+        <summary className="cursor-pointer px-2.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-wider text-dim">
+          Desks · volcano · timing
+        </summary>
+        <div className="space-y-2 border-t border-border/60 p-2">
+          <VolcanicDesk />
+          <SuptContinuumStrip compact />
+          <VolcanoAlertsBar compact />
+          <FocusedNodeCard features={filteredEq(eq?.features, minMag, maxMag)} />
+          <NodeFocusPanel allFeatures={filteredEq(eq?.features, minMag, maxMag)} />
+        </div>
+      </details>
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
           Events ({features.length})
@@ -902,21 +913,18 @@ function ObservatoryApp() {
         {tab === "live" && <PublishedNodesNav />}
       </header>
 
-      {(bootWait && !lastUpdate) && (
+      {(bootWait && !lastUpdate && !loading) && (
         <div
-          className="shrink-0 border-b border-gold/30 bg-gold/10 px-3 py-2 text-xs text-gold sm:px-4"
+          className="shrink-0 border-b border-border bg-panel/80 px-3 py-1.5 text-xs text-muted sm:px-4"
           role="status"
         >
-          <span className="font-medium">Loading live feeds…</span>
-          {" "}
-          {error ? <span className="text-danger">({error})</span> : null}
-          {" "}
+          Feeds taking longer than usual.
           <button
             type="button"
-            className="ml-2 underline"
+            className="ml-2 text-primary underline"
             onClick={() => void refresh(true)}
           >
-            Retry now
+            Retry
           </button>
         </div>
       )}

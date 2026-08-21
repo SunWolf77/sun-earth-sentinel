@@ -11,9 +11,11 @@ import { SinceLastVisitStrip } from "@/components/ops/SinceLastVisitStrip";
 import { FeedHealthStrip } from "@/components/ops/FeedHealthStrip";
 import { CrossFeedChips } from "@/components/ops/CrossFeedChips";
 import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
+import { WatchZoneStrip } from "@/components/ops/WatchZoneStrip";
 import { useObservatory, filteredEq } from "@/store/observatory";
 import { buildActivityStory } from "@/lib/ops/activityStory";
 import { buildTodayBrief } from "@/lib/ops/todayBrief";
+import { resonanceVerdict } from "@/lib/supt/probe";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 
 export function MobilePulseStrip() {
@@ -55,10 +57,16 @@ export function MobilePulseStrip() {
     });
   }, [eq, minMag, maxMag, volcWatchNodes, usgsVolcAlerts, solar, scales, timeWindow]);
 
+  const timing =
+    resonance?.separated && resonance.d_ij != null
+      ? resonanceVerdict(resonance).title
+      : null;
+
   const lead =
     story.urgency === "now" || story.urgency === "watch"
       ? story.lead
       : brief.headline || story.lead;
+  const leadLine = timing ? `${lead} · ${timing}` : lead;
 
   const tone =
     story.urgency === "now" || brief.level === "storm"
@@ -69,20 +77,23 @@ export function MobilePulseStrip() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.58rem] sm:min-h-8 sm:text-[0.62rem] ${tone}`}
-        aria-expanded={false}
-        aria-label="Expand pulse — space weather, story, feeds"
-      >
-        <span className="shrink-0 font-bold uppercase tracking-wide opacity-90">Pulse</span>
-        <span className="min-w-0 flex-1 truncate font-medium">{lead}</span>
-        <span className="shrink-0 tabular-nums text-dim">
-          R{scales?.R ?? "0"} S{scales?.S ?? "0"} G{scales?.G ?? "0"}
-        </span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
-      </button>
+      <div className="min-w-0 space-y-0.5">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.58rem] sm:min-h-8 sm:text-[0.62rem] ${tone}`}
+          aria-expanded={false}
+          aria-label="Expand pulse — space weather, story, feeds"
+        >
+          <span className="shrink-0 font-bold uppercase tracking-wide opacity-90">Pulse</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{leadLine}</span>
+          <span className="shrink-0 tabular-nums text-dim">
+            R{scales?.R ?? "0"} S{scales?.S ?? "0"} G{scales?.G ?? "0"}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </button>
+        <WatchZoneStrip compact />
+      </div>
     );
   }
 
@@ -97,6 +108,7 @@ export function MobilePulseStrip() {
         <span>Pulse · expanded</span>
         <ChevronUp className="h-3.5 w-3.5" />
       </button>
+      <WatchZoneStrip />
       <TodayBriefBar dense showRecLink={false} />
       <FieldCouplingDesk compact />
       <SinceLastVisitStrip dense />

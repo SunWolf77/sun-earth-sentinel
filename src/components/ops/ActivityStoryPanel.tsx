@@ -279,7 +279,7 @@ export function ActivityStoryPanel({
 
   useEffect(() => {
     // Auto-expand first card only for true "now" — not watch/elevated red noise
-    if (!openId && bundle.stories[0] && bundle.urgency === "now") {
+    if (!openId && bundle.stories[0] && (bundle.urgency === "now" || bundle.urgency === "watch")) {
       setOpenId(bundle.stories[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,19 +289,17 @@ export function ActivityStoryPanel({
     runAction(a, { setFocusNode, pickEvent, flyMapTo, setTab, setMobileSheet });
 
   return (
-    <section className={`space-y-2 ${className}`} aria-label="Activity story">
-      <header className="flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-          <Newspaper className="h-3.5 w-3.5" />
-          Activity story
+    <section className={`space-y-1.5 ${className}`} aria-label="Activity story">
+      <header className="flex items-start justify-between gap-2">
+        <h3 className="min-w-0 flex-1 text-[0.82rem] font-semibold leading-snug text-fg">
+          {bundle.lead}
         </h3>
-        <span className={`rounded border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase ${URGENCY_BADGE[bundle.urgency]}`}>
+        <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase ${URGENCY_BADGE[bundle.urgency]}`}>
           {URGENCY_CHIP[bundle.urgency]}
         </span>
       </header>
-      <p className="text-[0.68rem] leading-snug text-muted">{bundle.lead}</p>
       <div className="space-y-1.5">
-        {bundle.stories.slice(0, compact ? 4 : 8).map((s) => (
+        {bundle.stories.slice(0, compact ? 2 : 6).map((s) => (
           <StoryCard
             key={s.id}
             story={s}
