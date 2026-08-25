@@ -31,6 +31,7 @@ import {
 import { HELIOVIEWER, soloScreenshotUrl } from "@/lib/feeds/solarMedia";
 import { buildGoesXrayPlot, type GoesXrayPlot, type GoesXrayWindow } from "@/lib/feeds/goesXray";
 import { buildXrayAttentionBundle, type XrayAttentionBundle } from "@/lib/feeds/xrayAttention";
+import { buildSolarCycleBundle, type SolarCycleBundle } from "@/lib/feeds/solarCycle";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
 
@@ -195,5 +196,12 @@ export const fetchGoesXrayPlotFn = createServerFn({ method: "POST" })
 export const fetchXrayAttentionFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<XrayAttentionBundle> => {
     return buildXrayAttentionBundle();
+  },
+);
+
+/** Solar Cycle 25 progression envelope (SWPC observed + predicted). */
+export const fetchSolarCycleFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SolarCycleBundle> => {
+    return buildSolarCycleBundle();
   },
 );
