@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { fetchGoesXrayPlotFn } from "@/lib/feeds/solarProxy";
+import { fetchGoesXrayPlotFn, fetchXrayAttentionFn } from "@/lib/feeds/solarProxy";
 import {
   classPair,
   GOES_XRAY_WINDOWS,
@@ -17,6 +17,11 @@ import {
   type GoesXrayPlot,
   type GoesXrayWindow,
 } from "@/lib/feeds/goesXray";
+import {
+  STATE_LABEL,
+  type AttentionState,
+  type XrayAttentionBundle,
+} from "@/lib/feeds/xrayAttention";
 import { fluxToClass } from "@/lib/feeds/swpc";
 import { Loader2, Sun } from "lucide-react";
 
@@ -25,12 +30,25 @@ type Props = {
   onOpenFull?: () => void;
 };
 
-const cache = new Map<GoesXrayWindow, { at: number; plot: GoesXrayPlot }>();
-const TTL = 45_000;
+const plotCache = new Map<GoesXrayWindow, { at: number; plot: GoesXrayPlot }>();
+const PLOT_TTL = 45_000;
+let attentionCache: { at: number; bundle: XrayAttentionBundle } | null = null;
+const ATT_TTL = 60_000;
+
+const STATE_TONE: Record<AttentionState, string> = {
+  quiet: "border-border bg-elevated text-muted",
+  elevated: "border-teal-500/40 bg-teal-500/10 text-teal-200",
+  rising: "border-gold/50 bg-gold/15 text-gold",
+  m_approach: "border-amber-400/50 bg-amber-500/15 text-amber-200",
+  m_active: "border-amber-400 bg-amber-500/25 text-amber-100",
+  x_approach: "border-red-400/60 bg-red-500/15 text-red-200",
+  x_active: "border-red-500 bg-red-500/30 text-red-100",
+};
 
 export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
   const [window, setWindow] = useState<GoesXrayWindow>("1d");
   const [plot, setPlot] = useState<GoesXrayPlot | null>(null);
+  const [att, setAtt] = useState<XrayAttentionBundle | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [show18, setShow18] = useState(true);
@@ -38,36 +56,55 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
 
   useEffect(() => {
     let live = true;
-    const hit = cache.get(window);
-    if (hit && Date.now() - hit.at < TTL) {
+    const hit = plotCache.get(window);
+    if (hit && Date.now() - hit.at < PLOT_TTL) {
       setPlot(hit.plot);
       setErr(null);
-      return;
+    } else {
+      setBusy(true);
+      void (async () => {
+        try {
+          const p = await fetchGoesXrayPlotFn({ data: { window } });
+          if (!live) return;
+          plotCache.set(window, { at: Date.now(), plot: p });
+          setPlot(p);
+          setErr(null);
+        } catch (e) {
+          if (!live) return;
+          setErr(e instanceof Error ? e.message : "X-ray feed failed");
+        } finally {
+          if (live) setBusy(false);
+        }
+      })();
     }
-    setBusy(true);
-    void (async () => {
-      try {
-        const p = await fetchGoesXrayPlotFn({ data: { window } });
-        if (!live) return;
-        cache.set(window, { at: Date.now(), plot: p });
-        setPlot(p);
-        setErr(null);
-      } catch (e) {
-        if (!live) return;
-        setErr(e instanceof Error ? e.message : "X-ray feed failed");
-      } finally {
-        if (live) setBusy(false);
-      }
-    })();
+
+    if (attentionCache && Date.now() - attentionCache.at < ATT_TTL) {
+      setAtt(attentionCache.bundle);
+    } else {
+      void (async () => {
+        try {
+          const b = await fetchXrayAttentionFn();
+          if (!live) return;
+          attentionCache = { at: Date.now(), bundle: b };
+          setAtt(b);
+        } catch {
+          /* attention is additive — desk still works without it */
+        }
+      })();
+    }
+
     return () => {
       live = false;
     };
   }, [window]);
 
-  const windows = compact ? GOES_XRAY_WINDOWS.filter((w) => w.id === "6h" || w.id === "1d") : GOES_XRAY_WINDOWS;
-  const height = compact ? 220 : 280;
+  const windows = compact
+    ? GOES_XRAY_WINDOWS.filter((w) => w.id === "6h" || w.id === "1d")
+    : GOES_XRAY_WINDOWS;
+  const height = compact ? 200 : 280;
   const sat18 = plot?.primarySat ?? 18;
   const sat19 = plot?.secondarySat ?? 19;
+  const live = att?.live ?? null;
 
   const tip = useMemo(
     () => ({
@@ -88,7 +125,7 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
             GOES X-ray
           </h3>
           <p className="mt-0.5 text-[0.62rem] text-dim">
-            Log flux · A–X bands · watch the rise — not a forecast
+            Log flux · elevation attention · watch the rise — not a forecast
           </p>
         </div>
         {compact && onOpenFull && (
@@ -97,6 +134,54 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
           </button>
         )}
       </div>
+
+      {live && (
+        <div className="mb-2 space-y-1.5 rounded-lg border border-border/80 bg-bg/40 p-2.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={`rounded-full border px-2.5 py-1 text-[0.72rem] font-semibold ${STATE_TONE[live.state]}`}
+            >
+              {STATE_LABEL[live.state]}
+            </span>
+            <span className="font-mono text-[0.8rem] font-semibold text-fg">{live.className}</span>
+            {live.disagree && (
+              <span className="rounded border border-warn/40 px-1.5 py-0.5 text-[0.62rem] text-warn">
+                dual-sat disagree
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[0.65rem] text-muted">
+            {live.rate5 != null && (
+              <span>
+                rate₅{" "}
+                <span className="font-mono text-fg">
+                  {live.rate5 > 0 ? "+" : ""}
+                  {live.rate5.toFixed(4)} dex/min
+                </span>
+              </span>
+            )}
+            {live.etaM != null && live.etaM > 0 && live.etaM <= 30 && (
+              <span>
+                ~{Math.round(live.etaM)} min to M1{" "}
+                <span className="text-dim">if rise holds</span>
+              </span>
+            )}
+            {live.etaX != null && live.etaX > 0 && live.etaX <= 30 && (
+              <span>
+                ~{Math.round(live.etaX)} min to X1{" "}
+                <span className="text-dim">if rise holds</span>
+              </span>
+            )}
+            {live.dualDelta != null && (
+              <span>
+                Δsat{" "}
+                <span className="font-mono text-fg">{live.dualDelta.toFixed(3)} dex</span>
+              </span>
+            )}
+          </div>
+          <p className="text-[0.6rem] leading-snug text-dim">{att?.honesty}</p>
+        </div>
+      )}
 
       <div className="mb-2 flex flex-wrap gap-1" role="tablist" aria-label="X-ray window">
         {windows.map((w) => (
@@ -283,11 +368,63 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
         )}
       </div>
 
+      {!compact && att && att.events.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h4 className="text-[0.7rem] font-semibold uppercase tracking-wide text-dim">
+              Recent M/X · approach lead
+            </h4>
+            {att.skill.n > 0 && att.skill.approachMedian != null && (
+              <span className="text-[0.62rem] text-muted">
+                {att.skill.window} skill · n={att.skill.n} · median approach{" "}
+                <strong className="text-fg">{Math.round(att.skill.approachMedian)} min</strong>
+                {att.skill.approachMin != null && (
+                  <span className="text-dim">
+                    {" "}
+                    (range {Math.round(att.skill.approachMin)}–
+                    {Math.round(att.skill.approachMax ?? 0)})
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+          <ul className="space-y-1.5">
+            {att.events.slice(0, 6).map((e) => (
+              <li
+                key={`${e.peak}-${e.maxClass}`}
+                className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border/70 bg-bg/30 px-2.5 py-1.5 text-[0.7rem]"
+              >
+                <span
+                  className={`font-mono font-semibold ${
+                    e.maxClass.startsWith("X") ? "text-red-300" : "text-amber-300"
+                  }`}
+                >
+                  {e.maxClass}
+                </span>
+                <span className="text-muted">
+                  {new Date(e.peak).toUTCString().replace("GMT", "UTC").slice(5, 22)}
+                </span>
+                <span className="text-dim">rise {Math.round(e.riseMin)}m</span>
+                {e.approachLeadMin != null ? (
+                  <span className="text-fg">
+                    approach{" "}
+                    <span className="font-mono">{Math.round(e.approachLeadMin)} min</span>
+                  </span>
+                ) : (
+                  <span className="text-dim">no approach lock</span>
+                )}
+                {e.impulsive && <span className="text-warn">impulsive</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <p className="mt-1.5 text-[0.62rem] leading-relaxed text-dim">
         {plot?.note ?? "NOAA SWPC GOES XRS"}
         {". "}
-        Long channel (thicker) is the flare class. Short channel sits lower. Crossing 1e-4 is
-        X-class in progress — this desk does not predict it.
+        Long channel (thicker) is the flare class. Crossing 1e-4 is X-class in progress. Attention
+        tracks the rise already under way — it does not predict the next flare from quiet flux.
       </p>
     </section>
   );
