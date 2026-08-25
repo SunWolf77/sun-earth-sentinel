@@ -11,7 +11,7 @@ import {
   interpretEtasControl,
   OMORI_CONTROL,
 } from "@/lib/supt/etasWhiten";
-import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, RefreshCw, Sun, Map as MapIcon } from "lucide-react";
 import { XHandle } from "@/components/ui/XProfileLink";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { SuptMathSection } from "@/components/supt/SuptMathSection";
@@ -140,11 +140,31 @@ export function ResonancePanel() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-6">
-      <header>
-        <h2 className="text-lg font-semibold text-accent sm:text-xl">Timing</h2>
-        <p className="mt-1 text-xs text-muted sm:text-sm">
-          Gaps between quakes · {windowLabel} · not size · not a forecast
-        </p>
+      <header className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-accent sm:text-xl">Timing</h2>
+          <p className="mt-1 text-xs text-muted sm:text-sm">
+            Gaps between quakes · {windowLabel} · not size · not a forecast
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={() => setTab("solar")}
+            className="ww-btn min-h-10 px-2.5 text-[0.7rem]"
+          >
+            <Sun className="h-3.5 w-3.5" />
+            Solar
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("live")}
+            className="ww-btn ww-btn--ghost min-h-10 px-2.5 text-[0.7rem]"
+          >
+            <MapIcon className="h-3.5 w-3.5" />
+            Map
+          </button>
+        </div>
       </header>
 
       <div className={`rounded-xl border p-4 text-center sm:p-5 ${TONE_CLASS[verdict.tone]}`}>
@@ -192,10 +212,11 @@ export function ResonancePanel() {
           </button>
           <button
             type="button"
-            onClick={() => setTab("live")}
-            className="ww-btn ww-btn--ghost min-h-10 text-[0.7rem]"
+            onClick={() => setTab("solar")}
+            className="ww-btn min-h-10 text-[0.7rem]"
           >
-            Live map
+            <Sun className="h-3.5 w-3.5" />
+            Back to Solar
           </button>
         </div>
 

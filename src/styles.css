@@ -2421,7 +2421,7 @@
   .ww-shell:not(.ww-shell--map-focus) main > [role="tabpanel"]:not([hidden]) {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding-bottom: 0.75rem;
   }
 
   /* Map-focus: maximize stage */
@@ -2616,6 +2616,72 @@
 @media (max-width: 640px) {
   .ww-header .ww-tablist--inline {
     gap: 0.25rem !important;
+  }
+}
+
+/* ── Phone app tabs (bottom) ─────────────────────────────────── */
+.ww-app-tabs {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+  gap: 0.15rem;
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 0.2rem 0.2rem max(0.4rem, env(safe-area-inset-bottom));
+  z-index: 60;
+}
+.ww-app-tabs__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 2.75rem;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  padding: 0.2rem 0.1rem;
+}
+.ww-app-tabs__icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+.ww-app-tabs__btn--on {
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.12);
+}
+.ww-app-tabs__btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 70%, transparent);
+  outline-offset: -2px;
+}
+
+@media (min-width: 641px) {
+  .ww-app-tabs {
+    display: none;
+  }
+}
+
+/* Phone: header is brand + clock + tools. Tabs live on the bottom bar. */
+@media (max-width: 640px) {
+  .ww-header nav.ww-tablist,
+  .ww-header .ww-tablist,
+  .ww-header .ww-tablist--inline,
+  .ww-shell--map-focus .ww-tablist,
+  .ww-shell--map-focus .ww-header .ww-tablist {
+    display: none !important;
+  }
+  .ww-header .ww-sunwolf-id,
+  .ww-header .ww-seg--compact {
+    display: none !important;
   }
 }
 

@@ -1,22 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, Suspense, lazy } from "react";
 import {
-  Activity,
-  BookOpen,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Globe2,
   Layers,
-  Map as MapIcon,
   Pause,
   Play,
   RefreshCw,
-  Sun,
-  Waves,
   X,
 } from "lucide-react";
-import { useObservatory, filteredEq, viewEvents, getAllFocusNodes, type TabId } from "@/store/observatory";
+import { useObservatory, filteredEq, viewEvents, getAllFocusNodes } from "@/store/observatory";
 import { TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
 import { MapViewToggle } from "@/components/map/MapViewToggle";
 import { MapChromeDock } from "@/components/map/MapChromeDock";
@@ -46,6 +41,7 @@ import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { CatalogNoticeBanner } from "@/components/ops/CatalogNoticeBanner";
+import { MobileAppTabs, APP_TABS } from "@/components/ops/MobileAppTabs";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
 import { VolcWatchSmart } from "@/components/map/VolcWatchSmart";
 import { startRealtime } from "@/lib/realtime/transport";
@@ -77,19 +73,6 @@ const Globe3D = lazy(() =>
 export const Route = createFileRoute("/")({
   component: ObservatoryApp,
 });
-
-const TABS: {
-  id: TabId;
-  label: string;
-  short: string;
-  Icon: typeof MapIcon;
-}[] = [
-  { id: "live", label: "Live Map", short: "Map", Icon: MapIcon },
-  { id: "solar", label: "Solar", short: "Solar", Icon: Sun },
-  { id: "resonance", label: "Rhythm", short: "Rhythm", Icon: Waves },
-  { id: "analytics", label: "Charts", short: "Charts", Icon: Activity },
-  { id: "about", label: "About", short: "About", Icon: BookOpen },
-];
 
 const WINDOWS = TIME_WINDOWS;
 
@@ -500,18 +483,23 @@ function ObservatoryApp() {
     [eq?.features, minMag, maxMag, focusNodeId],
   );
 
-  const tabSwipe = createTabSwipe({
-    onSwipeLeft: () => {
-      const ids = TABS.map((t) => t.id);
-      const i = ids.indexOf(tab);
-      setTab(ids[(i + 1) % ids.length]!);
-    },
-    onSwipeRight: () => {
-      const ids = TABS.map((t) => t.id);
-      const i = ids.indexOf(tab);
-      setTab(ids[(i - 1 + ids.length) % ids.length]!);
-    },
-  });
+  const currentTabMeta = APP_TABS.find((t) => t.id === tab) ?? APP_TABS[0]!;
+
+  /* Phone: bottom dock is the nav. Swiping charts used to dump Solar → Timing. */
+  const tabSwipe = isMobile
+    ? null
+    : createTabSwipe({
+        onSwipeLeft: () => {
+          const ids = APP_TABS.map((t) => t.id);
+          const i = ids.indexOf(tab);
+          setTab(ids[(i + 1) % ids.length]!);
+        },
+        onSwipeRight: () => {
+          const ids = APP_TABS.map((t) => t.id);
+          const i = ids.indexOf(tab);
+          setTab(ids[(i - 1 + ids.length) % ids.length]!);
+        },
+      });
 
   /** Poll age ≠ catalog age. Say both so "8s ago" is not read as quake age. */
   const clockLabel = useMemo(() => {
@@ -757,6 +745,8 @@ function ObservatoryApp() {
             <h1 className="truncate text-[0.72rem] font-semibold leading-none tracking-tight text-fg sm:text-[0.85rem]">
               <span className="sm:hidden">
                 <span className="text-fg">SES</span>
+                <span className="text-dim"> · </span>
+                <span className="text-primary">{currentTabMeta.short}</span>
               </span>
               <span className="hidden sm:inline">
                 Sun-Earth <span className="text-primary">Sentinel</span>
@@ -793,11 +783,11 @@ function ObservatoryApp() {
           </div>
 
           <nav
-            className="ww-tablist ww-tablist--inline min-w-0 flex-1"
+            className="ww-tablist ww-tablist--inline hidden min-w-0 flex-1 sm:!flex"
             role="tablist"
             aria-label="Main sections"
           >
-            {TABS.map(({ id, label, short, Icon }, i) => {
+            {APP_TABS.map(({ id, label, short, Icon }, i) => {
               const selected = tab === id;
               return (
                 <button
@@ -820,7 +810,8 @@ function ObservatoryApp() {
             })}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+            {!isMobile && (
             <a
               href={X_PROFILES.sunwolf.url}
               target="_blank"
@@ -841,6 +832,7 @@ function ObservatoryApp() {
                 @{X_PROFILES.sunwolf.handle}
               </span>
             </a>
+            )}
             <span className={isMobile && tab === "live" ? "hidden" : undefined}>
               <HelpGuide />
             </span>
@@ -873,7 +865,7 @@ function ObservatoryApp() {
                 <Link2 className="h-4 w-4" />
               )}
             </button>
-            {!(isMobile && tab === "live") && (
+            {!isMobile && (
               <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">
                 {MODE_ORDER.map((m) => (
                   <button
@@ -902,7 +894,7 @@ function ObservatoryApp() {
             <button
               type="button"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`ww-btn ww-btn--icon ww-btn--compact ${autoRefresh ? "ww-btn--active" : ""} ${isMobile && tab === "live" ? "hidden" : ""}`}
+              className={`ww-btn ww-btn--icon ww-btn--compact ${autoRefresh ? "ww-btn--active" : ""} ${isMobile ? "hidden" : ""}`}
               title={autoRefresh ? "Pause auto-refresh" : "Resume auto-refresh"}
               aria-pressed={autoRefresh}
               aria-label={autoRefresh ? "Pause live updates" : "Resume live updates"}
@@ -994,9 +986,9 @@ function ObservatoryApp() {
 
       <main
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
-        onTouchStart={tabSwipe.onTouchStart}
-        onTouchEnd={tabSwipe.onTouchEnd}
-        onTouchCancel={tabSwipe.onTouchCancel}
+        onTouchStart={tabSwipe?.onTouchStart}
+        onTouchEnd={tabSwipe?.onTouchEnd}
+        onTouchCancel={tabSwipe?.onTouchCancel}
       >
         <div
           id="panel-live"
@@ -1195,7 +1187,7 @@ function ObservatoryApp() {
           role="tabpanel"
           aria-labelledby="tab-solar"
           hidden={tab !== "solar"}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-3 sm:p-4"
         >
           {tab === "solar" && <SpaceWeatherPanel />}
         </div>
@@ -1205,7 +1197,7 @@ function ObservatoryApp() {
           role="tabpanel"
           aria-labelledby="tab-resonance"
           hidden={tab !== "resonance"}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-0"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-3 sm:p-0"
         >
           {tab === "resonance" && <ResonancePanel />}
         </div>
@@ -1215,7 +1207,7 @@ function ObservatoryApp() {
           role="tabpanel"
           aria-labelledby="tab-analytics"
           hidden={tab !== "analytics"}
-          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4"
+          className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-3 sm:p-4"
         >
           {tab === "analytics" && <AnalyticsCharts />}
         </div>
@@ -1230,6 +1222,8 @@ function ObservatoryApp() {
           {tab === "about" && <AboutPanel />}
         </div>
       </main>
+
+      <MobileAppTabs />
 
       <footer className="ww-footer hidden shrink-0 border-t border-border px-3 py-1 text-[0.62rem] text-dim sm:flex sm:items-center sm:justify-between">
         <span className="inline-flex items-center gap-1">

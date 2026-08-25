@@ -16,8 +16,7 @@ export function MobileFolderCoach({ onDismiss }: Props) {
     >
       <p className="min-w-0 flex-1">
         <strong className="text-fg">Folders slide up.</strong> Map · Filters · Events ·
-        Layers. Pulse (top) expands. Views: Live · Solar · Rhythm — tabs, or swipe
-        off the map.
+        Layers. Views live on the bar at the bottom: Map · Solar · Rhythm.
       </p>
       <button
         type="button"
