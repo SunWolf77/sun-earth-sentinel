@@ -45,6 +45,7 @@ import { ModelAccuracyDisclaimer } from "@/components/ops/ModelAccuracyDisclaime
 import { KIndexScalesPanel } from "@/components/weather/KIndexScalesPanel";
 import { EclipseWatch } from "@/components/weather/EclipseWatch";
 import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
+import { GoesXrayDesk } from "@/components/weather/GoesXrayDesk";
 import {
   Activity,
   AlertTriangle,
@@ -63,10 +64,11 @@ import {
 
 type MediaTab = "disk" | "corona" | "farside" | "models";
 /** Top-level Solar IA — one job per view (stops the wall of mixed jargon). */
-type SolarView = "now" | "images" | "catalogs" | "magneto" | "context";
+type SolarView = "now" | "xray" | "images" | "catalogs" | "magneto" | "context";
 
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
   { id: "now", label: "Now", hint: "Field pairing · impact · NOAA scales" },
+  { id: "xray", label: "X-ray", hint: "GOES 18/19 log flux · A–X bands" },
   { id: "images", label: "Images", hint: "Disk · corona · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
   { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
@@ -99,9 +101,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
     try {
       const q = new URLSearchParams(window.location.search);
       const v = q.get("solar");
-      if (v === "images" || v === "catalogs" || v === "context" || v === "now" || v === "magneto") return v;
+      if (v === "images" || v === "catalogs" || v === "context" || v === "now" || v === "magneto" || v === "xray") return v;
       const raw = localStorage.getItem("ww_solar_view");
-      if (raw === "images" || raw === "catalogs" || raw === "context" || raw === "now" || raw === "magneto") return raw;
+      if (raw === "images" || raw === "catalogs" || raw === "context" || raw === "now" || raw === "magneto" || raw === "xray") return raw;
     } catch {
       /* */
     }
@@ -131,6 +133,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
     if (t.anchor === "field-coupling") selectSolarView("now");
     else if (t.solarDeep === "catalogs") selectSolarView("catalogs");
     else if (t.solarDeep === "magneto") selectSolarView("magneto");
+    else if (t.solarDeep === "xray") selectSolarView("xray");
     else if (t.solarDeep === "alerts") selectSolarView("now");
     else if (t.solarDeep === "farside" || t.solarDeep === "models") {
       selectSolarView("images");
@@ -433,6 +436,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             </p>
           )}
 
+          <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
+
           {scales && (
             <div className="grid gap-2 sm:grid-cols-3">
               <ScaleCard letter="R" name="Radio blackout" value={scales.R} text={scales.RText} />
@@ -484,6 +489,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           </p>
         </div>
       )}
+
+      {/* ── X-RAY: GOES log flux watch ─────────────────────────────── */}
+      {solarView === "xray" && <GoesXrayDesk />}
 
       {/* ── IMAGES ─────────────────────────────────────────────────── */}
       {solarView === "images" && showImages && (

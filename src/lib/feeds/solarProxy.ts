@@ -29,6 +29,7 @@ import {
   fetchKpForecast,
 } from "@/lib/feeds/swpc";
 import { HELIOVIEWER, soloScreenshotUrl } from "@/lib/feeds/solarMedia";
+import { buildGoesXrayPlot, type GoesXrayPlot, type GoesXrayWindow } from "@/lib/feeds/goesXray";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
 
@@ -176,3 +177,16 @@ export const fetchSoloFrame = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+const GOES_WINDOWS = new Set(["6h", "1d", "3d", "7d"]);
+
+/** Downsampled GOES-18/19 XRS for the X-ray desk (7d JSON is ~4 MB raw). */
+export const fetchGoesXrayPlotFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { window?: string } | undefined) => {
+    const w = String(input?.window || "1d");
+    return { window: (GOES_WINDOWS.has(w) ? w : "1d") as GoesXrayWindow };
+  })
+  .handler(async ({ data }): Promise<GoesXrayPlot> => {
+    return buildGoesXrayPlot(data.window);
+  });
+
