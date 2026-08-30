@@ -3,6 +3,7 @@ import {
   aviationToNodeStatus,
 } from "@/lib/feeds/volcanoWatches";
 import { pointInBounds, type LatLonBounds } from "@/lib/geo/bounds";
+import { RAISED, isFresh } from "@/lib/ops/raisedTimeout";
 
 export type EqFeature = {
   type: "Feature";
@@ -749,12 +750,16 @@ function seismicNodeStatus(
   });
   if (!inBounds.length) return "quiet";
 
+  const h24 = 24 * 3_600_000;
   let maxMag = 0;
+  let maxMag24h = 0;
+  let maxMag72h = 0;
   let m5 = 0;
-  let m6 = 0;
   let m5_24h = 0;
   let m6_48h = 0;
+  let m6_7d = 0;
   let m5_72h = 0;
+  let m7_72h = 0;
   let count_24h = 0;
   let m3 = 0;
   let nullCount = 0;
@@ -764,24 +769,27 @@ function seismicNodeStatus(
     const age = typeof t === "number" ? now - t : Number.POSITIVE_INFINITY;
     if (!hasFiniteMag(mag)) {
       nullCount++;
-      if (age <= 24 * 3_600_000) count_24h++;
+      if (age <= h24) count_24h++;
       continue;
     }
     if (mag > maxMag) maxMag = mag;
+    if (age <= h24 && mag > maxMag24h) maxMag24h = mag;
+    if (isFresh(t, RAISED.node.m7WatchH, now) && mag > maxMag72h) maxMag72h = mag;
     if (mag >= 3) m3++;
     if (mag >= 5) m5++;
-    if (mag >= 6) m6++;
-    if (age <= 24 * 3_600_000) {
+    if (age <= h24) {
       count_24h++;
       if (mag >= 5) m5_24h++;
     }
-    if (age <= 48 * 3_600_000 && mag >= 6) m6_48h++;
-    if (age <= 72 * 3_600_000 && mag >= 5) m5_72h++;
+    if (isFresh(t, RAISED.node.m6WatchH, now) && mag >= 6) m6_48h++;
+    if (age <= 7 * 86_400_000 && mag >= 6) m6_7d++;
+    if (isFresh(t, RAISED.node.m7WatchH, now) && mag >= 5) m5_72h++;
+    if (isFresh(t, RAISED.node.m7WatchH, now) && mag >= 7) m7_72h++;
   }
 
-  // Fresh standout always surfaces (signal)
-  if (m6_48h >= 1 || maxMag >= 7) return "watch";
-  if (m5_24h >= 2 || (m5_24h >= 1 && maxMag >= 5.8)) return "watch";
+  // Watch is recency-only — a week/month catalog M7 must not keep the node red.
+  if (m6_48h >= 1 || m7_72h >= 1) return "watch";
+  if (m5_24h >= 2 || (m5_24h >= 1 && maxMag24h >= 5.8)) return "watch";
 
   // Iceland microseismicity-aware (anti-alarmist: dense M1 is normal, not red)
   if (node.id === "iceland") {
@@ -798,7 +806,7 @@ function seismicNodeStatus(
       return "quiet";
     }
     // week / month — Reykjanes can log hundreds of M1s in a quiet week
-    if (m6 >= 1 || maxMag >= 5.5) return "watch";
+    if (maxMag72h >= 5.5) return "watch";
     if (m5 >= 1 || m3 >= 20 || inBounds.length >= 200) return "active";
     if (m3 >= 5 || maxMag >= 3.5 || inBounds.length >= 40) return "elevated";
     return "quiet";
@@ -818,9 +826,9 @@ function seismicNodeStatus(
       if (maxMag >= 4 || m3 >= 6 || inBounds.length >= 40) return "elevated";
       return "quiet";
     }
-    // week / month
-    if (m6 >= 1 || m5_72h >= 3) return "watch";
-    if (m5 >= 2 || maxMag >= 5.5 || m3 >= 40) return "active";
+    // week / month — old M6 is context, not a standing watch
+    if (m5_72h >= 3) return "watch";
+    if (m6_7d >= 1 || m5 >= 2 || maxMag >= 5.5 || m3 >= 40) return "active";
     if (m5 >= 1 || maxMag >= 4.5 || m3 >= 15 || inBounds.length >= 80) return "elevated";
     return "quiet";
   }
@@ -839,8 +847,8 @@ function seismicNodeStatus(
       if (maxMag >= 3.5 || m3 >= 5 || inBounds.length >= 30) return "elevated";
       return "quiet";
     }
-    if (m6 >= 1 || m5_72h >= 2) return "watch";
-    if (m5 >= 1 || maxMag >= 5 || m3 >= 25) return "active";
+    if (m5_72h >= 2) return "watch";
+    if (m6_7d >= 1 || m5 >= 1 || maxMag >= 5 || m3 >= 25) return "active";
     if (maxMag >= 4 || m3 >= 10 || inBounds.length >= 60) return "elevated";
     return "quiet";
   }
@@ -859,15 +867,13 @@ function seismicNodeStatus(
     return "quiet";
   }
   if (win === "month") {
-    // Month catalogs are dense on arcs — require multi-M6 or recent burst
-    if (m6 >= 2 || maxMag >= 7 || m5_72h >= 4) return "watch";
-    if (m6 >= 1 || m5 >= 8 || m5_72h >= 2) return "active";
+    // Month catalogs are dense on arcs — watch already handled by recency floor
+    if (m6_7d >= 1 || m5 >= 8 || m5_72h >= 2) return "active";
     if (m5 >= 3 || maxMag >= 5.5 || inBounds.length >= 40) return "elevated";
     return "quiet";
   }
   // week (default long window)
-  if (m6 >= 1 && m5_72h >= 2) return "watch";
-  if (m6 >= 1 || m5 >= 5 || m5_72h >= 3) return "active";
+  if (m6_7d >= 1 || m5 >= 5 || m5_72h >= 3) return "active";
   if (m5 >= 2 || maxMag >= 5.5 || inBounds.length >= 20) return "elevated";
   if (maxMag >= 4.5 || inBounds.length >= 8) return "elevated";
   return "quiet";

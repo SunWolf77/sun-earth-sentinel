@@ -57,6 +57,7 @@ import { fetchIssPosition, type IssPosition } from "@/lib/feeds/iss";
 import { fetchOpenWildfires, type WildfireEvent } from "@/lib/feeds/wildfires";
 import { fetchNeoToday, type NeoItem } from "@/lib/feeds/neows";
 
+import { pruneVolcTransitions } from "@/lib/ops/raisedTimeout";
 import {
   diffVolcWatch,
   fetchUsgsElevatedVolcanoes,
@@ -1669,17 +1670,16 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         volcWatchTransitions: (() => {
           const prev = get().usgsVolcAlerts;
           const next = usgsVolcAlerts ?? prev;
-          if (usgsVolcAlerts == null) return get().volcWatchTransitions;
-          // Skip noisy "all elevated" on first empty→full load? Still useful.
+          const prune = (list: VolcWatchTransition[]) => pruneVolcTransitions(list);
+          if (usgsVolcAlerts == null) return prune(get().volcWatchTransitions);
           const hadPrev = prev.length > 0 || get().volcWatchNodes.length > 0;
           const deltas = diffVolcWatch(prev, next);
-          if (!deltas.length) return get().volcWatchTransitions;
-          // First successful fetch: treat as elevated seed without baseline spam
+          if (!deltas.length) return prune(get().volcWatchTransitions);
           const filtered =
             !hadPrev && prev.length === 0
               ? deltas.filter((d) => d.kind === "elevated")
               : deltas;
-          return [...filtered, ...get().volcWatchTransitions].slice(0, 24);
+          return prune([...filtered, ...get().volcWatchTransitions]);
         })(),
         kp: kpFinal,
         xray: xrayFinal,

@@ -1,6 +1,9 @@
 /**
  * Rule-based cross-feed chips — honest multi-domain pulse (no LLM).
+ * Raised chips time out; this is not a stacking alert board.
  */
+
+import { RAISED, isFresh } from "@/lib/ops/raisedTimeout";
 
 import type { ResonanceScore } from "@/lib/supt/probe";
 import type { NoaaScales } from "@/lib/feeds/swpc";
@@ -29,6 +32,9 @@ export function buildCrossFeed(opts: {
   seismic: ResonanceScore | null;
   eqCount: number;
   maxMag: number | null;
+  maxMagTime?: number | null;
+  timeWindow?: string;
+  now?: number;
   volcAlerts: UsgsVolcanoAlert[];
   iss: IssPosition | null;
   lunar: LunarPhaseSnapshot | null;
@@ -36,6 +42,7 @@ export function buildCrossFeed(opts: {
   neos: NeoItem[];
 }): CrossFeedChip[] {
   const chips: CrossFeedChip[] = [];
+  const now = opts.now ?? Date.now();
   const g = scaleNum(opts.scales?.G);
   const r = scaleNum(opts.scales?.R);
   const s = scaleNum(opts.scales?.S);
@@ -73,14 +80,18 @@ export function buildCrossFeed(opts: {
     });
   }
 
-  if (opts.maxMag != null && opts.maxMag >= 6) {
+  const m6Fresh =
+    opts.maxMag != null &&
+    opts.maxMag >= 6 &&
+    isFresh(opts.maxMagTime, RAISED.crossFeed.m6ChipH, now);
+  if (m6Fresh) {
     chips.push({
       id: "eq-strong",
       tone: "alert",
-      label: `Strong quake M${opts.maxMag.toFixed(1)}`,
+      label: `Strong quake M${opts.maxMag!.toFixed(1)}`,
       detail: `${opts.eqCount} events in window — open Map for agency detail.`,
     });
-  } else if (opts.eqCount >= 40) {
+  } else if (opts.eqCount >= busyThreshold(opts.timeWindow)) {
     chips.push({
       id: "eq-busy",
       tone: "info",
@@ -102,15 +113,24 @@ export function buildCrossFeed(opts: {
     const lvl = `${a.colorCode || ""} ${a.alertLevel || ""}`.toUpperCase();
     return lvl && !lvl.includes("GREEN") && !lvl.includes("NORMAL");
   });
-  if (elevated.length) {
+  const hot = elevated.filter((a) =>
+    /ORANGE|RED|WATCH|WARNING/i.test(`${a.colorCode} ${a.alertLevel}`),
+  );
+  if (hot.length) {
     chips.push({
       id: "volc",
-      tone: elevated.some((a) =>
-        /ORANGE|RED|WATCH|WARNING/i.test(`${a.colorCode} ${a.alertLevel}`),
-      )
-        ? "alert"
-        : "watch",
-      label: `${elevated.length} volcano alert${elevated.length > 1 ? "s" : ""}`,
+      tone: "alert",
+      label: `${hot.length} volcano orange/red`,
+      detail: hot
+        .slice(0, 3)
+        .map((a) => a.name || "Volcano")
+        .join(" · "),
+    });
+  } else if (elevated.length) {
+    chips.push({
+      id: "volc",
+      tone: "watch",
+      label: `${elevated.length} volcano advisory`,
       detail: elevated
         .slice(0, 3)
         .map((a) => a.name || "Volcano")
@@ -167,5 +187,27 @@ export function buildCrossFeed(opts: {
     });
   }
 
-  return chips.slice(0, 6);
+  const rank: Record<CrossFeedChip["tone"], number> = {
+    alert: 0,
+    watch: 1,
+    info: 2,
+    quiet: 3,
+  };
+  chips.sort((a, b) => rank[a.tone] - rank[b.tone]);
+  return chips.slice(0, RAISED.crossFeed.cap);
+}
+
+function busyThreshold(win?: string): number {
+  switch ((win || "").toLowerCase()) {
+    case "hour":
+      return 12;
+    case "day":
+      return 40;
+    case "week":
+      return 80;
+    case "month":
+      return 150;
+    default:
+      return 40;
+  }
 }

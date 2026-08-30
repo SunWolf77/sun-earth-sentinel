@@ -66,7 +66,8 @@ export function SwpcStormWarnings({
             SWPC storm warnings
           </h3>
           <p className="mt-0.5 text-[0.68rem] text-dim">
-            Official watches · warnings · alerts · live NOAA scales — authority is SWPC
+            Official watches · warnings · alerts · live NOAA scales — authority is SWPC.
+            Rows drop after 18–72 h so this desk does not archive.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -182,7 +183,7 @@ export function SwpcStormWarnings({
             </p>
           ) : (
             <ul className="scroll-thin max-h-64 space-y-2 overflow-y-auto">
-              {parsed.slice(0, 12).map((a, i) => (
+              {parsed.slice(0, 6).map((a, i) => (
                 <li
                   key={`${a.issued ?? i}-${a.title.slice(0, 24)}`}
                   className={`rounded-lg border px-2.5 py-2 ${tierTone(a.tier).replace(/text-\w+/, "text-fg")}`}

@@ -45,6 +45,7 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
   const neos = useObservatory((s) => s.neos);
   const setTab = useObservatory((s) => s.setTab);
   const setOverlay = useObservatory((s) => s.setOverlay);
+  const timeWindow = useObservatory((s) => s.timeWindow);
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
@@ -54,9 +55,13 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
   const chipsRaw = useMemo(() => {
     const feats = filteredEq(eq?.features, minMag, maxMag);
     let maxM: number | null = null;
+    let maxMTime: number | null = null;
     for (const f of feats) {
       const m = f.properties.mag;
-      if (m != null && (maxM == null || m > maxM)) maxM = m;
+      if (m != null && (maxM == null || m > maxM)) {
+        maxM = m;
+        maxMTime = typeof f.properties.time === "number" ? f.properties.time : null;
+      }
     }
     return buildCrossFeed({
       scales,
@@ -64,13 +69,15 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
       seismic: resonance,
       eqCount: feats.length,
       maxMag: maxM,
+      maxMagTime: maxMTime,
+      timeWindow,
       volcAlerts,
       iss,
       lunar: computeLunarPhase(),
       wildfires,
       neos,
     });
-  }, [scales, kp, resonance, eq, minMag, maxMag, volcAlerts, iss, wildfires, neos]);
+  }, [scales, kp, resonance, eq, minMag, maxMag, volcAlerts, iss, wildfires, neos, timeWindow]);
 
   const chips = chipsRaw.filter((c) => c.id !== "iss" && c.id !== "aurora");
 
@@ -117,7 +124,11 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
           c.id === "eq-strong" && c.label.match(/M[\d.]+/)
             ? c.label.replace("Strong quake ", "")
             : c.id === "volc" && c.label.match(/\d+/)
-              ? c.label.replace(" volcano alerts", " volc").replace(" volcano alert", " volc")
+              ? c.label
+                  .replace(" volcano orange/red", " volc")
+                  .replace(" volcano advisory", " volc")
+                  .replace(" volcano alerts", " volc")
+                  .replace(" volcano alert", " volc")
               : c.id === "fire" && c.label.match(/\d+/)
                 ? c.label.replace(" open wildfires", " fires")
                 : SHORT[c.id] || c.label;

@@ -13,6 +13,7 @@ import {
 import { pointInBounds } from "@/lib/geo/bounds";
 import type { DonkiFlare } from "@/lib/feeds/donki";
 import { antipode, gcDeg, parseFlareClass } from "@/lib/ops/fieldCoupling";
+import { RAISED, isFresh } from "@/lib/ops/raisedTimeout";
 import { interEventSeconds, resonanceScore } from "@/lib/supt/probe";
 
 export const LOOK_COLOR = "#f59e0b";
@@ -42,7 +43,7 @@ export type LookZonesReport = {
   headline: string;
 };
 
-const LAG_H = 120;
+const LAG_H = RAISED.look.sunLedH;
 const ANTIPODE_DEG = 7;
 
 function magOf(f: EqFeature): number {
@@ -71,8 +72,14 @@ function sunLedHits(
   node: DragonNode,
   features: EqFeature[],
   flares: DonkiFlare[],
+  now: number,
 ): number {
-  const big = features.filter((f) => inNode(f, node) && magOf(f) >= 6.5);
+  const big = features.filter(
+    (f) =>
+      inNode(f, node) &&
+      magOf(f) >= 6.5 &&
+      isFresh(f.properties.time, RAISED.look.sunLedH, now),
+  );
   if (!big.length) return 0;
   const strong = flares.filter((fl) => {
     const p = parseFlareClass(fl.classType);
@@ -91,8 +98,10 @@ function sunLedHits(
   return n;
 }
 
-function antipodeHits(node: DragonNode, features: EqFeature[]): number {
-  const big = features.filter((f) => magOf(f) >= 6.5);
+function antipodeHits(node: DragonNode, features: EqFeature[], now: number): number {
+  const big = features.filter(
+    (f) => magOf(f) >= 6.5 && isFresh(f.properties.time, RAISED.look.antipodeH, now),
+  );
   let n = 0;
   for (const q of big) {
     if (inNode(q, node)) continue;
@@ -152,13 +161,21 @@ export function buildLookZones(opts: {
   const counts = pool.map((node) => {
     const hits = features.filter((f) => inNode(f, node) && (magOf(f) >= 4 || Number.isNaN(magOf(f))));
     let maxMag = 0;
+    let recentMaxMag = 0;
     let n = 0;
     for (const f of hits) {
       n++;
       const m = magOf(f);
       if (Number.isFinite(m) && m > maxMag) maxMag = m;
+      if (
+        Number.isFinite(m) &&
+        m > recentMaxMag &&
+        isFresh(f.properties.time, RAISED.look.largeH, now)
+      ) {
+        recentMaxMag = m;
+      }
     }
-    return { node, n, maxMag, rate: n / Math.max(days, 1 / 24) };
+    return { node, n, maxMag, recentMaxMag, rate: n / Math.max(days, 1 / 24) };
   });
 
   const rates = counts.map((c) => c.rate).filter((r) => r > 0).sort((a, b) => a - b);
@@ -169,17 +186,17 @@ export function buildLookZones(opts: {
         ? rates[(rates.length - 1) / 2]!
         : (rates[rates.length / 2 - 1]! + rates[rates.length / 2]!) / 2;
 
-  const all: LookZone[] = counts.map(({ node, n, maxMag, rate }) => {
+  const all: LookZone[] = counts.map(({ node, n, maxMag, recentMaxMag, rate }) => {
     const status = nodeStatus(features, node, {
       timeWindow: opts.timeWindow,
       now,
     });
     const rel = median > 0.05 ? rate / median : rate > 0 ? 3 : 0;
     const reasons: LookReason[] = [];
-    if (status === "watch" || maxMag >= 6.5) reasons.push("large");
+    if (status === "watch" || recentMaxMag >= 6.5) reasons.push("large");
     if (rel >= 2.4 && n >= 5) reasons.push("rate");
-    if (sunLedHits(node, wide, flares) > 0) reasons.push("sun-led");
-    if (antipodeHits(node, wide) > 0) reasons.push("antipode");
+    if (sunLedHits(node, wide, flares, now) > 0) reasons.push("sun-led");
+    if (antipodeHits(node, wide, now) > 0) reasons.push("antipode");
     if (
       node.kind === "volcano" &&
       (node.aviationCode === "yellow" ||
@@ -202,7 +219,7 @@ export function buildLookZones(opts: {
     const strength = reasons.length;
     const look =
       reasons.includes("agency") ||
-      maxMag >= 7 ||
+      recentMaxMag >= 7 ||
       strength >= 2 ||
       (reasons.includes("rate") && n >= 8) ||
       (reasons.includes("sun-led") && (reasons.includes("large") || reasons.includes("antipode")));
@@ -225,7 +242,7 @@ export function buildLookZones(opts: {
     return z;
   });
 
-  const looks = all.filter((z) => z.look).sort((a, b) => rank(b) - rank(a)).slice(0, 8);
+  const looks = all.filter((z) => z.look).sort((a, b) => rank(b) - rank(a)).slice(0, RAISED.look.cap);
 
   const headline = looks.length
     ? `Look · ${looks.map((z) => z.name.split(/[–/]/)[0]!.trim()).join(" · ")}`

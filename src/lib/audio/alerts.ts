@@ -73,11 +73,11 @@ export function relayNewEvents(
     max: opts.max ?? 3,
   });
 
-  if (opts.sound) {
-    for (const n of fresh) playQuakeAlert(n.mag ?? 4.5);
+  if (opts.sound && fresh[0]) {
+    playQuakeAlert(fresh[0].mag ?? 4.5);
   }
-  if (opts.desktop) {
-    for (const n of fresh) showOsRelay(n);
+  if (opts.desktop && fresh[0]) {
+    showOsRelay(fresh[0]);
   }
 
   return { nextIds, fresh };

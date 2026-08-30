@@ -1,6 +1,9 @@
 /**
  * Parse SWPC alerts.json messages into structured watch / warning / alert rows.
+ * Stale products are dropped so the desk does not stack a multi-day archive.
  */
+
+import { pruneRaisedSwpc } from "@/lib/ops/raisedTimeout";
 
 export type SwpcAlertTier = "warning" | "watch" | "alert" | "summary" | "other";
 
@@ -17,14 +20,6 @@ export type ParsedSwpcAlert = {
 export type SwpcAlertItem = {
   message?: string;
   issue_datetime?: string;
-};
-
-const TIER_ORDER: Record<SwpcAlertTier, number> = {
-  warning: 0,
-  watch: 1,
-  alert: 2,
-  summary: 3,
-  other: 4,
 };
 
 export function classifySwpcTier(message: string): SwpcAlertTier {
@@ -76,11 +71,14 @@ export function parseSwpcAlert(item: SwpcAlertItem): ParsedSwpcAlert {
   };
 }
 
-export function parseSwpcAlerts(items: SwpcAlertItem[]): ParsedSwpcAlert[] {
-  return items
+export function parseSwpcAlerts(
+  items: SwpcAlertItem[],
+  now = Date.now(),
+): ParsedSwpcAlert[] {
+  const parsed = items
     .map(parseSwpcAlert)
-    .filter((a) => a.raw || a.issued)
-    .sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier]);
+    .filter((a) => a.raw || a.issued);
+  return pruneRaisedSwpc(parsed, now);
 }
 
 export const TIER_LABEL: Record<SwpcAlertTier, string> = {

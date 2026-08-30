@@ -90,8 +90,8 @@ export function aviationToNodeStatus(
     case "orange":
       return "watch";
     case "yellow":
-      return "active";
-    case "green":
       return "elevated";
+    case "green":
+      return "quiet";
   }
 }

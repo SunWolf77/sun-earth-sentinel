@@ -154,6 +154,8 @@ type ZonePulse = {
   m5: number;
   m6: number;
   m6_48h: number;
+  m6AgeMs: number | null;
+  strongestAgeMs: number | null;
   newestAgeMs: number | null;
   strongest: EqFeature | null;
   /** events/day vs soft baseline (>1 = busier than ordinary) */
@@ -184,6 +186,7 @@ function zonePulse(
   let m6_48h = 0;
   let newest = 0;
   let strongest: EqFeature | null = null;
+  let m6AgeMs: number | null = null;
   for (const f of all) {
     const mag = f.properties.mag ?? 0;
     const t = f.properties.time ?? 0;
@@ -192,7 +195,13 @@ function zonePulse(
       strongest = f;
     }
     if (mag >= 5) m5++;
-    if (mag >= 6) m6++;
+    if (mag >= 6) {
+      m6++;
+      if (t) {
+        const age = now - t;
+        if (m6AgeMs == null || age < m6AgeMs) m6AgeMs = age;
+      }
+    }
     if (mag >= 6 && t && now - t <= h48) m6_48h++;
     if (t > newest) newest = t;
   }
@@ -213,6 +222,11 @@ function zonePulse(
     m5,
     m6,
     m6_48h,
+    m6AgeMs,
+    strongestAgeMs:
+      strongest && typeof strongest.properties.time === "number"
+        ? now - strongest.properties.time
+        : null,
     newestAgeMs: newest ? now - newest : null,
     strongest,
     relativeRate,
@@ -227,10 +241,13 @@ function zonePulse(
 function storyUrgency(p: ZonePulse): StoryUrgency {
   const ageH =
     p.newestAgeMs != null ? p.newestAgeMs / 3_600_000 : 999;
+  const standoutH =
+    p.strongestAgeMs != null ? p.strongestAgeMs / 3_600_000 : 999;
+  const m6H = p.m6AgeMs != null ? p.m6AgeMs / 3_600_000 : 999;
 
-  // True standouts — require freshness, not a red siren for yesterday's M7
-  if (p.m6_48h >= 1 && ageH < 12) return "now";
-  if (p.maxMag >= 7 && ageH < 18) return "now";
+  // True standouts — require freshness of the strong event, not any micro aftershock
+  if (p.m6_48h >= 1 && m6H < 12) return "now";
+  if (p.maxMag >= 7 && standoutH < 18) return "now";
   if (
     p.recent24h.filter((f) => (f.properties.mag ?? 0) >= 5.5).length >= 1 &&
     p.relativeRate >= 1.8 &&
@@ -241,9 +258,8 @@ function storyUrgency(p: ZonePulse): StoryUrgency {
   // Clear short-window burst above baseline
   if (p.recent6h.length >= 5 && p.relativeRate >= 2) return "watch";
   if (p.recent24h.length >= 8 && p.relativeRate >= 2.2) return "watch";
-  if (p.m6 >= 1 && p.newestAgeMs != null && p.newestAgeMs < 7 * 86_400_000)
-    return "watch";
-  if (p.maxMag >= 7 && ageH < 72) return "watch"; // notable, not alarm
+  if (p.m6_48h >= 1) return "watch";
+  if (p.maxMag >= 7 && standoutH < 72) return "watch"; // notable, not alarm
 
   // Mild above baseline
   if (p.relativeRate >= 1.6 || p.status === "active") return "elevated";
@@ -419,12 +435,11 @@ function globalBeats(features: EqFeature[], now: number): ActivityStory[] {
     } else if ((ageH < 36 && mag >= 6.5) || (ageH < 72 && mag >= 7) || (ageH < 24 && mag >= 6)) {
       urgency = "watch";
       score = 50 + mag * 5;
-    } else if (ageH < 168 && mag >= 6) {
+    } else if (ageH < 72 && mag >= 6) {
       urgency = "elevated";
       score = 35 + mag * 3;
     } else {
-      urgency = "context";
-      score = 15 + mag;
+      continue; // old window M6 is catalog, not a stacked story
     }
 
     const secondaryMag =

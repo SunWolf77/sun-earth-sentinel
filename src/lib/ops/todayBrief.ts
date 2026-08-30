@@ -95,12 +95,19 @@ export function buildTodayBrief(opts: {
   const gPeak = Math.max(gNow, gPrev) || null;
   const g1 = scaleNum(opts.scales?.G1);
 
-  // Level: prefer official G / Kp, not only SUPT attention
+  // Level: live G / Kp only. Prior-period G peak is context, not a standing elevated.
   let level: TodayBrief["level"] = "quiet";
   if (gNow >= 3 || (kpLatest != null && kpLatest >= 7) || attn >= 75) level = "storm";
-  else if (gNow >= 2 || (gPeak != null && gPeak >= 2) || (kpLatest != null && kpLatest >= 5) || attn >= 50)
+  else if (gNow >= 2 || (kpLatest != null && kpLatest >= 5) || attn >= 50)
     level = "elevated";
-  else if (gNow >= 1 || g1 >= 1 || (kpLatest != null && kpLatest >= 4) || attn >= 35) level = "watch";
+  else if (
+    gNow >= 1 ||
+    g1 >= 1 ||
+    (kpLatest != null && kpLatest >= 4) ||
+    attn >= 35 ||
+    (gPeak != null && gPeak >= 2)
+  )
+    level = "watch";
   else level = solar?.impact.level ?? "quiet";
 
   const earthD =
@@ -189,10 +196,15 @@ export function buildTodayBrief(opts: {
       tab: "solar",
     });
   }
-  if (gNow >= 1 || (gPeak != null && gPeak >= 2) || (kpLatest != null && kpLatest >= 5)) {
+  if (gNow >= 1 || (kpLatest != null && kpLatest >= 5) || (gPeak != null && gPeak >= 2 && gNow === 0)) {
     recs.push({
       id: "geo",
-      priority: gNow >= 3 || (kpLatest != null && kpLatest >= 7) ? "now" : "watch",
+      priority:
+        gNow >= 3 || (kpLatest != null && kpLatest >= 7)
+          ? "now"
+          : gNow >= 1 || (kpLatest != null && kpLatest >= 5)
+            ? "watch"
+            : "context",
       title:
         gNow >= 1
           ? `Geomagnetic G${gNow}`
