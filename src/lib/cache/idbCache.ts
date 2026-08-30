@@ -227,13 +227,29 @@ export async function idbGetFeed<T>(
     await txDone(tx);
     if (!rec || rec.data === undefined) return null;
     if (now - rec.ts >= maxAgeMs) {
-      // expired — delete async, don't block
-      void idbDeleteFeed(key);
+      // TTL miss — keep last-good. Prune handles quota; first paint needs a catalog.
       return null;
     }
     return rec.data;
   } catch (e) {
     lastError = e instanceof Error ? e.message : "get failed";
+    return null;
+  }
+}
+
+/** Last-good catalog regardless of TTL — first paint, not a freshness check. */
+export async function idbPeekFeed<T>(key: string): Promise<T | null> {
+  const db = await openDb();
+  if (!db) return null;
+  try {
+    const tx = db.transaction(FEEDS, "readonly");
+    const rec = (await reqToPromise(
+      tx.objectStore(FEEDS).get(key),
+    )) as IdbFeedRecord<T> | undefined;
+    await txDone(tx);
+    if (!rec || rec.data === undefined) return null;
+    return rec.data;
+  } catch {
     return null;
   }
 }

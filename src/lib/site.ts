@@ -14,8 +14,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
  * 1.29.0: first-visit mobile folder coach (dock + Pulse).
+ * 1.29.1: last-good catalog on first paint; Esri street/dark tiles (Carto keyless).
  */
-export const APP_VERSION = "1.29.0";
+export const APP_VERSION = "1.29.1";
 
 
 

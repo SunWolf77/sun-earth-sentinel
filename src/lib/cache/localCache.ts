@@ -342,6 +342,18 @@ function prepareForStorage<T>(key: string, data: T): T {
   return data;
 }
 
+export function peekCache<T>(key: string): T | null {
+  ensureVersion();
+  try {
+    const raw = localStorage.getItem(PREFIX + key);
+    if (!raw) return null;
+    const { data } = JSON.parse(raw) as { ts: number; data: T };
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function getCache<T>(key: string, maxAgeMs = 4 * 60 * 1000): T | null {
   ensureVersion();
   try {
@@ -349,7 +361,7 @@ export function getCache<T>(key: string, maxAgeMs = 4 * 60 * 1000): T | null {
     if (!raw) return null;
     const { ts, data } = JSON.parse(raw) as { ts: number; data: T };
     if (Date.now() - ts < maxAgeMs) return data;
-    localStorage.removeItem(PREFIX + key);
+    // Keep last-good on disk. TTL miss ≠ delete — first paint needs a catalog.
   } catch {
     /* ignore */
   }

@@ -87,6 +87,7 @@ import {
 } from "@/lib/supt/probe";
 import {
   getCache,
+  peekCache,
   setCache,
   getHistory,
   pushHistory,
@@ -1776,6 +1777,73 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
 
       set(patch);
+
+      // Last-good catalog on first paint — never wait 8s on a blank map.
+      // Live refresh still replaces this; stale is better than empty.
+      try {
+        const tw = String(patch.timeWindow ?? get().timeWindow ?? "week");
+        const keys = [`eq_${tw}`, "eq_week", "eq_day", "eq_month", "eq_hour"];
+        let lastGood: EqCollection | null = null;
+        for (const k of keys) {
+          const hit = peekCache<EqCollection>(k);
+          if (hit?.features?.length) {
+            lastGood = hit;
+            break;
+          }
+        }
+        if (lastGood) {
+          const clipped = clipCollectionToWindow(lastGood, tw) ?? lastGood;
+          const cat = clipped.features.length ? clipped : lastGood;
+          if (cat.features.length) {
+            set({
+              eq: cat,
+              newestEventAgeMs: latestEventAgeMs(cat.features),
+            });
+          }
+        }
+        const volcAlerts = peekCache<UsgsVolcanoAlert[]>("usgs_volc_alerts_v4");
+        if (volcAlerts?.length) {
+          set({
+            usgsVolcAlerts: volcAlerts,
+            volcWatchNodes: buildWatchNodes(
+              volcAlerts,
+              new Set<string>(get().volcWatchPins),
+              new Set<string>(get().volcWatchMutes),
+            ),
+          });
+        }
+        const sc = peekCache<NoaaScales>("scales");
+        if (sc) set({ scales: sc });
+      } catch {
+        /* ignore */
+      }
+
+      // IDB last-good if LS was pruned — async, does not block first paint.
+      if (!get().eq?.features?.length) {
+        const twIdb = String(patch.timeWindow ?? get().timeWindow ?? "week");
+        void (async () => {
+          try {
+            const { idbPeekFeed } = await import("@/lib/cache/idbCache");
+            const keys = [`eq_${twIdb}`, "eq_week", "eq_day", "eq_month", "eq_hour"];
+            for (const k of keys) {
+              if (get().eq?.features?.length) return;
+              const hit = await idbPeekFeed<EqCollection>(k);
+              if (!hit?.features?.length) continue;
+              const clipped = clipCollectionToWindow(hit, twIdb) ?? hit;
+              const cat = clipped.features.length ? clipped : hit;
+              if (!cat.features.length) continue;
+              set({
+                eq: cat,
+                newestEventAgeMs: latestEventAgeMs(cat.features),
+              });
+              return;
+            }
+          } catch {
+            /* ignore */
+          }
+        })();
+      }
+
       if (patch.overlays?.globalVolcanoes) {
         void get().ensureGvpVolcanoes();
       }

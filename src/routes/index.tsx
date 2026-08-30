@@ -504,7 +504,9 @@ function ObservatoryApp() {
   /** Poll age ≠ catalog age. Say both so "8s ago" is not read as quake age. */
   const clockLabel = useMemo(() => {
     void ageTick;
-    if (!lastUpdate && loading) return "loading";
+    if (!lastUpdate && loading) {
+      return eq?.features?.length ? "loading · cached" : "loading catalog";
+    }
     let poll = "waiting";
     if (lastUpdate) {
       const s = Math.round((Date.now() - lastUpdate) / 1000);
@@ -517,7 +519,7 @@ function ObservatoryApp() {
     const newest =
       m < 1 ? "newest <1m" : m < 60 ? `newest ${m}m` : `newest ${Math.round(m / 60)}h`;
     return `${poll} · ${newest}`;
-  }, [lastUpdate, newestEventAgeMs, ageTick, loading]);
+  }, [lastUpdate, newestEventAgeMs, ageTick, loading, eq?.features?.length]);
 
   // Keep names used elsewhere; both now mirror the honest clock.
   const ageLabel = clockLabel;
@@ -708,7 +710,11 @@ function ObservatoryApp() {
           );
         })}
         {!features.length && (
-          <li className="text-[0.7rem] text-dim">No events in this filter window.</li>
+          <li className="text-[0.7rem] text-dim">
+            {loading && !eq?.features?.length
+              ? "Loading catalog…"
+              : "No events in this filter window."}
+          </li>
         )}
       </ul>
     </div>
@@ -1115,7 +1121,7 @@ function ObservatoryApp() {
               }
             >
               {/* Canvas track — map only; chrome cannot cover this area */}
-              <div className="ww-map-stage__canvas">
+              <div className="ww-map-stage__canvas relative">
                 <ClientOnly
                   fallback={
                     <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 bg-bg px-4 text-center text-sm text-muted">
@@ -1136,6 +1142,22 @@ function ObservatoryApp() {
                     {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
                 </ClientOnly>
+                {loading && !eq?.features?.length && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-[400] flex items-center justify-center bg-[#050a14]/55"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="rounded-md border border-white/10 bg-black/55 px-3 py-2 text-center shadow-lg">
+                      <div className="text-[0.7rem] font-semibold uppercase tracking-wider text-primary/90">
+                        Loading catalog
+                      </div>
+                      <div className="mt-0.5 text-[0.65rem] text-muted">
+                        USGS · last-good if cached
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <BackToSesButton variant="float" />
                 {isMobile && <MobileEventSheet />}
               </div>
