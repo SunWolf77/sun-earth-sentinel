@@ -1,6 +1,7 @@
 /**
  * Server fetch: Washington VAAC 24h messages + latest KML polygons.
- * CORS-blocked in the browser. Other VAACs: official pages only.
+ * Darwin VAAC current advisories (BoM JSON). CORS-blocked in the browser.
+ * Other VAACs: official pages only. We do not track clouds.
  */
 
 import { createServerFn } from "@tanstack/react-start";
@@ -11,6 +12,13 @@ import {
   type VaacBundle,
   VAAC_LINKS,
 } from "@/lib/feeds/vaac";
+import {
+  DARWIN_VAAC_API,
+  DARWIN_VAAC_PAGE,
+  parseDarwinVaacJson,
+  type DarwinVaacApi,
+} from "@/lib/feeds/darwinVaac";
+import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
 
 const MESSAGES = VAAC_LINKS.washingtonMessages;
 
@@ -72,5 +80,36 @@ export async function loadWashingtonVaac(): Promise<VaacBundle> {
   if (mem && Date.now() - mem.at < 180_000) return mem.b;
   const b = await fetchWashingtonVaac();
   mem = { at: Date.now(), b };
+  return b;
+}
+
+export const fetchDarwinVaac = createServerFn({ method: "GET" }).handler(
+  async (): Promise<UsgsVolcanoAlert[]> => {
+    try {
+      const res = await fetch(DARWIN_VAAC_API, {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/plain, */*",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "SunEarthSentinel/1.0 (observational; Darwin VAAC)",
+          Referer: DARWIN_VAAC_PAGE,
+        },
+        body: "page=volcanic-ash-darwin&javascript=1",
+      });
+      if (!res.ok) return [];
+      const json = (await res.json()) as DarwinVaacApi;
+      return parseDarwinVaacJson(json);
+    } catch {
+      return [];
+    }
+  },
+);
+
+let darwinMem: { at: number; b: UsgsVolcanoAlert[] } | null = null;
+
+export async function loadDarwinVaac(): Promise<UsgsVolcanoAlert[]> {
+  if (darwinMem && Date.now() - darwinMem.at < 180_000) return darwinMem.b;
+  const b = await fetchDarwinVaac();
+  darwinMem = { at: Date.now(), b };
   return b;
 }

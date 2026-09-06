@@ -130,7 +130,7 @@ function rank(z: LookZone): number {
     (z.reasons.includes("sun-led") ? 8 : 0) +
     (z.reasons.includes("large") ? 6 : 0) +
     (z.reasons.includes("antipode") ? 4 : 0) +
-    (z.reasons.includes("agency") ? 3 : 0) +
+    (z.reasons.includes("agency") ? 9 : 0) +
     (z.reasons.includes("rate") ? 2 : 0) +
     z.maxMag
   );
@@ -141,6 +141,8 @@ export function buildLookZones(opts: {
   /** Wider catalog (month) for sun-led / antipode so a 24h map still sees 14 d pattern. */
   wideFeatures?: EqFeature[];
   flares?: DonkiFlare[];
+  /** Live USGS/INGV/VAAC volcano nodes — LOOK agency color comes from these, not stale curated notes. */
+  extraNodes?: DragonNode[];
   timeWindow?: string;
   now?: number;
 }): LookZonesReport {
@@ -148,7 +150,15 @@ export function buildLookZones(opts: {
   const features = opts.features ?? [];
   const wide = opts.wideFeatures?.length ? opts.wideFeatures : features;
   const flares = opts.flares ?? [];
-  const pool = DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority);
+  const extra = opts.extraNodes ?? [];
+  const byId = new Map<string, DragonNode>();
+  for (const n of DRAGON_NODES) {
+    if (n.publishedFocus || n.watchPriority) byId.set(n.id, n);
+  }
+  for (const n of extra) {
+    if (n.kind === "volcano" && n.watchPriority) byId.set(n.id, n);
+  }
+  const pool = [...byId.values()];
   const days =
     opts.timeWindow === "hour"
       ? 1 / 24
@@ -197,11 +207,10 @@ export function buildLookZones(opts: {
     if (rel >= 2.4 && n >= 5) reasons.push("rate");
     if (sunLedHits(node, wide, flares, now) > 0) reasons.push("sun-led");
     if (antipodeHits(node, wide, now) > 0) reasons.push("antipode");
+    // Live aviation only. Static curated orange must not pin LOOK with M0.0 forever.
     if (
       node.kind === "volcano" &&
-      (node.aviationCode === "yellow" ||
-        node.aviationCode === "orange" ||
-        node.aviationCode === "red")
+      (node.aviationCode === "orange" || node.aviationCode === "red")
     ) {
       reasons.push("agency");
     }

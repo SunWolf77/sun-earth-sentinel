@@ -1,6 +1,7 @@
 import {
   VOLCANO_WATCHES,
   aviationToNodeStatus,
+  liveAviationCode,
 } from "@/lib/feeds/volcanoWatches";
 import { pointInBounds, type LatLonBounds } from "@/lib/geo/bounds";
 import { RAISED, isFresh } from "@/lib/ops/raisedTimeout";
@@ -448,6 +449,7 @@ export type DragonNode = {
 };
 
 function volcanoAsDragon(v: (typeof VOLCANO_WATCHES)[number]): DragonNode {
+  const av = liveAviationCode(v);
   return {
     id: v.id,
     name: v.name,
@@ -459,7 +461,7 @@ function volcanoAsDragon(v: (typeof VOLCANO_WATCHES)[number]): DragonNode {
     kind: "volcano",
     center: v.center,
     aliases: v.aliases,
-    aviationCode: v.aviationCode,
+    aviationCode: av === "green" ? undefined : av,
     gvpUrl: v.gvpUrl,
     agencyUrl: v.agencyUrl,
     watchPriority: v.watchPriority,

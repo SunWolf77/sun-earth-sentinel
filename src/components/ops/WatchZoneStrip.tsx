@@ -13,6 +13,7 @@ export function useLookZones(): LookZonesReport {
   const eq = useObservatory((s) => s.eq);
   const donki = useObservatory((s) => s.donki);
   const timeWindow = useObservatory((s) => s.timeWindow);
+  const volcWatchNodes = useObservatory((s) => s.volcWatchNodes);
   const [month, setMonth] = useState<EqFeature[]>([]);
 
   useEffect(() => {
@@ -31,9 +32,10 @@ export function useLookZones(): LookZonesReport {
         features: eq?.features ?? [],
         wideFeatures: month,
         flares: donki?.flares ?? [],
+        extraNodes: volcWatchNodes,
         timeWindow,
       }),
-    [eq, donki, timeWindow, month],
+    [eq, donki, timeWindow, month, volcWatchNodes],
   );
 }
 

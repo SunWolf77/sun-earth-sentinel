@@ -4,6 +4,8 @@
  * GVP VNUM 300270 · ~56.65°N, 161.36°E
  */
 
+import { RAISED, isFresh } from "@/lib/ops/raisedTimeout";
+
 export type AviationColor = "green" | "yellow" | "orange" | "red";
 
 export type VolcanoWatch = {
@@ -31,12 +33,17 @@ export type VolcanoWatch = {
   /** Pin high in node list */
   watchPriority: boolean;
   publishedFocus?: boolean;
+  /**
+   * ISO date the aviationCode was last confirmed from an agency note.
+   * Past RAISED.volc.curatedH this is not a live LOOK — GVP/VAAC/HANS must confirm.
+   */
+  asOf?: string;
 };
 
 /**
- * Shiveluch — northernmost active Kamchatka volcano; ongoing 2026 explosive–extrusive
- * activity (KVERT Aviation Color Code Orange as of mid-July 2026 reports).
- * User ops stance: elevated large-eruption watch — educational monitor, not a forecast product.
+ * Shiveluch — northernmost active Kamchatka volcano.
+ * Aviation orange here was a mid-July / GVP week 6–12 Aug 2026 ops note.
+ * Live LOOK requires a fresh GVP/KVERT/VAAC confirmation — this asOf expires.
  */
 export const SHIVELUCH_WATCH: VolcanoWatch = {
   id: "shiveluch",
@@ -53,13 +60,14 @@ export const SHIVELUCH_WATCH: VolcanoWatch = {
   elevationM: 3283,
   region: "Kamchatka Peninsula, Russia",
   aviationCode: "orange",
+  asOf: "2026-08-12",
   aviationNote:
-    "KVERT Aviation Color Code Orange (GVP week 6–12 Aug 2026). Ongoing lava-dome / ash. Not a forecast — operational look only.",
+    "KVERT Aviation Color Code Orange (GVP week 6–12 Aug 2026). Stale unless a live feed reconfirms. Not a forecast — operational look only.",
   gvpUrl: "https://volcano.si.edu/volcano.cfm?vn=300270",
   agencyUrl: "http://www.kscnet.ru/ivs/kvert/index_eng.php",
   monitorUrl: "https://volcano.si.edu/volcano.cfm?vn=300270",
   focusNote:
-    "Priority volcano watch: Shiveluch (Sheveluch). Stratovolcano under continuous 2026 eruptive episode. Sentinel focuses map + local seismicity; KVERT/GVP remain authoritative for aviation & ash.",
+    "Priority volcano box: Shiveluch (Sheveluch). Sentinel focuses map + local seismicity; KVERT/GVP remain authoritative for aviation & ash.",
   watchPriority: true,
   publishedFocus: false,
 };
@@ -94,4 +102,28 @@ export function aviationToNodeStatus(
     case "green":
       return "quiet";
   }
+}
+
+export function curatedWatchAsOfMs(w: Pick<VolcanoWatch, "asOf">): number | null {
+  if (!w.asOf) return null;
+  const t = Date.parse(`${w.asOf}T00:00:00Z`);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Manual aviation note is live only within RAISED.volc.curatedH of asOf. */
+export function isCuratedWatchLive(
+  w: Pick<VolcanoWatch, "asOf" | "aviationCode">,
+  now = Date.now(),
+): boolean {
+  if (!w.aviationCode || w.aviationCode === "green") return false;
+  const t = curatedWatchAsOfMs(w);
+  if (t == null) return false;
+  return isFresh(t, RAISED.volc.curatedH, now);
+}
+
+export function liveAviationCode(
+  w: Pick<VolcanoWatch, "asOf" | "aviationCode">,
+  now = Date.now(),
+): AviationColor {
+  return isCuratedWatchLive(w, now) ? w.aviationCode : "green";
 }

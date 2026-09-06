@@ -12,6 +12,8 @@ import { VOLCANO_WATCHES } from "@/lib/feeds/volcanoWatches";
 import { fetchGvpWeeklyAndErupting } from "@/lib/feeds/gvpActivity";
 import { buildGuatemalaFromGvp } from "@/lib/feeds/guatemalaVolcanoes";
 import { fetchImoElevatedVolcanoes } from "@/lib/feeds/imoVolcanoes";
+import { loadDarwinVaac } from "@/lib/feeds/vaacProxy";
+import { isCuratedWatchLive } from "@/lib/feeds/volcanoWatches";
 
 export type VolcAlertSource =
   | "usgs"
@@ -20,6 +22,7 @@ export type VolcAlertSource =
   | "gvp"
   | "gvp-gt"
   | "official"
+  | "vaac"
   | string;
 
 /** Extended fields on alerts (optional on USGS raw). */
@@ -56,6 +59,8 @@ function rankSource(s?: string): number {
       return 5; // national Iceland authority
     case "kvert":
       return 4;
+    case "vaac":
+      return 4;
     case "usgs":
       return 3;
     case "gvp-gt":
@@ -84,7 +89,7 @@ function tagUsgs(list: UsgsVolcanoAlert[]): GlobalVolcAlert[] {
 function curatedElevated(): GlobalVolcAlert[] {
   const out: GlobalVolcAlert[] = [];
   for (const w of VOLCANO_WATCHES) {
-    if (w.aviationCode === "green") continue;
+    if (!isCuratedWatchLive(w)) continue;
     const color =
       w.aviationCode === "red"
         ? "RED"
@@ -169,7 +174,7 @@ export function dedupeVolcanoAlerts(alerts: GlobalVolcAlert[]): GlobalVolcAlert[
 
 /** Fetch all sources in parallel and merge (no overlapping pins). */
 export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
-  const [usgs, ingv, imo, gvpParts, curated] = await Promise.all([
+  const [usgs, ingv, imo, gvpParts, curated, darwin] = await Promise.all([
     fetchUsgsElevatedVolcanoes().catch(() => [] as UsgsVolcanoAlert[]),
     fetchIngvItalyElevated().catch(() => [] as UsgsVolcanoAlert[]),
     fetchImoElevatedVolcanoes().catch(() => [] as GlobalVolcAlert[]),
@@ -178,18 +183,20 @@ export async function fetchAllElevatedVolcanoes(): Promise<GlobalVolcAlert[]> {
       erupting: [] as UsgsVolcanoAlert[],
     })),
     Promise.resolve(curatedElevated()),
+    loadDarwinVaac().catch(() => [] as UsgsVolcanoAlert[]),
   ]);
 
   const weekly = gvpParts.weekly;
   const erupting = gvpParts.erupting;
   const gt = buildGuatemalaFromGvp(weekly, erupting);
 
-  // Official elevated + weekly report. Not the Holocene "erupting" catalog —
-  // that is not an alert list.
+  // Official elevated + Darwin VAAC + weekly report. Not the Holocene
+  // "erupting" catalog — that is not an alert list.
   const merged = dedupeVolcanoAlerts([
     ...tagUsgs(usgs),
     ...tagUsgs(ingv),
     ...imo,
+    ...tagUsgs(darwin),
     ...curated,
     ...tagUsgs(gt),
     ...tagUsgs(weekly),
@@ -204,6 +211,7 @@ export function isAgencyElevated(v: { source?: string | null }): boolean {
     case "ingv":
     case "imo":
     case "kvert":
+    case "vaac":
     case "official":
     case "gvp-gt":
       return true;
@@ -224,6 +232,10 @@ export function alertSourceLabel(v: GlobalVolcAlert): string {
         : "IMO Iceland · VALS/VONA";
     case "kvert":
       return "KVERT";
+    case "vaac":
+      return v.officialNative
+        ? `Darwin VAAC · ${v.officialNative}`
+        : "Darwin VAAC";
     case "usgs":
       return `USGS HANS · ${v.obsAbbr || "USGS"}`;
     case "gvp-gt":

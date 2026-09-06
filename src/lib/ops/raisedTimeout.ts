@@ -39,6 +39,15 @@ export const RAISED = {
     ttlH: 4,
     cap: 8,
   },
+  /** Live volcano LOOK / Pulse — not the toast strip. */
+  volc: {
+    /** Hardcoded aviation notes expire unless a live feed confirms */
+    curatedH: 14,
+    /** Darwin / Washington VAA DTG freshness */
+    vaacH: 30,
+    /** GVP weekly letter is map context after this, not Pulse hot */
+    gvpWeeklyH: 10,
+  },
 } as const;
 
 export type SwpcAgeTier = "warning" | "watch" | "alert" | "summary" | "other";

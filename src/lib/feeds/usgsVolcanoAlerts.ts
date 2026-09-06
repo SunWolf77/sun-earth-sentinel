@@ -139,9 +139,11 @@ export function alertToWatchNode(v: UsgsVolcanoAlert): DragonNode | null {
       ? "INGV/PC"
       : v.source === "kvert"
         ? "KVERT"
-        : v.source === "official"
-          ? "Official"
-          : "USGS HANS";
+        : v.source === "vaac"
+          ? "Darwin VAAC"
+          : v.source === "official"
+            ? "Official"
+            : "USGS HANS";
   const native = v.officialNative ? ` · ${v.officialNative}` : "";
   return {
     id,

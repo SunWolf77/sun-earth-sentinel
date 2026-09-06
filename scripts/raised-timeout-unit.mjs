@@ -85,6 +85,9 @@ const src = {
   store: readFileSync(join(root, "src/store/observatory.ts"), "utf8"),
   audio: readFileSync(join(root, "src/lib/audio/alerts.ts"), "utf8"),
   av: readFileSync(join(root, "src/lib/feeds/volcanoWatches.ts"), "utf8"),
+  darwin: readFileSync(join(root, "src/lib/feeds/darwinVaac.ts"), "utf8"),
+  gvolc: readFileSync(join(root, "src/lib/feeds/globalVolcanoAlerts.ts"), "utf8"),
+  story: readFileSync(join(root, "src/lib/ops/activityStory.ts"), "utf8"),
 };
 assert(src.usgs.includes("m6_48h >= 1 || m7_72h >= 1"), "node watch recency floor");
 assert(!src.usgs.includes("m6_48h >= 1 || maxMag >= 7"), "old whole-window M7 watch gone");
@@ -96,6 +99,45 @@ assert(src.brief.includes("Prior-period G peak is context"), "today brief demote
 assert(src.store.includes("pruneVolcTransitions"), "volc toast prune wired");
 assert(src.audio.includes("fresh[0]"), "sound/OS only strongest");
 assert(/case "green":\s*return "quiet"/.test(src.av), "green aviation is quiet");
+assert(RAISED.volc.curatedH === 14, "curated volc 14d");
+assert(RAISED.volc.vaacH === 30, "VAAC TTL 30h");
+assert(src.look.includes("extraNodes"), "look zones take live volcano nodes");
+assert(src.av.includes("isCuratedWatchLive"), "curated aviation expires");
+assert(src.av.includes('asOf: "2026-08-12"'), "Shiveluch asOf is Aug 12 note");
+assert(src.gvolc.includes("loadDarwinVaac"), "Darwin VAAC merged into alerts");
+assert(src.story.includes("Darwin VAAC"), "Pulse names Darwin VAAC");
+assert(src.darwin.includes("Anak Krakatau"), "Krakatau display name");
+assert(src.look.includes('node.aviationCode === "red"'), "LOOK agency is orange/red only");
+assert(!src.look.includes('aviationCode === "yellow"'), "yellow aviation is not LOOK");
+
+const sept6 = Date.parse("2026-09-06T00:11:00Z");
+assert(
+  !isFresh(Date.parse("2026-08-12T00:00:00Z"), RAISED.volc.curatedH, sept6),
+  "Shiveluch asOf expired by 6 Sep",
+);
+assert(
+  isFresh(Date.parse("2026-09-05T22:30:00Z"), RAISED.volc.vaacH, sept6),
+  "Krakatau VAA DTG still fresh",
+);
+
+function parseVaacDtg(raw) {
+  const m = String(raw).trim().match(/(\d{8})\/(\d{4})Z?/i);
+  if (!m) return null;
+  const d = m[1];
+  const t = m[2];
+  return Date.parse(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:00Z`);
+}
+function parseVaacPsn(raw) {
+  const m = String(raw).trim().match(/([NS])\s*(\d{2})(\d{2})(?:\.\d+)?\s+([EW])\s*(\d{3})(\d{2})(?:\.\d+)?/i);
+  if (!m) return null;
+  const lat = (Number(m[2]) + Number(m[3]) / 60) * (m[1].toUpperCase() === "S" ? -1 : 1);
+  const lon = (Number(m[5]) + Number(m[6]) / 60) * (m[4].toUpperCase() === "W" ? -1 : 1);
+  return { lat, lon };
+}
+const psn = parseVaacPsn("S0606 E10525");
+assert(psn && Math.abs(psn.lat - -6.1) < 0.02 && Math.abs(psn.lon - 105.4167) < 0.02, "Krakatau PSN");
+assert(parseVaacDtg("20260905/2230Z") === Date.parse("2026-09-05T22:30:00Z"), "VAA DTG");
+assert(src.darwin.includes("FL(\\d{3})"), "FL parse in Darwin module");
 
 if (failed) {
   console.error(`\n${failed} failed`);

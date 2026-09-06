@@ -19,6 +19,8 @@ import {
   monitorHandoffUrl,
 } from "@/lib/feeds/publishedMonitors";
 import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
+import { isAgencyElevated } from "@/lib/feeds/globalVolcanoAlerts";
+import { RAISED, isFresh } from "@/lib/ops/raisedTimeout";
 import type { SolarAssessment } from "@/lib/solar/suptInterpreter";
 import type { NoaaScales } from "@/lib/feeds/swpc";
 import {
@@ -584,36 +586,70 @@ export function unifyFieldStories(
   return [...nodes, ...keptGlobals, ...other];
 }
 
-function volcanoBeats(alerts: UsgsVolcanoAlert[]): ActivityStory[] {
-  const elevated = alerts.filter((a) => {
-    const lvl = `${a.colorCode || ""} ${a.alertLevel || ""}`.toUpperCase();
-    return lvl && !lvl.includes("GREEN") && !lvl.includes("NORMAL");
+function volcanoBeats(alerts: UsgsVolcanoAlert[], now: number): ActivityStory[] {
+  const live = alerts.filter((a) => {
+    if (a.source === "gvp") return false;
+    if (a.source === "vaac") return isFresh(a.sentUnix, RAISED.volc.vaacH, now);
+    return true;
   });
-  if (!elevated.length) return [];
+  const hot = live.filter((a) => {
+    if (a.source !== "vaac" && !isAgencyElevated(a)) return false;
+    return /ORANGE|RED|WATCH|WARNING/i.test(`${a.colorCode} ${a.alertLevel}`);
+  });
+  const stories: ActivityStory[] = [];
 
-  const hot = elevated.filter((a) =>
-    /ORANGE|RED|WATCH|WARNING/i.test(`${a.colorCode} ${a.alertLevel}`),
-  );
-  // Yellow/advisory-only is elevated context, not a red story
-  const top = (hot.length ? hot : elevated).slice(0, 4);
-  const names = top.map((a) => a.name || "Volcano").join(" · ");
+  const vaacLead = [...hot]
+    .filter((a) => a.source === "vaac")
+    .sort((a, b) => {
+      const fa = Number(String(a.officialNative || "").replace(/\D/g, "") || 0);
+      const fb = Number(String(b.officialNative || "").replace(/\D/g, "") || 0);
+      if (fb !== fa) return fb - fa;
+      return (b.sentUnix ?? 0) - (a.sentUnix ?? 0);
+    })[0];
 
-  return [
-    {
+  if (vaacLead) {
+    const fl = vaacLead.officialNative || vaacLead.colorCode;
+    stories.push({
+      id: `volc-vaac-${vaacLead.vnum || vaacLead.id}`,
+      kind: "volcano",
+      urgency: /RED|WARNING/i.test(`${vaacLead.colorCode} ${vaacLead.alertLevel}`)
+        ? "watch"
+        : "elevated",
+      score: 70 + Math.min(40, Number(String(fl).replace(/\D/g, "") || 0) / 10),
+      headline: `${vaacLead.name} · Darwin VAAC ${fl}`,
+      summary:
+        "Aviation ash advisory (Darwin VAAC). Not a civil-protection alert from this desk — PVMBG / MAGMA remain the authority. We do not track the cloud.",
+      stats: `${fl} · ${vaacLead.obsName}`,
+      where: vaacLead.name,
+      actions: [
+        {
+          id: "volc-vaac-map",
+          label: "Live map",
+          tab: "live",
+          lat: vaacLead.lat ?? undefined,
+          lon: vaacLead.lon ?? undefined,
+        },
+      ],
+    });
+  }
+
+  const otherHot = hot.filter((a) => a.id !== vaacLead?.id);
+  if (otherHot.length) {
+    const names = otherHot.slice(0, 4).map((a) => a.name || "Volcano").join(" · ");
+    stories.push({
       id: "volc-elevated",
       kind: "volcano",
-      urgency: hot.length ? "watch" : "context",
-      score: (hot.length ? 45 : 22) + hot.length * 10 + elevated.length * 2,
-      headline:
-        hot.length > 0
-          ? `${hot.length} volcano orange/watch+`
-          : `${elevated.length} volcano advisory`,
-      summary: `Agency codes elevated: ${names}. These are official aviation/alert products — open the volcano list or node, do not treat this chip as a new alert.`,
-      stats: `${elevated.length} elevated · ${hot.length} orange+`,
+      urgency: "watch",
+      score: 45 + otherHot.length * 10,
+      headline: `${otherHot.length} volcano orange/watch+`,
+      summary: `Agency codes elevated: ${names}. Official aviation/alert products — not a new alert from this desk.`,
+      stats: `${hot.length} orange+ live`,
       where: "Volcanoes",
       actions: [{ id: "volc-live", label: "Live map", tab: "live" }],
-    },
-  ];
+    });
+  }
+
+  return stories;
 }
 
 function solarBeat(
@@ -686,7 +722,7 @@ export function buildActivityStory(opts: {
   }
 
   stories.push(...globalBeats(features, now));
-  stories.push(...volcanoBeats(opts.volcAlerts ?? []));
+  stories.push(...volcanoBeats(opts.volcAlerts ?? [], now));
   const sol = solarBeat(opts.solar ?? null, opts.scales ?? null);
   if (sol) stories.push(sol);
 
