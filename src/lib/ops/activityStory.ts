@@ -283,6 +283,8 @@ function pacePhrase(p: ZonePulse): string {
 function storyForZone(p: ZonePulse): ActivityStory | null {
   // Drop empty quiet zones
   if (p.all.length === 0 && p.status === "quiet") return null;
+  // Volcano agency color is volcanoBeats' job — don't mint a fake EQ story at M0.
+  if (p.node.kind === "volcano" && p.all.length === 0) return null;
   // Drop low-signal context clutter on high-baseline arcs (keep thin context only if noteworthy)
   if (
     p.highBaseline &&

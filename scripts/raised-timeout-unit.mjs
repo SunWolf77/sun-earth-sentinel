@@ -41,6 +41,9 @@ assert(RAISED.crossFeed.m6ChipH === 36, "M6 chip 36h");
 assert(RAISED.crossFeed.cap === 4, "cross-feed cap 4");
 assert(RAISED.volcToast.ttlH === 4, "volc toast 4h");
 assert(RAISED.volcToast.cap === 8, "volc toast cap 8");
+assert(RAISED.volc.curatedH === 14, "curated aviation LOOK 14h");
+assert(RAISED.volc.vaacH === 30, "Darwin VAA LOOK 30h");
+assert(RAISED.volc.gvpWeeklyH === 10, "GVP weekly not Pulse-hot after 10h");
 
 assert(swpcMaxAgeH("summary") === 18, "summary max age");
 assert(isFresh(now - 47 * 3600_000, 48, now), "fresh under TTL");
@@ -99,7 +102,7 @@ assert(src.brief.includes("Prior-period G peak is context"), "today brief demote
 assert(src.store.includes("pruneVolcTransitions"), "volc toast prune wired");
 assert(src.audio.includes("fresh[0]"), "sound/OS only strongest");
 assert(/case "green":\s*return "quiet"/.test(src.av), "green aviation is quiet");
-assert(RAISED.volc.curatedH === 14, "curated volc 14d");
+assert(RAISED.volc.curatedH === 14, "curated volc 14h");
 assert(RAISED.volc.vaacH === 30, "VAAC TTL 30h");
 assert(src.look.includes("extraNodes"), "look zones take live volcano nodes");
 assert(src.av.includes("isCuratedWatchLive"), "curated aviation expires");
@@ -109,6 +112,9 @@ assert(src.story.includes("Darwin VAAC"), "Pulse names Darwin VAAC");
 assert(src.darwin.includes("Anak Krakatau"), "Krakatau display name");
 assert(src.look.includes('node.aviationCode === "red"'), "LOOK agency is orange/red only");
 assert(!src.look.includes('aviationCode === "yellow"'), "yellow aviation is not LOOK");
+assert(src.look.includes("M0.0 must never"), "LOOK refuses M0.0 as a reason");
+assert(src.usgs.includes("liveAviationCode"), "curated dragon nodes decay aviation");
+assert(src.story.includes("Volcano agency color is volcanoBeats"), "no fake EQ story for vent-only");
 
 const sept6 = Date.parse("2026-09-06T00:11:00Z");
 assert(

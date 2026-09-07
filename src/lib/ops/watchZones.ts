@@ -34,6 +34,9 @@ export type LookZone = {
   why: string;
   lat: number;
   lon: number;
+  aviation?: "green" | "yellow" | "orange" | "red";
+  /** VAAC FL / native agency tag for the chip — never "M0.0". */
+  agencyHint?: string;
 };
 
 export type LookZonesReport = {
@@ -115,26 +118,32 @@ function antipodeHits(node: DragonNode, features: EqFeature[], now: number): num
 
 function whyLine(z: Omit<LookZone, "why">): string {
   const bits: string[] = [];
-  if (z.reasons.includes("large")) bits.push(`M${z.maxMag.toFixed(1)}`);
+  if (z.reasons.includes("agency")) {
+    bits.push(z.agencyHint || z.aviation || "agency");
+  }
+  if (z.reasons.includes("large") && z.maxMag >= 4) {
+    bits.push(`M${z.maxMag.toFixed(1)}`);
+  }
   if (z.reasons.includes("sun-led")) bits.push("sun-led");
   if (z.reasons.includes("antipode")) bits.push("antipode");
   if (z.reasons.includes("rate")) bits.push(`${z.relativeRate.toFixed(1)}× peers`);
   if (z.reasons.includes("spacing")) bits.push("unusual spacing");
-  if (z.reasons.includes("agency")) bits.push("agency color");
   return bits.join(" · ") || z.status;
 }
 
 function rank(z: LookZone): number {
   return (
     z.strength * 10 +
+    (z.aviation === "red" ? 14 : z.aviation === "orange" ? 7 : 0) +
+    (z.reasons.includes("agency") ? 9 : 0) +
     (z.reasons.includes("sun-led") ? 8 : 0) +
     (z.reasons.includes("large") ? 6 : 0) +
     (z.reasons.includes("antipode") ? 4 : 0) +
-    (z.reasons.includes("agency") ? 9 : 0) +
     (z.reasons.includes("rate") ? 2 : 0) +
-    z.maxMag
+    (z.maxMag >= 4 ? z.maxMag : 0)
   );
 }
+
 
 export function buildLookZones(opts: {
   features: EqFeature[];
@@ -203,17 +212,21 @@ export function buildLookZones(opts: {
     });
     const rel = median > 0.05 ? rate / median : rate > 0 ? 3 : 0;
     const reasons: LookReason[] = [];
-    if (status === "watch" || recentMaxMag >= 6.5) reasons.push("large");
+    // Aviation watch is not an earthquake "large". M0.0 must never be a LOOK reason.
+    if (recentMaxMag >= 6.5) reasons.push("large");
+    else if (node.kind !== "volcano" && status === "watch") reasons.push("large");
     if (rel >= 2.4 && n >= 5) reasons.push("rate");
     if (sunLedHits(node, wide, flares, now) > 0) reasons.push("sun-led");
     if (antipodeHits(node, wide, now) > 0) reasons.push("antipode");
     // Live aviation only. Static curated orange must not pin LOOK with M0.0 forever.
-    if (
+    const aviation =
       node.kind === "volcano" &&
       (node.aviationCode === "orange" || node.aviationCode === "red")
-    ) {
-      reasons.push("agency");
-    }
+        ? node.aviationCode
+        : undefined;
+    if (aviation) reasons.push("agency");
+    const flHint = node.role?.match(/FL\d{3,4}/i)?.[0]?.toUpperCase();
+    const agencyHint = flHint || (aviation ? `aviation ${aviation}` : undefined);
     if (n >= 6) {
       const times = features
         .filter((f) => inNode(f, node) && magOf(f) >= 4.5)
@@ -246,6 +259,8 @@ export function buildLookZones(opts: {
       why: "",
       lat: c.lat,
       lon: c.lon,
+      aviation,
+      agencyHint,
     };
     z.why = whyLine(z);
     return z;
