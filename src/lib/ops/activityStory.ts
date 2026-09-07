@@ -588,6 +588,10 @@ export function unifyFieldStories(
   return [...nodes, ...keptGlobals, ...other];
 }
 
+function vaacFl(a: UsgsVolcanoAlert): number {
+  return Number(String(a.officialNative || "").replace(/\D/g, "") || 0);
+}
+
 function volcanoBeats(alerts: UsgsVolcanoAlert[], now: number): ActivityStory[] {
   const live = alerts.filter((a) => {
     if (a.source === "gvp") return false;
@@ -600,28 +604,36 @@ function volcanoBeats(alerts: UsgsVolcanoAlert[], now: number): ActivityStory[] 
   });
   const stories: ActivityStory[] = [];
 
-  const vaacLead = [...hot]
-    .filter((a) => a.source === "vaac")
-    .sort((a, b) => {
-      const fa = Number(String(a.officialNative || "").replace(/\D/g, "") || 0);
-      const fb = Number(String(b.officialNative || "").replace(/\D/g, "") || 0);
-      if (fb !== fa) return fb - fa;
-      return (b.sentUnix ?? 0) - (a.sentUnix ?? 0);
-    })[0];
+  const vaacPriority = hot.filter(
+    (a) =>
+      a.source === "vaac" &&
+      (/RED|WARNING/i.test(`${a.colorCode} ${a.alertLevel}`) ||
+        vaacFl(a) >= RAISED.volc.lookMinFl),
+  );
+  const vaacLead = [...vaacPriority].sort((a, b) => {
+    const fa = vaacFl(a);
+    const fb = vaacFl(b);
+    if (fb !== fa) return fb - fa;
+    return (b.sentUnix ?? 0) - (a.sentUnix ?? 0);
+  })[0];
 
   if (vaacLead) {
     const fl = vaacLead.officialNative || vaacLead.colorCode;
+    const darwinN = live.filter((a) => a.source === "vaac").length;
     stories.push({
       id: `volc-vaac-${vaacLead.vnum || vaacLead.id}`,
       kind: "volcano",
       urgency: /RED|WARNING/i.test(`${vaacLead.colorCode} ${vaacLead.alertLevel}`)
         ? "watch"
         : "elevated",
-      score: 70 + Math.min(40, Number(String(fl).replace(/\D/g, "") || 0) / 10),
+      score: 70 + Math.min(40, vaacFl(vaacLead) / 10),
       headline: `${vaacLead.name} · Darwin VAAC ${fl}`,
       summary:
         "Aviation ash advisory (Darwin VAAC). Not a civil-protection alert from this desk — PVMBG / MAGMA remain the authority. We do not track the cloud.",
-      stats: `${fl} · ${vaacLead.obsName}`,
+      stats:
+        darwinN > 1
+          ? `${fl} · ${darwinN} Darwin VAA (priority only)`
+          : `${fl} · ${vaacLead.obsName}`,
       where: vaacLead.name,
       actions: [
         {
@@ -635,23 +647,24 @@ function volcanoBeats(alerts: UsgsVolcanoAlert[], now: number): ActivityStory[] 
     });
   }
 
-  const otherHot = hot.filter((a) => a.id !== vaacLead?.id);
+  // HANS / INGV / IMO orange+ only — not every standing Darwin VAA.
+  const otherHot = hot.filter((a) => a.source !== "vaac");
   if (otherHot.length) {
     const names = otherHot.slice(0, 4).map((a) => a.name || "Volcano").join(" · ");
     stories.push({
       id: "volc-elevated",
       kind: "volcano",
       urgency: "watch",
-      score: 45 + otherHot.length * 10,
+      score: 45 + Math.min(4, otherHot.length) * 8,
       headline: `${otherHot.length} volcano orange/watch+`,
       summary: `Agency codes elevated: ${names}. Official aviation/alert products — not a new alert from this desk.`,
-      stats: `${hot.length} orange+ live`,
+      stats: `${otherHot.length} orange+ · list on Volcanoes`,
       where: "Volcanoes",
       actions: [{ id: "volc-live", label: "Live map", tab: "live" }],
     });
   }
 
-  return stories;
+  return stories.slice(0, 2);
 }
 
 function solarBeat(
@@ -744,7 +757,7 @@ export function buildActivityStory(opts: {
   for (const s of unified) {
     if (s.urgency === "now") {
       nowCount++;
-      if (nowCount > 2) {
+      if (nowCount > RAISED.story.nowCap) {
         capped.push({ ...s, urgency: "watch", score: Math.min(s.score, 55) });
         continue;
       }
@@ -764,7 +777,7 @@ export function buildActivityStory(opts: {
   }
 
   // Prefer standouts; still keep a few context cards for orientation
-  const top = deduped.slice(0, 8);
+  const top = deduped.slice(0, RAISED.story.deskCap);
   const hotZones = top.filter(
     (s) =>
       s.kind === "node" && (s.urgency === "now" || s.urgency === "watch"),

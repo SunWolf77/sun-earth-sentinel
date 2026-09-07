@@ -224,8 +224,15 @@ export function buildLookZones(opts: {
       (node.aviationCode === "orange" || node.aviationCode === "red")
         ? node.aviationCode
         : undefined;
-    if (aviation) reasons.push("agency");
     const flHint = node.role?.match(/FL\d{3,4}/i)?.[0]?.toUpperCase();
+    const fl = Number((flHint || "").replace(/\D/g, "") || 0);
+    const vaacish = /VAAC/i.test(node.role || "") || !!flHint;
+    // Darwin standing VAAs (FL070–150) stay on the volcano list, not LOOK.
+    if (aviation) {
+      if (!vaacish || aviation === "red" || fl >= RAISED.volc.lookMinFl) {
+        reasons.push("agency");
+      }
+    }
     const agencyHint = flHint || (aviation ? `aviation ${aviation}` : undefined);
     if (n >= 6) {
       const times = features
@@ -266,7 +273,14 @@ export function buildLookZones(opts: {
     return z;
   });
 
-  const looks = all.filter((z) => z.look).sort((a, b) => rank(b) - rank(a)).slice(0, RAISED.look.cap);
+  const ranked = all.filter((z) => z.look).sort((a, b) => rank(b) - rank(a));
+  const agency = ranked.filter((z) => z.reasons.includes("agency"));
+  const rest = ranked.filter((z) => !z.reasons.includes("agency"));
+  const agencyKeep = agency.slice(0, RAISED.volc.lookCap);
+  const looks = [
+    ...agencyKeep,
+    ...rest.slice(0, Math.max(0, RAISED.look.cap - agencyKeep.length)),
+  ];
 
   const headline = looks.length
     ? `Look · ${looks.map((z) => z.name.split(/[–/]/)[0]!.trim()).join(" · ")}`

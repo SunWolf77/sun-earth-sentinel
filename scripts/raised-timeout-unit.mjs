@@ -44,6 +44,10 @@ assert(RAISED.volcToast.cap === 8, "volc toast cap 8");
 assert(RAISED.volc.curatedH === 14, "curated aviation LOOK 14h");
 assert(RAISED.volc.vaacH === 30, "Darwin VAA LOOK 30h");
 assert(RAISED.volc.gvpWeeklyH === 10, "GVP weekly not Pulse-hot after 10h");
+assert(RAISED.volc.lookCap === 2, "max 2 agency volcanoes on LOOK");
+assert(RAISED.volc.lookMinFl === 200, "Darwin LOOK only FL200+ or red");
+assert(RAISED.story.nowCap === 2, "Pulse now-cap 2");
+assert(RAISED.story.deskCap === 8, "Pulse desk cap 8");
 
 assert(swpcMaxAgeH("summary") === 18, "summary max age");
 assert(isFresh(now - 47 * 3600_000, 48, now), "fresh under TTL");
@@ -112,7 +116,10 @@ assert(src.story.includes("Darwin VAAC"), "Pulse names Darwin VAAC");
 assert(src.darwin.includes("Anak Krakatau"), "Krakatau display name");
 assert(src.look.includes('node.aviationCode === "red"'), "LOOK agency is orange/red only");
 assert(!src.look.includes('aviationCode === "yellow"'), "yellow aviation is not LOOK");
+assert(src.look.includes("RAISED.volc.lookCap"), "LOOK agency slot cap wired");
+assert(src.look.includes("lookMinFl"), "Darwin FL floor on LOOK");
 assert(src.look.includes("M0.0 must never"), "LOOK refuses M0.0 as a reason");
+assert(src.story.includes('a.source !== "vaac"'), "lumped orange is not every Darwin VAA");
 assert(src.usgs.includes("liveAviationCode"), "curated dragon nodes decay aviation");
 assert(src.story.includes("Volcano agency color is volcanoBeats"), "no fake EQ story for vent-only");
 

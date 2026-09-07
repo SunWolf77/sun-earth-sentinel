@@ -16,8 +16,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
  * 1.29.0: first-visit mobile folder coach (dock + Pulse).
  * 1.29.1: last-good catalog on first paint; Esri street/dark tiles (Carto keyless).
  * 1.29.2: Darwin VAAC (Anak Krakatau); volcano LOOK decays with the VAA, not a July note.
+ * 1.29.3: Pulse/LOOK caps — Darwin standing VAAs stay listed, only FL200+/RED raise the desk.
  */
-export const APP_VERSION = "1.29.2";
+export const APP_VERSION = "1.29.3";
 
 
 

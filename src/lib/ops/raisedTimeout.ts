@@ -47,6 +47,16 @@ export const RAISED = {
     vaacH: 30,
     /** GVP weekly letter is map context after this, not Pulse hot */
     gvpWeeklyH: 10,
+    /** Max agency volcanoes on LOOK — rest stay on the volcano list */
+    lookCap: 2,
+    /** Darwin LOOK/Pulse lead only at this FL+ (or RED). Routine FL070–150 stays listed. */
+    lookMinFl: 200,
+  },
+  story: {
+    /** Hard "now" slots on Pulse */
+    nowCap: 2,
+    /** Ranked stories kept after unify */
+    deskCap: 8,
   },
 } as const;
 
