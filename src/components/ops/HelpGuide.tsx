@@ -41,6 +41,7 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
       "Spin ON auto-rotates west→east; pauses while you focus, then resumes.",
       "Home returns to world view · Prior undoes the last camera jump.",
       "Full expands the map to the whole screen (Exit full or Esc to leave).",
+      "On a phone, Map screen is milder: hides title and desks, keeps the bottom tabs.",
     ],
   },
   {
@@ -58,7 +59,9 @@ const SECTIONS: { id: string; title: string; body: string[] }[] = [
     body: [
       "Bottom of the screen: Map · Solar · Rhythm · Charts · About — that is how you change views.",
       "On the map, a second dock is Map · Filters · Events · Layers — tap to slide a folder up. One at a time.",
-      "Pulse (under the title) expands look zones and the story. Collapsed is one line.",
+      "Pulse sits on the map as a chip. Expand is a sheet over Earth — it does not push the map down.",
+      "Drag the map to hide the title and WolfWatch desks. SES ▾ brings them back. Bottom tabs stay.",
+      "Map tools: Map screen = desk hidden, tabs stay. Fullscreen = everything hidden.",
       "Rhythm / Solar: tap a folder row (chevron) to open it. The hero stays on screen.",
     ],
   },

@@ -11,11 +11,14 @@ import {
   Home,
   Map as MapIcon,
   Minimize2,
+  PanelTop,
+  Scan,
 } from "lucide-react";
 import { useState } from "react";
 import { useObservatory } from "@/store/observatory";
 import { TIME_WINDOWS, timeWindowTitle } from "@/lib/map/timeWindowLabel";
 import { HelpGuide } from "@/components/ops/HelpGuide";
+import { useMapChrome } from "@/lib/hooks/useMapChrome";
 
 export function MobileMapToolsPanel() {
   const mapView = useObservatory((s) => s.mapView);
@@ -30,6 +33,7 @@ export function MobileMapToolsPanel() {
   const setReplayActive = useObservatory((s) => s.setReplayActive);
   const replayActive = useObservatory((s) => s.replayActive);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
+  const { isMap, setChrome } = useMapChrome();
   const [helpOpen, setHelpOpen] = useState(false);
 
   return (
@@ -99,6 +103,17 @@ export function MobileMapToolsPanel() {
         </button>
         <button
           type="button"
+          className={`ww-map-dock__icon-btn min-h-11 justify-center ${isMap ? "ww-map-dock__icon-btn--on" : ""}`}
+          onClick={() => {
+            setChrome(isMap ? "desk" : "map");
+            setMobileSheet("closed");
+          }}
+        >
+          {isMap ? <PanelTop className="h-4 w-4" /> : <Scan className="h-4 w-4" />}
+          <span>{isMap ? "Show desk" : "Map screen"}</span>
+        </button>
+        <button
+          type="button"
           className={`ww-map-dock__icon-btn min-h-11 justify-center ${mapImmersive ? "ww-map-dock__icon-btn--on" : ""}`}
           onClick={() => {
             setMapImmersive(!mapImmersive);
@@ -140,6 +155,9 @@ export function MobileMapToolsPanel() {
           <span>Help</span>
         </button>
       </div>
+      <p className="text-[0.55rem] leading-snug text-dim">
+        Map screen hides the title and desks — bottom tabs stay. Fullscreen hides those too.
+      </p>
 
       <HelpGuide open={helpOpen} onOpenChange={setHelpOpen} compact className="hidden" />
     </div>

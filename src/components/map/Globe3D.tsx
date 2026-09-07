@@ -33,6 +33,7 @@ import { ShareFocusButton } from "@/components/ops/ShareFocusButton";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useLookZones } from "@/components/ops/WatchZoneStrip";
 import { registerGlobeChrome } from "@/lib/map/globeChrome";
+import { emitMapInteract } from "@/lib/ui/mapChrome";
 import {
   nodeWhyLine,
   nodeRoleLine,
@@ -1651,7 +1652,10 @@ export function Globe3D() {
       const mm = (e: MouseEvent) => {
         if (rotating) {
           const d = Math.hypot(e.clientX - lastX, e.clientY - lastY);
-          if (d > 3) dragMoved = true;
+          if (d > 3) {
+            if (!dragMoved) emitMapInteract();
+            dragMoved = true;
+          }
           onMove(e.clientX, e.clientY);
           hideHoverTip();
           clearHoverHighlight();
@@ -1720,6 +1724,7 @@ export function Globe3D() {
       const tm = (e: TouchEvent) => {
         if (e.touches.length === 2) {
           e.preventDefault();
+          emitMapInteract();
           const d = touchDist(e.touches[0]!, e.touches[1]!);
           if (pinchStartDist > 0) {
             const scale = pinchStartDist / Math.max(d, 1);
@@ -1732,7 +1737,10 @@ export function Globe3D() {
         if (e.touches.length === 1) {
           e.preventDefault();
           const t = e.touches[0]!;
-          if (Math.hypot(t.clientX - lastX, t.clientY - lastY) > 4) dragMoved = true;
+          if (Math.hypot(t.clientX - lastX, t.clientY - lastY) > 4) {
+            if (!dragMoved) emitMapInteract();
+            dragMoved = true;
+          }
           onMove(t.clientX, t.clientY);
         }
       };

@@ -48,6 +48,8 @@ import { MobileMapToolsPanel } from "@/components/map/MobileMapToolsPanel";
 import { timeWindowChip } from "@/lib/map/timeWindowLabel";
 import { MobileFolderCoach } from "@/components/ops/MobileFolderCoach";
 import { UI_FOLDERS_KEY, markUiSeen, uiSeen } from "@/lib/ui/firstVisit";
+import { useMapChrome } from "@/lib/hooks/useMapChrome";
+import { writeMapChrome } from "@/lib/ui/mapChrome";
 
 const OVERLAY_ICONS: Record<MapOverlayId, typeof Activity> = {
   quakes: Activity,
@@ -96,6 +98,7 @@ export function MapStyleControl({
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
   const mapView = useObservatory((s) => s.mapView);
   const timeWindow = useObservatory((s) => s.timeWindow);
+  const { isMap } = useMapChrome();
 
   const HIDDEN_OVERLAYS = new Set<MapOverlayId>([
     "iss",
@@ -165,6 +168,7 @@ export function MapStyleControl({
   const dismissCoach = () => {
     setCoach(false);
     markUiSeen(UI_FOLDERS_KEY);
+    writeMapChrome("map");
   };
 
   useEffect(() => {
@@ -392,7 +396,7 @@ export function MapStyleControl({
       <div
         className={`ww-toggle-bar pointer-events-auto mx-auto sm:mx-0 ${
           mobile ? "ww-toggle-bar--mobile ww-toggle-bar--dock4" : ""
-        } ${coach ? "ww-toggle-bar--coach" : ""}`}
+        } ${mobile && isMap ? "ww-toggle-bar--icons" : ""} ${coach ? "ww-toggle-bar--coach" : ""}`}
       >
         {quickIds.map((id) => {
           const meta = OVERLAY_META.find((m) => m.id === id)!;

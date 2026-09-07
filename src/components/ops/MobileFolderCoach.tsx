@@ -15,8 +15,9 @@ export function MobileFolderCoach({ onDismiss }: Props) {
       role="status"
     >
       <p className="min-w-0 flex-1">
-        <strong className="text-fg">Folders slide up.</strong> Map · Filters · Events ·
-        Layers. Views live on the bar at the bottom: Map · Solar · Rhythm.
+        <strong className="text-fg">Map owns the screen.</strong> Drag to hide the
+        desk · SES ▾ brings it back. Folders (Map · Filters · Events · Layers)
+        slide up. Views stay on the bar at the bottom.
       </p>
       <button
         type="button"

@@ -45,6 +45,7 @@ import { useLookZones } from "@/components/ops/WatchZoneStrip";
 import { formatUtc } from "@/lib/utils";
 import { fitWorldView, WORLD_MAP_INIT } from "@/lib/map/worldView";
 import { flyToEased, cancelFlyToEased, easeOutCubic } from "@/lib/map/flyToEased";
+import { emitMapInteract } from "@/lib/ui/mapChrome";
 import {
   agencyLinksForEvent,
   agencyLinksHtml,
@@ -446,6 +447,8 @@ export function LiveMap() {
         }
       } catch { /* */ }
     });
+    map.on("dragstart", emitMapInteract);
+    map.on("zoomstart", emitMapInteract);
 
     // Full world framing — size sync keeps markers on basemap
     // Grid stage: also watch canvas/stage so dock-track growth remeasures projection

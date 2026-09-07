@@ -1,6 +1,9 @@
 /**
  * Single Pulse strip — SW brief + story + visit + feeds behind one expand.
  * Used on live map for **mobile and desktop** so chrome never stacks five rows.
+ *
+ * overlay: collapsed chip + expanded sheet sit on the canvas. Expanding
+ * never steals map height (the old in-flow expand ate the whole phone).
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -19,8 +22,19 @@ import { resonanceVerdict } from "@/lib/supt/probe";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { UI_FOLDERS_KEY, uiSeen } from "@/lib/ui/firstVisit";
 
-export function MobilePulseStrip() {
-  const [open, setOpen] = useState(false);
+type Props = {
+  overlay?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+export function MobilePulseStrip({ overlay = false, open: openProp, onOpenChange }: Props) {
+  const [openInner, setOpenInner] = useState(false);
+  const open = onOpenChange ? Boolean(openProp) : openInner;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    else setOpenInner(v);
+  };
   const [foldersSeen, setFoldersSeen] = useState(() => uiSeen(UI_FOLDERS_KEY));
   const isMobile = useIsMobile();
   const resonance = useObservatory((s) => s.resonance);
@@ -83,6 +97,26 @@ export function MobilePulseStrip() {
         ? "border-warn/30 bg-warn/8 text-warn"
         : "border-border/70 bg-panel/90 text-muted";
 
+  const chipClass = overlay
+    ? `ww-pulse-chip flex w-full min-h-10 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] shadow-md backdrop-blur-md ${tone}`
+    : `flex w-full min-h-11 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] sm:min-h-8 sm:text-[0.62rem] ${tone}`;
+
+  const body = (
+    <>
+      <WatchZoneStrip />
+      <TodayBriefBar dense showRecLink={false} />
+      <FieldCouplingDesk compact />
+      <SinceLastVisitStrip dense />
+      <ActivityStoryChip />
+      {!isMobile && (
+        <div className="min-w-0">
+          <CrossFeedChips />
+        </div>
+      )}
+      <FeedHealthStrip compact />
+    </>
+  );
+
   if (!open) {
     const hint = isMobile && !foldersSeen;
     return (
@@ -90,9 +124,7 @@ export function MobilePulseStrip() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`flex w-full min-h-11 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] sm:min-h-8 sm:text-[0.62rem] ${tone}${
-            hint ? " ww-pulse--hint" : ""
-          }`}
+          className={`${chipClass}${hint ? " ww-pulse--hint" : ""}`}
           aria-expanded={false}
           aria-label="Expand pulse — space weather, story, feeds"
         >
@@ -103,7 +135,26 @@ export function MobilePulseStrip() {
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
         </button>
-        {/* WatchZone only when expanded — keeps collapsed pulse to one row */}
+      </div>
+    );
+  }
+
+  if (overlay) {
+    return (
+      <div className="ww-pulse-sheet" role="dialog" aria-label="Pulse">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className={`flex min-h-10 w-full items-center gap-1 rounded-md px-1 py-0.5 text-left text-[0.62rem] font-semibold uppercase tracking-wider ${tone}`}
+          aria-expanded
+        >
+          <span className="shrink-0">Pulse</span>
+          <span className="min-w-0 flex-1 truncate font-medium normal-case tracking-normal">
+            {leadLine}
+          </span>
+          <ChevronUp className="h-3.5 w-3.5 shrink-0" />
+        </button>
+        <div className="mt-1 space-y-1">{body}</div>
       </div>
     );
   }
@@ -119,17 +170,7 @@ export function MobilePulseStrip() {
         <span>Pulse · expanded</span>
         <ChevronUp className="h-3.5 w-3.5" />
       </button>
-      <WatchZoneStrip />
-      <TodayBriefBar dense showRecLink={false} />
-      <FieldCouplingDesk compact />
-      <SinceLastVisitStrip dense />
-      <ActivityStoryChip />
-      {!isMobile && (
-        <div className="min-w-0">
-          <CrossFeedChips />
-        </div>
-      )}
-      <FeedHealthStrip compact />
+      {body}
     </div>
   );
 }

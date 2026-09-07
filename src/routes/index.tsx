@@ -42,6 +42,7 @@ import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { CatalogNoticeBanner } from "@/components/ops/CatalogNoticeBanner";
 import { MobileAppTabs, APP_TABS } from "@/components/ops/MobileAppTabs";
+import { MobileMapChrome } from "@/components/ops/MobileMapChrome";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
 import { VolcWatchSmart } from "@/components/map/VolcWatchSmart";
 import { startRealtime } from "@/lib/realtime/transport";
@@ -61,6 +62,7 @@ import {
 } from "@/lib/pwa/shareFocus";
 import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useMapChrome } from "@/lib/hooks/useMapChrome";
 import { Link2, Check } from "lucide-react";
 
 const LiveMap = lazy(() =>
@@ -177,6 +179,7 @@ function ObservatoryApp() {
   const [bootWait, setBootWait] = useState(false);
   const bootRetried = useRef(false);
   const isMobile = useIsMobile();
+  const { chrome: mapChrome } = useMapChrome();
   const [copiedShare, setCopiedShare] = useState(false);
   const overlays = useObservatory((s) => s.overlays);
   const setOverlaysBulk = useObservatory((s) => s.setOverlaysBulk);
@@ -736,7 +739,11 @@ function ObservatoryApp() {
     <div
       className={`ww-shell relative flex h-full max-h-full flex-col overflow-hidden ${
         isMobile && tab === "live" ? "ww-shell--map-focus" : ""
-      } ${mapImmersive ? "ww-shell--immersive" : ""}`}
+      } ${mapImmersive ? "ww-shell--immersive" : ""} ${
+        isMobile && tab === "live" && mapChrome === "map" && !mapImmersive
+          ? "ww-shell--chrome-map"
+          : ""
+      }`}
     >
       <VolcWatchSmart />
       <SuptOnboarding />
@@ -950,8 +957,8 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Brief strip — one dense line; no stacked Mode + Pulse waste */}
-      {tab !== "about" && !(isMobile && tab === "live" && mapImmersive) && (
+      {/* Brief strip — desktop + non-map tabs. Mobile live Pulse is a canvas overlay. */}
+      {tab !== "about" && !(isMobile && tab === "live") && (
         <div
           className={`ww-brief-strip shrink-0 border-b border-border/50 px-1.5 sm:px-2 ${
             isMobile ? "py-0.5" : "py-0.5"
@@ -1158,8 +1165,9 @@ function ObservatoryApp() {
                     </div>
                   </div>
                 )}
-                <BackToSesButton variant="float" />
+                {!isMobile && <BackToSesButton variant="float" />}
                 {isMobile && <MobileEventSheet />}
+                {isMobile && tab === "live" && !mapImmersive && <MobileMapChrome />}
               </div>
 
               {/* Right tools track — 2D + 3D dock (Spin visible on 3D compact) */}

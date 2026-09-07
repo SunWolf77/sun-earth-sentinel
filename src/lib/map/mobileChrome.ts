@@ -2,16 +2,18 @@
  * Mobile map chrome patterns (collapse strategy).
  *
  * Zones (portrait ~390px) — nothing free-floats over Earth mid-screen:
- *  TOP:    app header + WolfWatch rail + single Pulse strip (expandable)
+ *  TOP overlay: SES peek (map mode) + Pulse chip. Expand is a sheet, not layout.
  *  CENTER: map only (+ leaflet marker; event detail is a bottom sheet)
  *  BOTTOM: one dock — Map · Filters · Events · Layers (mutual exclusive sheets)
+ *          + persistent app tabs (Map · Solar · Rhythm · Charts · About)
  *
  * Principles:
- *  1. Map is the hero — chrome starts collapsed / minimal.
+ *  1. Map is the hero — chrome starts collapsed / Map screen after first visit.
  *  2. Progressive disclosure: dock → one sheet at a time.
- *  3. Mutually exclusive expand: Map | Filters | Events | Layers | Event detail.
- *  4. Persist only explicit user expands; sheets stay session-ephemeral.
- *  5. Touch targets ≥ 36–44px; no second row of toggles on ~390px.
+ *  3. Mutually exclusive expand: Map | Filters | Events | Layers | Event detail | Pulse.
+ *  4. Persist chrome mode (desk | map). Pan/zoom fogs to map. Sheets stay session-ephemeral.
+ *  5. Touch targets ≥ 36–44px; dock goes icon-only in Map screen.
+ *  6. Map screen ≠ Fullscreen. Screen keeps bottom tabs; Full hides them.
  */
 
 export const MAP_CHROME_EVENT = "ww-map-chrome";
