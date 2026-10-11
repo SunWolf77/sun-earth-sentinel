@@ -19,8 +19,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
  * 1.29.3: Pulse/LOOK caps — Darwin standing VAAs stay listed, only FL200+/RED raise the desk.
  * 1.29.4: mobile map-first chrome — Pulse overlay, desk fades on pan, folders icon-only.
  * 1.29.5: proxy fallback — retry + last-good on magneto, solar, VAAC, INGV, GeoNet, IRIS.
+ * 1.29.6: TanStack Start >=1.168.60 (CVE-2026-102989) so Vercel will deploy.
  */
-export const APP_VERSION = "1.29.5";
+export const APP_VERSION = "1.29.6";
 
 
 
