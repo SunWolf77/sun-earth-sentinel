@@ -10,6 +10,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import type { EqCollection, EqFeature } from "@/lib/feeds/usgs";
+import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
 import {
   PROFILE_NATIONAL,
   samePhysicalFeature,
@@ -217,12 +218,14 @@ export async function fetchGeonetApi(opts?: {
   }
 }
 
+const geonetCache = new LastGood<EqCollection>(20 * 60_000);
+
 async function fdsnQuery(params: Record<string, string>): Promise<string> {
   const url = new URL(GEONET_FDSN);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url.toString(), {
+  const res = await fetchWithRetry(url.toString(), {
     headers: { Accept: "text/plain" },
-    cache: "no-cache",
+    timeoutMs: 12_000,
   });
   if (!res.ok) throw new Error(`GeoNet FDSN ${res.status}`);
   return res.text();
@@ -281,7 +284,7 @@ export const fetchGeonetFdsnServer = createServerFn({ method: "POST" })
       const features = [...map.values()].sort(
         (x, y) => (y.properties.time ?? 0) - (x.properties.time ?? 0),
       );
-      return {
+      const col: EqCollection = {
         type: "FeatureCollection",
         features,
         metadata: {
@@ -290,11 +293,19 @@ export const fetchGeonetFdsnServer = createServerFn({ method: "POST" })
           title: `GeoNet FDSN · ${GEONET_ATTRIBUTION}`,
         },
       };
-    } catch {
+      if (features.length) geonetCache.set("fdsn", col);
+      return col;
+    } catch (e) {
+      const hit = geonetCache.get("fdsn");
+      if (hit && hit.features.length) return hit;
       return {
         type: "FeatureCollection",
         features: [],
-        metadata: { generated: Date.now(), count: 0, title: "GeoNet FDSN (unavailable)" },
+        metadata: {
+          generated: Date.now(),
+          count: 0,
+          title: `GeoNet FDSN (unavailable${e instanceof Error ? `: ${e.message}` : ""})`,
+        },
       };
     }
   });

@@ -2,9 +2,13 @@
  * EarthScope FDSN station + dataselect (GeoCSV).
  * irisws-timeseries retires 26 Aug 2026 — do not call it.
  * On-demand, one BHZ window. Not a continuous global waveform bus.
+ *
+ * Fallback: retry the station query; try the next nearest station
+ * (already) with a retry per station before giving up.
  */
 
 import { createServerFn } from "@tanstack/react-start";
+import { fetchWithRetry } from "@/lib/feeds/resilientFetch";
 
 const STATION = "https://service.earthscope.org/fdsnws/station/1/query";
 const SELECT = "https://service.earthscope.org/fdsnws/dataselect/1/query";
@@ -45,12 +49,6 @@ function havDeg(lat1: number, lon1: number, lat2: number, lon2: number): number 
 
 function isoUtc(ms: number): string {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
-async function esGet(url: string, accept: string): Promise<Response> {
-  return fetch(url, {
-    headers: { "User-Agent": UA, Accept: accept },
-  });
 }
 
 function parseStationText(
@@ -136,7 +134,10 @@ export const fetchIrisTrace = createServerFn({ method: "POST" })
 
     let staText = "";
     try {
-      const res = await esGet(staUrl, "text/plain");
+      const res = await fetchWithRetry(staUrl, {
+        headers: { "User-Agent": UA, Accept: "text/plain" },
+        timeoutMs: 10_000,
+      });
       if (!res.ok) {
         return { ok: false, error: `Station ${res.status} — no BHZ within ${maxDeg}°` };
       }
@@ -158,7 +159,11 @@ export const fetchIrisTrace = createServerFn({ method: "POST" })
         `&starttime=${encodeURIComponent(start)}&endtime=${encodeURIComponent(end)}` +
         `&format=geocsv&nodata=404`;
       try {
-        const res = await esGet(`${SELECT}?${qs}`, "text/csv");
+        const res = await fetchWithRetry(`${SELECT}?${qs}`, {
+          headers: { "User-Agent": UA, Accept: "text/csv" },
+          retries: 1,
+          timeoutMs: 8_000,
+        });
         if (!res.ok) continue;
         const text = await res.text();
         const { samples, sps } = parseGeoCsv(text);
