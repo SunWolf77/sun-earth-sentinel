@@ -731,39 +731,9 @@ function ObservatoryApp() {
         window.setTimeout(() => setToast(null), 4500);
       }
     };
-    const onPick = () => {
-      setSidebarOpen(true);
-      try {
-        localStorage.setItem("wolfwatch_sidebar_open", "1");
-      } catch {
-        /* ignore */
-      }
-      setMobileSheet("events");
-      setToast("Tap a quake on the map or in Events. Then Rhythm → Waveform.");
-      window.setTimeout(() => setToast(null), 5000);
-    };
     window.addEventListener("ww-volc-watch", onVolc);
-    window.addEventListener("ww-pick-for-waveform", onPick);
-    return () => {
-      window.removeEventListener("ww-volc-watch", onVolc);
-      window.removeEventListener("ww-pick-for-waveform", onPick);
-    };
-  }, [setMobileSheet]);
-
-  useEffect(() => {
-    if (!pickedEvent?.id) return;
-    let pending = false;
-    try {
-      pending = sessionStorage.getItem("ww_wave_pick") === "1";
-      if (pending) sessionStorage.removeItem("ww_wave_pick");
-    } catch {
-      /* private mode */
-    }
-    if (!pending) return;
-    setToast("Event set. Open Rhythm → Waveform to read the nearest BHZ.");
-    const t = window.setTimeout(() => setToast(null), 4500);
-    return () => window.clearTimeout(t);
-  }, [pickedEvent?.id]);
+    return () => window.removeEventListener("ww-volc-watch", onVolc);
+  }, []);
 
   return (
     <div

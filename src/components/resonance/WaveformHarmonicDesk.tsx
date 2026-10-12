@@ -6,7 +6,8 @@
 
 import { useMemo, useState } from "react";
 import { Activity, Loader2, Radio } from "lucide-react";
-import { useObservatory } from "@/store/observatory";
+import { useObservatory, type PickedEvent } from "@/store/observatory";
+import type { EqFeature } from "@/lib/feeds/usgs";
 import { fetchIrisTrace } from "@/lib/seismology/irisProxy";
 import {
   bandPercents,
@@ -21,9 +22,27 @@ function magLabel(m: number | null): string {
   return m != null && Number.isFinite(m) ? `M${m.toFixed(1)}` : "M–";
 }
 
+function featureToPicked(f: EqFeature): PickedEvent | null {
+  const [lon, lat, depth] = f.geometry.coordinates;
+  const time = f.properties.time ?? null;
+  if (time == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const mag = f.properties.mag;
+  return {
+    id: String(f.id ?? `${lat},${lon},${time}`),
+    lat,
+    lon,
+    mag: mag != null && Number.isFinite(mag) ? mag : null,
+    place: f.properties.place || "Event",
+    depth: depth ?? 0,
+    time,
+    url: f.properties.url,
+  };
+}
+
 export function WaveformHarmonicDesk() {
   const picked = useObservatory((s) => s.pickedEvent);
-  const setTab = useObservatory((s) => s.setTab);
+  const pickEvent = useObservatory((s) => s.pickEvent);
+  const eq = useObservatory((s) => s.eq);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [print, setPrint] = useState<WaveFingerprint | null>(null);
@@ -42,19 +61,27 @@ export function WaveformHarmonicDesk() {
   }, [print, log]);
 
   const run = async () => {
-    if (!picked?.time) {
-      setErr("Pick an event on the map first");
+    if (busy) return;
+    const target = picked?.time
+      ? picked
+      : (eq?.features ?? [])
+          .map(featureToPicked)
+          .filter((p): p is PickedEvent => !!p && (p.mag ?? 0) >= 4.5)
+          .sort((a, b) => (b.time ?? 0) - (a.time ?? 0))[0] ?? null;
+    if (!target?.time) {
+      setErr("No M4.5+ with an origin time in this window.");
       return;
     }
-    if ((picked.mag ?? 0) > 0 && (picked.mag ?? 0) < 4.5) {
+    if ((target.mag ?? 0) > 0 && (target.mag ?? 0) < 4.5) {
       setErr("M4.5+ only — weak events rarely have a clean BHZ window");
       return;
     }
+    if (!picked || picked.id !== target.id) pickEvent(target);
     setBusy(true);
     setErr(null);
     try {
       const tr = await fetchIrisTrace({
-        data: { lat: picked.lat, lon: picked.lon, time: picked.time },
+        data: { lat: target.lat, lon: target.lon, time: target.time },
       });
       if (!tr.ok || !tr.samples?.length || !tr.station || !tr.sps) {
         setErr(tr.error || "No IRIS trace");
@@ -64,12 +91,12 @@ export function WaveformHarmonicDesk() {
       const spec = rfftMag(tr.samples, 1 / tr.sps);
       const bands = bandPercents(spec);
       const fp: WaveFingerprint = {
-        eventId: picked.id,
-        mag: picked.mag,
-        place: picked.place,
-        time: picked.time,
-        lat: picked.lat,
-        lon: picked.lon,
+        eventId: target.id,
+        mag: target.mag,
+        place: target.place,
+        time: target.time,
+        lat: target.lat,
+        lon: target.lon,
         net: tr.station.net,
         sta: tr.station.sta,
         loc: tr.station.loc,
@@ -91,16 +118,6 @@ export function WaveformHarmonicDesk() {
     }
   };
 
-  const goPick = () => {
-    try {
-      sessionStorage.setItem("ww_wave_pick", "1");
-    } catch {
-      /* private mode */
-    }
-    setTab("live");
-    window.dispatchEvent(new CustomEvent("ww-pick-for-waveform"));
-  };
-
   const maxA = spark.reduce((m, b) => Math.max(m, b.a), 0) || 1;
 
   return (
@@ -120,23 +137,17 @@ export function WaveformHarmonicDesk() {
         <button
           type="button"
           className="ww-btn min-h-9 shrink-0 text-[0.68rem]"
-          disabled={busy}
-          onClick={() => {
-            if (!picked) {
-              goPick();
-              return;
-            }
-            void run();
-          }}
+          aria-busy={busy}
+          onClick={() => void run()}
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
-          {picked ? "Read nearest BHZ" : "Pick an event"}
+          Read nearest BHZ
         </button>
       </div>
 
       {!picked && (
         <p className="mt-2 text-[0.65rem] text-dim">
-          Opens the live map. Tap a quake, then come back here for the BHZ read.
+          No quake selected — reads the newest M4.5+ in this window (BHZ).
         </p>
       )}
 

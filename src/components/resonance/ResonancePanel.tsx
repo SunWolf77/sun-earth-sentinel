@@ -250,7 +250,7 @@ export function ResonancePanel() {
       <Folder
         id="rhythm-wave"
         title="Waveform"
-        hint="Pick an event on the map, then fingerprint one BHZ trace"
+        hint="Nearest BHZ — selected quake, or the newest M4.5+ in the window"
       >
         <WaveformHarmonicDesk />
       </Folder>

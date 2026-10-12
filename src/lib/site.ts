@@ -21,8 +21,9 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
  * 1.29.5: proxy fallback — retry + last-good on magneto, solar, VAAC, INGV, GeoNet, IRIS.
  * 1.29.6: TanStack Start >=1.168.60 (CVE-2026-102989) so Vercel will deploy.
  * 1.29.7: Rhythm “Pick an event” opens the live map instead of a dead button.
+ * 1.29.8: Waveform button stays enabled and reads nearest BHZ (newest M4.5+ if none selected).
  */
-export const APP_VERSION = "1.29.7";
+export const APP_VERSION = "1.29.8";
 
 
 
