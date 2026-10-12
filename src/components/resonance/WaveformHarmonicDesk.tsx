@@ -23,6 +23,7 @@ function magLabel(m: number | null): string {
 
 export function WaveformHarmonicDesk() {
   const picked = useObservatory((s) => s.pickedEvent);
+  const setTab = useObservatory((s) => s.setTab);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [print, setPrint] = useState<WaveFingerprint | null>(null);
@@ -90,6 +91,16 @@ export function WaveformHarmonicDesk() {
     }
   };
 
+  const goPick = () => {
+    try {
+      sessionStorage.setItem("ww_wave_pick", "1");
+    } catch {
+      /* private mode */
+    }
+    setTab("live");
+    window.dispatchEvent(new CustomEvent("ww-pick-for-waveform"));
+  };
+
   const maxA = spark.reduce((m, b) => Math.max(m, b.a), 0) || 1;
 
   return (
@@ -109,13 +120,25 @@ export function WaveformHarmonicDesk() {
         <button
           type="button"
           className="ww-btn min-h-9 shrink-0 text-[0.68rem]"
-          disabled={busy || !picked}
-          onClick={() => void run()}
+          disabled={busy}
+          onClick={() => {
+            if (!picked) {
+              goPick();
+              return;
+            }
+            void run();
+          }}
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
           {picked ? "Read nearest BHZ" : "Pick an event"}
         </button>
       </div>
+
+      {!picked && (
+        <p className="mt-2 text-[0.65rem] text-dim">
+          Opens the live map. Tap a quake, then come back here for the BHZ read.
+        </p>
+      )}
 
       {picked && (
         <p className="mt-2 text-[0.68rem] text-muted">
