@@ -1,4 +1,4 @@
-/* WolfWatch shell service worker (ww-shell-v8)
+/* WolfWatch shell service worker (ww-shell-v9)
  *
  * Cache Storage eviction policies:
  *  - Soft cap (48 desk / 28 mobile); pressure trim (24 / 14)
@@ -14,8 +14,8 @@
  *  - max-age + stale-while-revalidate windows (when present)
  *  - ETag conditional revalidate for mutable-static
  */
-const SHELL_CACHE = "ww-shell-v8";
-const RUNTIME_CACHE = "ww-runtime-v8";
+const SHELL_CACHE = "ww-shell-v9";
+const RUNTIME_CACHE = "ww-runtime-v9";
 const LRU_META_URL = "/__ww_lru_meta__";
 let maxRuntimeEntries = 48;
 let pressureTarget = 24;
@@ -32,7 +32,7 @@ const MUTABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_CORE = ["/favicon.svg", "/manifest.webmanifest"];
 const PRECACHE_DESK = ["/og.png"];
 /** Build stamp — bump with shell version so clients drop stale HTML/asset maps */
-const SW_BUILD = "v8-2026-08-07-eq-cache";
+const SW_BUILD = "v9-2026-10-13-chunk-retry";
 
 /** @type {Map<string, true>} */
 let lru = new Map();
@@ -424,7 +424,20 @@ self.addEventListener("fetch", (event) => {
           if (res.ok) await putRuntime(req, res.clone());
           return res;
         } catch {
-          return new Response("", { status: 504 });
+          // One retry — mobile blips kill dynamic imports on empty 504.
+          try {
+            const res = await fetch(req);
+            if (res.ok) await putRuntime(req, res.clone());
+            return res;
+          } catch {
+            if (/\.js$/i.test(url.pathname)) {
+              return new Response("/* chunk fetch failed */", {
+                status: 504,
+                headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
+              });
+            }
+            return new Response("", { status: 504 });
+          }
         }
       }
 
@@ -453,7 +466,19 @@ self.addEventListener("fetch", (event) => {
         if (res.ok) await putRuntime(req, res.clone());
         return res;
       } catch {
-        return new Response("", { status: 504 });
+        try {
+          const res = await fetch(req);
+          if (res.ok) await putRuntime(req, res.clone());
+          return res;
+        } catch {
+          if (/\.js$/i.test(url.pathname)) {
+            return new Response("/* chunk fetch failed */", {
+              status: 504,
+              headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
+            });
+          }
+          return new Response("", { status: 504 });
+        }
       }
     })(),
   );
