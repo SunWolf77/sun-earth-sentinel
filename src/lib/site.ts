@@ -5,11 +5,11 @@
  * production origin. Bump ogImageVersion when branding or image changes.
  * Bump APP_VERSION on each intentional production ship (Vercel).
  *
- * Public host: https://sun-earth-sentinel.vercel.app
+ * Public host: https://wolfwatch.site (vercel.app redirects here)
  */
 
 /** Live production origin (no trailing slash). Canonical for share cards. */
-export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
+export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
 
 /**
  * Public product version — bump on ship so About / cache-bust links show the release.
@@ -24,7 +24,7 @@ export const PRODUCTION_ORIGIN = "https://sun-earth-sentinel.vercel.app";
  * 1.29.9: 3D globe chunk retry + SW asset fetch retry (mobile dynamic import).
  * 1.29.8: Waveform button stays enabled and reads nearest BHZ (newest M4.5+ if none selected).
  */
-export const APP_VERSION = "1.29.9";
+export const APP_VERSION = "1.30.0";
 
 
 
@@ -158,7 +158,7 @@ export function xCardDebugReport(origin = getSiteOrigin()) {
     card: "summary_large_image",
     notes: [
       "X caches cards per exact URL — old tweets keep old scrapes forever.",
-      `Post a NEW tweet with https://sun-earth-sentinel.vercel.app/?v=${SITE.ogImageVersion} to force re-scrape.`,
+      `Post a NEW tweet with https://wolfwatch.site/?v=${SITE.ogImageVersion} to force re-scrape.`,
       "SSR head tags use PRODUCTION_ORIGIN so Twitterbot sees the right host (no JS).",
       "og.png must be image/png on this host — not HTML.",
       "Always share https:// links.",
