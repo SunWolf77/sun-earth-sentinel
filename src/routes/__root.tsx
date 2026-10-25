@@ -5,6 +5,7 @@ import { SITE, absoluteUrl, getSiteOrigin, ogImageUrl } from "@/lib/site";
 import appCss from "../styles.css?url";
 import { useEffect } from "react";
 import { registerShellServiceWorker } from "@/lib/sw/register";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const origin = getSiteOrigin();
 const pageUrl = absoluteUrl("/");
@@ -126,6 +127,7 @@ function RootShell() {
           <ShareMeta />
           <Outlet />
           <Scripts />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
