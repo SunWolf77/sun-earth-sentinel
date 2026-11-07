@@ -16,9 +16,21 @@ export type XrayPoint = {
 export type SolarWind = {
   speed: number | null;
   density: number | null;
+  /** Proton temperature, kelvin. RTSW only. */
+  temperature: number | null;
   bz: number | null;
+  by: number | null;
+  bx: number | null;
   bt: number | null;
+  /** GSM clock angle, degrees. RTSW only. */
+  phi: number | null;
   time: string | null;
+  plasmaTime: string | null;
+  magTime: string | null;
+  /** SWPC `active` spacecraft on the 1-minute product (SOLAR1, ACE, IMAP, …). */
+  source: string | null;
+  /** True when the numbers are the 1-minute RTSW head, not the coarse summary. */
+  rtsw: boolean;
 };
 
 export type NoaaScales = {
@@ -117,28 +129,106 @@ export async function fetchXrays(): Promise<XrayPoint[]> {
   return (await res.json()) as XrayPoint[];
 }
 
-export async function fetchSolarWind(): Promise<SolarWind> {
-  const out: SolarWind = { speed: null, density: null, bz: null, bt: null, time: null };
+function finite(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * RTSW files are newest-first and multi-megabyte. The head is enough for
+ * the live desk — do not download the day.
+ */
+async function readRtswHead(path: string): Promise<Record<string, unknown>[]> {
   try {
-    const [spRes, magRes] = await Promise.all([
-      fetch(`${SWPC}/products/summary/solar-wind-speed.json`),
-      fetch(`${SWPC}/products/summary/solar-wind-mag-field.json`),
+    const res = await fetch(`${SWPC}${path}`, {
+      headers: { Range: "bytes=0-24575" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.status !== 206 && res.status !== 200) return [];
+    const len = Number(res.headers.get("content-length") || 0);
+    if (res.status === 200 && len > 80_000) return [];
+    const text = await res.text();
+    if (text.length > 80_000) return [];
+    const cut = text.lastIndexOf("}");
+    if (cut < 1) return [];
+    let chunk = text.slice(0, cut + 1).trim().replace(/,\s*$/, "");
+    if (!chunk.startsWith("[")) chunk = `[${chunk}`;
+    if (!chunk.endsWith("]")) chunk = `${chunk}]`;
+    const rows = JSON.parse(chunk) as unknown;
+    return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function latestActive(rows: Record<string, unknown>[]): Record<string, unknown> | null {
+  return rows.find((r) => r.active === true) ?? rows[0] ?? null;
+}
+
+export async function fetchSolarWind(): Promise<SolarWind> {
+  const out: SolarWind = {
+    speed: null,
+    density: null,
+    temperature: null,
+    bz: null,
+    by: null,
+    bx: null,
+    bt: null,
+    phi: null,
+    time: null,
+    plasmaTime: null,
+    magTime: null,
+    source: null,
+    rtsw: false,
+  };
+  try {
+    const [magRows, windRows, spRes, magRes] = await Promise.all([
+      readRtswHead("/json/rtsw/rtsw_mag_1m.json"),
+      readRtswHead("/json/rtsw/rtsw_wind_1m.json"),
+      fetch(`${SWPC}/products/summary/solar-wind-speed.json`).catch(() => null),
+      fetch(`${SWPC}/products/summary/solar-wind-mag-field.json`).catch(() => null),
     ]);
-    if (spRes.ok) {
+    const mag = latestActive(magRows);
+    const wind = latestActive(windRows);
+    if (mag) {
+      out.bt = finite(mag.bt);
+      out.bz = finite(mag.bz_gsm);
+      out.by = finite(mag.by_gsm);
+      out.bx = finite(mag.bx_gsm);
+      out.phi = finite(mag.phi_gsm);
+      out.magTime = typeof mag.time_tag === "string" ? mag.time_tag : null;
+      out.source = typeof mag.source === "string" ? mag.source : null;
+      out.rtsw = out.bt != null || out.bz != null;
+    }
+    if (wind) {
+      out.speed = finite(wind.proton_speed);
+      out.density = finite(wind.proton_density);
+      out.temperature = finite(wind.proton_temperature);
+      out.plasmaTime = typeof wind.time_tag === "string" ? wind.time_tag : null;
+      if (!out.source && typeof wind.source === "string") out.source = wind.source;
+      if (out.speed != null) out.rtsw = true;
+    }
+    out.time = out.plasmaTime ?? out.magTime;
+
+    if (spRes?.ok && out.speed == null) {
       const sp = await spRes.json();
       const latest = Array.isArray(sp) ? sp[sp.length - 1] : sp;
       if (latest) {
-        out.speed = parseFloat(latest.proton_speed ?? latest.speed) || null;
-        out.density = parseFloat(latest.proton_density ?? latest.density) || null;
-        out.time = latest.time_tag ?? latest.time ?? null;
+        out.speed = finite(latest.proton_speed ?? latest.speed);
+        out.density = out.density ?? finite(latest.proton_density ?? latest.density);
+        out.time = out.time ?? latest.time_tag ?? latest.time ?? null;
       }
     }
-    if (magRes.ok) {
-      const mag = await magRes.json();
-      const latest = Array.isArray(mag) ? mag[mag.length - 1] : mag;
+    if (magRes?.ok && out.bt == null && out.bz == null) {
+      const magSum = await magRes.json();
+      const latest = Array.isArray(magSum) ? magSum[magSum.length - 1] : magSum;
       if (latest) {
-        out.bz = parseFloat(latest.bz_gsm ?? latest.bz) || null;
-        out.bt = parseFloat(latest.bt) || null;
+        out.bz = finite(latest.bz_gsm ?? latest.bz);
+        out.bt = finite(latest.bt);
         if (!out.time) out.time = latest.time_tag ?? latest.time ?? null;
       }
     }

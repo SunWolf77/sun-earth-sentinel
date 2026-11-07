@@ -25,8 +25,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.29.8: Waveform button stays enabled and reads nearest BHZ (newest M4.5+ if none selected).
  * 1.30.0: public host is https://wolfwatch.site
  * 1.30.1: USGS catalog paints when it returns — not after solar and volcano feeds.
+ * 1.30.2: Solar Now leads with Kp and the latest RTSW minute.
  */
-export const APP_VERSION = "1.30.1";
+export const APP_VERSION = "1.30.2";
 
 
 

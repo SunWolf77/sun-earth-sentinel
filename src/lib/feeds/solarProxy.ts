@@ -113,6 +113,26 @@ function solarHasSignal(b: SolarCoreBundle): boolean {
   return Boolean(b.kp?.length || b.scales || b.solarWind || b.flux10cm);
 }
 
+export type SolarNowBundle = {
+  kp: KpPoint[];
+  solarWind: SolarWind;
+  scales: NoaaScales | null;
+  flux10cm: Flux10cm;
+};
+
+/** Kp, RTSW minute, NOAA scales, F10.7 — the part of Solar that should not wait on ENLIL. */
+export const fetchSolarNow = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SolarNowBundle> => {
+    const [kp, solarWind, scales, flux10cm] = await Promise.all([
+      fetchKp().catch(() => [] as KpPoint[]),
+      fetchSolarWind(),
+      fetchNoaaScales(),
+      fetch10cmFlux(),
+    ]);
+    return { kp, solarWind, scales, flux10cm };
+  },
+);
+
 /**
  * Server-side SWPC batch — `heavy: false` keeps first-open mobile lean.
  * On total failure, returns the last good bundle for that weight.

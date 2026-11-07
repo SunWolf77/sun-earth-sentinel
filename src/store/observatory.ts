@@ -50,7 +50,7 @@ import {
   type KpForecastPoint,
 } from "@/lib/feeds/swpc";
 import type { DonkiBundle } from "@/lib/feeds/donki";
-import { fetchDonkiBundle, fetchSolarCore } from "@/lib/feeds/solarProxy";
+import { fetchDonkiBundle, fetchSolarCore, fetchSolarNow } from "@/lib/feeds/solarProxy";
 import { MODES, normalizePerformanceMode, type PerformanceMode } from "@/lib/feeds/modes";
 
 import { fetchIssPosition, type IssPosition } from "@/lib/feeds/iss";
@@ -1420,7 +1420,32 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             }),
         );
       }
-      // Solar stack via server proxy (CORS-safe) + DONKI
+      // Solar stack via server proxy (CORS-safe) + DONKI.
+      // Kp / RTSW / scales paint as soon as that slice returns — not after ENLIL.
+      if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !flux10cm || force)) {
+        tasks.push(
+          withTimeout(fetchSolarNow(), 12_000, "solar-now")
+            .then((d) => {
+              if (d.kp?.length) kp = d.kp;
+              if (d.solarWind) solarWind = d.solarWind;
+              if (d.scales) scales = d.scales;
+              if (d.flux10cm?.flux != null) flux10cm = d.flux10cm;
+              if (d.kp?.length) setCache("kp", d.kp);
+              if (d.solarWind) setCache("sw", d.solarWind);
+              if (d.scales) setCache("scales", d.scales);
+              if (d.flux10cm?.flux != null) setCache("flux10", d.flux10cm);
+              stamp("solar");
+              set({
+                kp: d.kp?.length ? d.kp : get().kp,
+                solarWind: d.solarWind ?? get().solarWind,
+                scales: d.scales ?? get().scales,
+                flux10cm: d.flux10cm?.flux != null ? d.flux10cm : get().flux10cm,
+                feedTimestamps: { ...get().feedTimestamps, solar: Date.now() },
+              });
+            })
+            .catch(() => {}),
+        );
+      }
       if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !forecast || !flux10cm || force)) {
         tasks.push(
           withTimeout(

@@ -5,6 +5,8 @@ import {
   peakFlare,
   longChannelXrays,
   forecastHighlights,
+  type NoaaScales,
+  type SolarWind,
 } from "@/lib/feeds/swpc";
 import { MODES } from "@/lib/feeds/modes";
 import {
@@ -68,12 +70,12 @@ type MediaTab = "disk" | "corona" | "farside" | "models";
 type SolarView = "now" | "xray" | "images" | "catalogs" | "magneto" | "context";
 
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
-  { id: "now", label: "Now", hint: "Field pairing · impact · NOAA scales" },
+  { id: "now", label: "Now", hint: "Kp · RTSW · NOAA scales" },
   { id: "xray", label: "X-ray", hint: "GOES 18/19 log flux · A–X bands" },
   { id: "images", label: "Images", hint: "Disk · corona · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
   { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
-  { id: "context", label: "Context", hint: "History · timing · education" },
+  { id: "context", label: "Context", hint: "Field pairing · history · timing" },
 ];
 
 export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
@@ -131,7 +133,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
   const applySolarFocus = (t: FocusTarget) => {
     if (t.tab !== "solar") return;
-    if (t.anchor === "field-coupling") selectSolarView("now");
+    if (t.anchor === "field-coupling") selectSolarView("context");
     else if (t.solarDeep === "catalogs") selectSolarView("catalogs");
     else if (t.solarDeep === "magneto") selectSolarView("magneto");
     else if (t.solarDeep === "xray") selectSolarView("xray");
@@ -323,22 +325,30 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "now" && (
         <div className="space-y-3">
-          <FieldCouplingDesk />
-          <SolarCycleStrip />
-          <EclipseWatch />
+          <NowBoard
+            kpVal={kpVal}
+            kpTime={latestKp?.time_tag ?? null}
+            xClass={xClass}
+            highKp={highKp}
+            highX={highX}
+            wind={solarWind}
+            southBz={southBz}
+            scales={scales}
+            flux={flux10cm?.flux ?? null}
+          />
 
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
             <AttentionSparkline showLabel height={22} className="min-w-0" />
             {kpUpcoming.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 text-[0.62rem] text-muted">
+              <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
                 <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
-                {kpUpcoming.slice(0, 5).map((p) => {
+                {kpUpcoming.slice(0, 6).map((p) => {
                   const k = p.kp;
                   const tone =
                     k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
                   const lab = p.time_tag.slice(5, 13).replace("T", " ");
                   return (
-                    <span key={p.time_tag} className={`font-mono tabular-nums ${tone}`} title={p.time_tag}>
+                    <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
                       {lab}·{k.toFixed(1)}
                     </span>
                   );
@@ -365,22 +375,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
               ))}
             </ul>
           </section>
-
-          <div
-            id="ses-solar-geo"
-            className="grid scroll-mt-20 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
-          >
-            <Gauge icon={<Activity className="h-3.5 w-3.5" />} label="Kp now" value={kpVal != null ? kpVal.toFixed(1) : "—"} alert={highKp} />
-            <Gauge icon={<Sun className="h-3.5 w-3.5" />} label="X-ray" value={xClass} alert={highX} />
-            <Gauge icon={<Wind className="h-3.5 w-3.5" />} label="SW km/s" value={solarWind?.speed != null ? String(Math.round(solarWind.speed)) : "—"} />
-            <Gauge icon={<Zap className="h-3.5 w-3.5" />} label="Bz nT" value={solarWind?.bz != null ? solarWind.bz.toFixed(1) : "—"} alert={southBz} />
-            <Gauge icon={<Radio className="h-3.5 w-3.5" />} label="10.7 cm" value={flux10cm?.flux != null ? String(Math.round(flux10cm.flux)) : "—"} />
-            <Gauge
-              icon={<Orbit className="h-3.5 w-3.5" />}
-              label="Bt nT"
-              value={solarWind?.bt != null ? solarWind.bt.toFixed(1) : "—"}
-            />
-          </div>
 
           <div id="ses-solar-protons" className="grid scroll-mt-20 grid-cols-3 gap-2">
             <Gauge
@@ -436,14 +430,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
 
-          {scales && (
-            <div className="grid gap-2 sm:grid-cols-3">
-              <ScaleCard letter="R" name="Radio blackout" value={scales.R} text={scales.RText} />
-              <ScaleCard letter="S" name="Solar radiation" value={scales.S} text={scales.SText} />
-              <ScaleCard letter="G" name="Geomagnetic" value={scales.G} text={scales.GText} />
-            </div>
-          )}
-
           {(highlights.length > 0 || forecast?.issued) && (
             <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
@@ -469,6 +455,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           )}
 
           <SwpcStormWarnings />
+
+          <SolarCycleStrip />
+          <EclipseWatch />
 
           <p className="text-center text-[0.65rem] text-dim">
             Need pictures or CME lists? Use{" "}
@@ -521,6 +510,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "context" && (
         <div className="space-y-3">
+          <FieldCouplingDesk />
           <p className="rounded-lg border border-border/80 bg-panel/60 px-3 py-2 text-[0.7rem] leading-relaxed text-muted">
             Optional depth — expand only what you need. None of this is an official forecast.
           </p>
@@ -539,6 +529,158 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       <footer className="border-t border-border/60 pb-2 pt-2 text-[0.62rem] leading-relaxed text-dim">
         Free feeds · observation desk · not an official forecast product.
       </footer>
+    </div>
+  );
+}
+
+function utcStamp(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const iso = /Z$|[+-]\d\d:?\d\d$/.test(raw) ? raw : `${raw.replace(" ", "T")}Z`;
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return raw.slice(0, 16).replace("T", " ");
+  const ageMin = Math.max(0, Math.round((Date.now() - t) / 60_000));
+  const clock = new Date(t).toISOString().slice(11, 16);
+  return ageMin < 180 ? `${clock} UTC · ${ageMin} min` : `${clock} UTC`;
+}
+
+function fmtTemp(k: number | null | undefined): string {
+  if (k == null || !Number.isFinite(k)) return "—";
+  if (k >= 100_000) return `${(k / 1_000).toFixed(0)}k`;
+  return Math.round(k).toLocaleString();
+}
+
+function NowBoard({
+  kpVal,
+  kpTime,
+  xClass,
+  highKp,
+  highX,
+  wind,
+  southBz,
+  scales,
+  flux,
+}: {
+  kpVal: number | null;
+  kpTime: string | null;
+  xClass: string;
+  highKp: boolean;
+  highX: boolean;
+  wind: SolarWind | null;
+  southBz: boolean;
+  scales: NoaaScales | null;
+  flux: number | null;
+}) {
+  const kpTone =
+    kpVal != null && kpVal >= 7
+      ? "text-danger"
+      : kpVal != null && kpVal >= 5
+        ? "text-warn"
+        : kpVal != null && kpVal >= 4
+          ? "text-gold"
+          : "text-fg";
+  const plasma = utcStamp(wind?.plasmaTime ?? wind?.time);
+  const mag = utcStamp(wind?.magTime);
+  const sameClock = !wind?.magTime || wind.magTime.slice(0, 16) === (wind.plasmaTime ?? "").slice(0, 16);
+
+  return (
+    <section id="ses-solar-geo" className="scroll-mt-20 space-y-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highKp ? "border-danger/50" : "border-border"}`}>
+          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Kp</div>
+          <div className={`font-mono text-4xl font-bold leading-none tabular-nums ${kpTone}`}>
+            {kpVal != null ? kpVal.toFixed(1) : "—"}
+          </div>
+          <div className="mt-1 text-[0.62rem] text-dim">{utcStamp(kpTime)}</div>
+        </div>
+        <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highX ? "border-danger/50" : "border-border"}`}>
+          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">X-ray</div>
+          <div className={`font-mono text-4xl font-bold leading-none tabular-nums ${highX ? "text-danger" : "text-fg"}`}>
+            {xClass}
+          </div>
+          <div className="mt-1 text-[0.62rem] text-dim">GOES 1–8 Å</div>
+        </div>
+        <div className="rounded-xl border border-border bg-panel px-3 py-2.5">
+          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Wind</div>
+          <div className="font-mono text-4xl font-bold leading-none tabular-nums text-fg">
+            {wind?.speed != null ? Math.round(wind.speed) : "—"}
+          </div>
+          <div className="mt-1 text-[0.62rem] text-dim">km/s</div>
+        </div>
+        <div className={`rounded-xl border bg-panel px-3 py-2.5 ${southBz ? "border-warn/50" : "border-border"}`}>
+          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Bz</div>
+          <div className={`font-mono text-4xl font-bold leading-none tabular-nums ${southBz ? "text-warn" : "text-fg"}`}>
+            {wind?.bz != null ? wind.bz.toFixed(1) : "—"}
+          </div>
+          <div className="mt-1 text-[0.62rem] text-dim">nT GSM</div>
+        </div>
+      </div>
+
+      {scales && (
+        <div className="grid grid-cols-3 gap-2">
+          <ScaleCard letter="R" name="Radio" value={scales.R} text={scales.RText} />
+          <ScaleCard letter="S" name="Radiation" value={scales.S} text={scales.SText} />
+          <ScaleCard letter="G" name="Geomagnetic" value={scales.G} text={scales.GText} />
+        </div>
+      )}
+
+      <section className="rounded-xl border border-border bg-panel px-3 py-2.5">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+            RTSW
+          </h3>
+          <p className="text-[0.62rem] text-dim">
+            {wind?.rtsw ? "1-min primary" : "summary"}
+            {wind?.source ? ` · ${wind.source}` : ""}
+            {" · "}
+            <a
+              href="https://www.swpc.noaa.gov/products/real-time-solar-wind"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              SWPC
+            </a>
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+          <Mini label="Speed" value={wind?.speed != null ? String(Math.round(wind.speed)) : "—"} unit="km/s" />
+          <Mini label="Density" value={wind?.density != null ? wind.density.toFixed(1) : "—"} unit="/cm³" />
+          <Mini label="Temp" value={fmtTemp(wind?.temperature)} unit="K" />
+          <Mini label="Bt" value={wind?.bt != null ? wind.bt.toFixed(1) : "—"} unit="nT" />
+          <Mini label="Bz" value={wind?.bz != null ? wind.bz.toFixed(1) : "—"} unit="nT" alert={southBz} />
+          <Mini label="By" value={wind?.by != null ? wind.by.toFixed(1) : "—"} unit="nT" />
+          <Mini label="Bx" value={wind?.bx != null ? wind.bx.toFixed(1) : "—"} unit="nT" />
+          <Mini label="φ" value={wind?.phi != null ? wind.phi.toFixed(0) : "—"} unit="°" />
+        </div>
+        <p className="mt-2 text-[0.62rem] text-dim">
+          Plasma {plasma}
+          {sameClock ? "" : ` · B ${mag}`}
+          {flux != null ? ` · F10.7 ${Math.round(flux)}` : ""}
+          {" · observation, not a forecast"}
+        </p>
+      </section>
+    </section>
+  );
+}
+
+function Mini({
+  label,
+  value,
+  unit,
+  alert,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  alert?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[0.6rem] uppercase tracking-wide text-dim">{label}</div>
+      <div className={`font-mono text-lg font-semibold tabular-nums leading-tight ${alert ? "text-warn" : "text-fg"}`}>
+        {value}
+      </div>
+      <div className="text-[0.58rem] text-dim">{unit}</div>
     </div>
   );
 }
