@@ -34,8 +34,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.30.8: Pole desk credits Ethical Skeptic’s ECDO research.
  * 1.30.9: Exit full sits top-left in 3D so it no longer covers the toggle strip.
  * 1.31.0: EQ notices open that event. A focused quake no longer snaps back to the world view.
+ * 1.31.1: Map catalog no longer waits on solar imagery. Regional catalogs cache for 3 minutes.
  */
-export const APP_VERSION = "1.31.0";
+export const APP_VERSION = "1.31.1";
 
 
 

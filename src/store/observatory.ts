@@ -526,6 +526,8 @@ function buildSolarAssessmentFromState(s: {
 }
 
 let seenEqIds = new Set<string>();
+/** Drops a late solar/volcano commit if a newer refresh already started. */
+let refreshGen = 0;
 let mmiAbort: AbortController | null = null;
 let gvpAbort: AbortController | null = null;
 let gvpFetchInFlight: Promise<void> | null = null;
@@ -1184,6 +1186,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   refresh: async (force = false) => {
     const { mode, timeWindow, loading, useGeofon, audioAlerts, desktopNotify } = get();
     if (loading && !force) return;
+    const gen = ++refreshGen;
     const cfg = MODES[mode];
     try {
       pruneCache(false);
@@ -1215,6 +1218,8 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         : getCache<UsgsVolcanoAlert[]>("usgs_volc_alerts_v4", 300_000);
 
       const tasks: Promise<void>[] = [];
+      /** Solar, volcanoes, global seismic — must not hold the quake commit. */
+      const ambientTasks: Promise<void>[] = [];
       let pulse: EqCollection | null = null;
       let geofon: EqCollection | null = null;
       let jma: EqCollection | null = null;
@@ -1323,7 +1328,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           }),
       );
       if (useGeofon) {
-        tasks.push(
+        geofon = force ? null : getCache<EqCollection>("geofon", 180_000);
+        if (geofon) stamp("geofon");
+        else tasks.push(
           withTimeout(fetchGeofonWeek(Math.min(cfg.minMag, 2.5)), 18_000, "geofon")
             .then((d) => {
               geofon = d;
@@ -1336,8 +1343,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             }),
         );
       }
-      // JMA Bosai — densifies Japan + shindo (CORS open)
-      tasks.push(
+      // JMA Bosai — densifies Japan + shindo (CORS open). 3 min is enough.
+      jma = force ? null : getCache<EqCollection>("jma", 180_000);
+      if (jma) stamp("jma");
+      else tasks.push(
         withTimeout(fetchJmaQuakes(), 18_000, "jma")
           .then((d) => {
             jma = d;
@@ -1350,7 +1359,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           }),
       );
       // EMSC — Europe/Med + IMO-contributed Iceland (independent of USGS)
-      tasks.push(
+      emsc = force ? null : getCache<EqCollection>("emsc", 180_000);
+      if (emsc) stamp("emsc");
+      else tasks.push(
         withTimeout(fetchEmscWeek(Math.min(cfg.minMag, 2.5)), 20_000, "emsc")
           .then((d) => {
             emsc = d;
@@ -1374,7 +1385,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
                 : 14;
         // Floor at 1.0 so microseismicity is visible without flooding M4+ world view
         const imoMin = Math.min(cfg.minMag, 1.5);
-        tasks.push(
+        imo = force ? null : getCache<EqCollection>("imo", 180_000);
+        if (imo) stamp("imo");
+        else tasks.push(
           withTimeout(
             fetchImoQuakes({ sizeMin: imoMin, days: imoDays, limit: 800 }),
             18_000,
@@ -1402,7 +1415,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
                 ? 7
                 : 14;
         const gnMin = Math.min(cfg.minMag, 1.5);
-        tasks.push(
+        geonet = force ? null : getCache<EqCollection>("geonet", 180_000);
+        if (geonet) stamp("geonet");
+        else tasks.push(
           withTimeout(
             fetchGeonetQuakes({ days: gnDays, minMag: gnMin }),
             22_000,
@@ -1423,7 +1438,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       // Solar stack via server proxy (CORS-safe) + DONKI.
       // Kp / RTSW / scales paint as soon as that slice returns — not after ENLIL.
       if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !flux10cm || force)) {
-        tasks.push(
+        ambientTasks.push(
           withTimeout(fetchSolarNow(), 12_000, "solar-now")
             .then((d) => {
               if (d.kp?.length) kp = d.kp;
@@ -1447,7 +1462,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         );
       }
       if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !forecast || !flux10cm || force)) {
-        tasks.push(
+        ambientTasks.push(
           withTimeout(
             fetchSolarCore({ data: { heavy: cfg.loadChart || cfg.loadImage } }),
             28_000,
@@ -1487,7 +1502,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       } else {
         if ((kp?.length || scales) && !get().feedTimestamps.solar) stamps.solar = Date.now();
         if (!kp) {
-          tasks.push(
+          ambientTasks.push(
             withTimeout(fetchKp(), 15_000, "kp")
               .then((d) => {
                 kp = d;
@@ -1498,7 +1513,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           );
         }
         if (cfg.loadChart && !xray) {
-          tasks.push(
+          ambientTasks.push(
             withTimeout(fetchXrays(), 15_000, "xray")
               .then((d) => {
                 xray = d;
@@ -1509,7 +1524,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           );
         }
         if (!alerts) {
-          tasks.push(
+          ambientTasks.push(
             withTimeout(fetchAlerts(), 12_000, "alerts")
               .then((d) => {
                 alerts = d;
@@ -1522,7 +1537,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
       // DONKI catalogs: skip on Lite (mobile first-open) unless forced later via mode bump
       if (cfg.loadSolarWind && !donki) {
-        tasks.push(
+        ambientTasks.push(
           withTimeout(fetchDonkiBundle(), 25_000, "donki")
             .then((d) => {
               donki = d;
@@ -1535,7 +1550,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
       
       if (cfg.loadVolc && !volc) {
-        tasks.push(
+        ambientTasks.push(
           withTimeout(fetchVolcanoes(), 18_000, "volc")
             .then((d) => {
               volc = d;
@@ -1548,7 +1563,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
 
       // USGS HANS elevated volcanoes — small; always refresh when missing
       if (!usgsVolcAlerts) {
-        tasks.push(
+        ambientTasks.push(
           withTimeout(fetchAllElevatedVolcanoes(), 22_000, "volc-alerts")
             .then((d) => {
               usgsVolcAlerts = d;
@@ -1563,7 +1578,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         ? null
         : getCache<GlobalSeismicBundle>("global_seismic", 180_000);
       if (!globalSeismic) {
-        tasks.push(
+        ambientTasks.push(
           withTimeout(fetchGlobalSeismic(), 20_000, "global-seismic")
             .then((d) => {
               globalSeismic = d;
@@ -1784,6 +1799,68 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
       // Ambient: ISS/fires/NEO when layers on (or warm NEO for Solar)
       void get().ensureAmbientLayers(false);
+
+      if (ambientTasks.length) {
+        void Promise.allSettled(ambientTasks).then(() => {
+          if (gen !== refreshGen) return;
+          const kpNow = kp ?? get().kp;
+          const xrayNow = xray ?? get().xray;
+          const swNow = solarWind ?? get().solarWind;
+          const scalesNow = scales ?? get().scales;
+          const protonsNow = protons ?? get().protons;
+          const donkiNow = donki ?? get().donki;
+          const enlilNow = enlil ?? get().enlil;
+          const nextAlerts = usgsVolcAlerts ?? get().usgsVolcAlerts;
+          const prevAlerts = get().usgsVolcAlerts;
+          set({
+            volc: volc ?? get().volc,
+            usgsVolcAlerts: nextAlerts,
+            globalSeismic: globalSeismic ?? get().globalSeismic,
+            volcWatchNodes: buildWatchNodes(
+              nextAlerts,
+              new Set<string>(get().volcWatchPins),
+              new Set<string>(get().volcWatchMutes),
+            ),
+            volcWatchTransitions: (() => {
+              const prune = (list: VolcWatchTransition[]) => pruneVolcTransitions(list);
+              if (usgsVolcAlerts == null) return prune(get().volcWatchTransitions);
+              const hadPrev = prevAlerts.length > 0 || get().volcWatchNodes.length > 0;
+              const deltas = diffVolcWatch(prevAlerts, nextAlerts);
+              if (!deltas.length) return prune(get().volcWatchTransitions);
+              const filtered =
+                !hadPrev && prevAlerts.length === 0
+                  ? deltas.filter((d) => d.kind === "elevated")
+                  : deltas;
+              return prune([...filtered, ...get().volcWatchTransitions]);
+            })(),
+            kp: kpNow,
+            xray: xrayNow,
+            solarWind: swNow,
+            scales: scalesNow,
+            alerts: alerts ?? get().alerts,
+            flux10cm: flux10cm ?? get().flux10cm,
+            protons: protonsNow,
+            forecast: forecast ?? get().forecast,
+            enlil: enlilNow,
+            ovation: ovation ?? get().ovation,
+            ovationBundle: ovationBundle ?? get().ovationBundle,
+            donki: donkiNow,
+            kpForecast: kpForecast ?? get().kpForecast,
+            solarAssessment: buildSolarAssessmentFromState({
+              scales: scalesNow,
+              solarWind: swNow,
+              kp: kpNow,
+              xray: xrayNow,
+              donki: donkiNow,
+              protons: protonsNow,
+              enlil: enlilNow,
+              mode,
+            }),
+            feedTimestamps: { ...get().feedTimestamps, ...stamps },
+            feedErrors: { ...get().feedErrors, ...errs },
+          });
+        });
+      }
     } catch (e) {
       set({
         loading: false,

@@ -20,11 +20,7 @@ import { MapStyleControl } from "@/components/map/MapStyleControl";
 import { EventReplayBar } from "@/components/map/EventReplayBar";
 import { HelpGuide } from "@/components/ops/HelpGuide";
 import { MODES, MODE_ORDER, type PerformanceMode } from "@/lib/feeds/modes";
-import { SpaceWeatherPanel } from "@/components/weather/SpaceWeatherPanel";
 import { ClientOnly } from "@/components/ops/ClientOnly";
-import { ResonancePanel } from "@/components/resonance/ResonancePanel";
-import { AnalyticsCharts } from "@/components/charts/AnalyticsCharts";
-import { AboutPanel } from "@/components/about/AboutPanel";
 import { NodeFocusPanel } from "@/components/nodes/NodeFocusPanel";
 import { FocusedNodeCard } from "@/components/nodes/FocusedNodeCard";
 import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
@@ -74,6 +70,26 @@ const LiveMap = lazy(() =>
 const Globe3D = lazy(() =>
   lazyRetry(() =>
     import("@/components/map/Globe3D").then((m) => ({ default: m.Globe3D })),
+  ),
+);
+const SpaceWeatherPanel = lazy(() =>
+  lazyRetry(() =>
+    import("@/components/weather/SpaceWeatherPanel").then((m) => ({ default: m.SpaceWeatherPanel })),
+  ),
+);
+const ResonancePanel = lazy(() =>
+  lazyRetry(() =>
+    import("@/components/resonance/ResonancePanel").then((m) => ({ default: m.ResonancePanel })),
+  ),
+);
+const AnalyticsCharts = lazy(() =>
+  lazyRetry(() =>
+    import("@/components/charts/AnalyticsCharts").then((m) => ({ default: m.AnalyticsCharts })),
+  ),
+);
+const AboutPanel = lazy(() =>
+  lazyRetry(() =>
+    import("@/components/about/AboutPanel").then((m) => ({ default: m.AboutPanel })),
   ),
 );
 
@@ -1254,7 +1270,11 @@ function ObservatoryApp() {
           hidden={tab !== "solar"}
           className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-3 sm:p-4"
         >
-          {tab === "solar" && <SpaceWeatherPanel />}
+          {tab === "solar" && (
+            <Suspense fallback={<p className="p-4 text-sm text-muted">Loading solar…</p>}>
+              <SpaceWeatherPanel />
+            </Suspense>
+          )}
         </div>
 
         <div
@@ -1264,7 +1284,11 @@ function ObservatoryApp() {
           hidden={tab !== "resonance"}
           className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-3 sm:p-0"
         >
-          {tab === "resonance" && <ResonancePanel />}
+          {tab === "resonance" && (
+            <Suspense fallback={<p className="p-4 text-sm text-muted">Loading rhythm…</p>}>
+              <ResonancePanel />
+            </Suspense>
+          )}
         </div>
 
         <div
@@ -1274,7 +1298,11 @@ function ObservatoryApp() {
           hidden={tab !== "analytics"}
           className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-3 sm:p-4"
         >
-          {tab === "analytics" && <AnalyticsCharts />}
+          {tab === "analytics" && (
+            <Suspense fallback={<p className="p-4 text-sm text-muted">Loading charts…</p>}>
+              <AnalyticsCharts />
+            </Suspense>
+          )}
         </div>
 
         <div
@@ -1284,7 +1312,11 @@ function ObservatoryApp() {
           hidden={tab !== "about"}
           className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-6"
         >
-          {tab === "about" && <AboutPanel />}
+          {tab === "about" && (
+            <Suspense fallback={<p className="p-4 text-sm text-muted">Loading about…</p>}>
+              <AboutPanel />
+            </Suspense>
+          )}
         </div>
       </main>
 
