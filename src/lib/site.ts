@@ -31,8 +31,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.30.5: Magneto ECDO test points — IERS pole, LOD, Chandler band. Not a flip time.
  * 1.30.6: Polar-motion track — two-year IERS path, last step, m/year drift.
  * 1.30.7: Polar motion has its own Solar tab.
+ * 1.30.8: Pole desk credits Ethical Skeptic’s ECDO research.
  */
-export const APP_VERSION = "1.30.7";
+export const APP_VERSION = "1.30.8";
 
 
 
@@ -131,6 +132,14 @@ export const X_PROFILES = {
     handle: "rrichcord",
     url: "https://x.com/rrichcord",
     role: "Magneto · INTERMAGNET processing (drmagneto public tool)",
+    avatarSrc: undefined as string | undefined,
+    avatarRemote: undefined as string | undefined,
+  },
+  ethicalskeptic: {
+    name: "The Ethical Skeptic",
+    handle: "EthicalSkeptic",
+    url: "https://x.com/EthicalSkeptic",
+    role: "ECDO research · Exothermic Core-Mantle Decoupling",
     avatarSrc: undefined as string | undefined,
     avatarRemote: undefined as string | undefined,
   },

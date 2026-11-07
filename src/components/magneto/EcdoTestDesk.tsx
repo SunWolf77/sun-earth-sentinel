@@ -3,10 +3,12 @@ import { Compass, ExternalLink } from "lucide-react";
 import { fetchEcdoPoints } from "@/lib/feeds/eopProxy";
 import { ECDO_STATE2, type EcdoPoints } from "@/lib/geo/polarMotion";
 import { useObservatory } from "@/store/observatory";
+import { XPerson } from "@/components/ui/XProfileLink";
 
 function meters(n: number | null): string {
   if (n == null || !Number.isFinite(n)) return "—";
   if (n >= 1000) return `${(n / 1000).toFixed(2)} km`;
+  if (n < 1) return `${Math.round(n * 100)} cm`;
   return `${Math.round(n)} m`;
 }
 
@@ -61,11 +63,13 @@ export function EcdoTestDesk() {
         </p>
       </div>
       <p className="mt-1 text-[0.68rem] leading-relaxed text-muted">
-        Exothermic core–mantle decoupling (Ethical Skeptic) says the mantle can
-        slip relative to the core. This desk only reads IERS Earth orientation:
-        where the geographic pole is, how far it moved, and how strong the
-        433-day Chandler band is. A low wobble is a measurement. It is not a
-        date for a 104° turn.
+        Research acknowledged:{" "}
+        <XPerson profile="ethicalskeptic" withAvatar={false} />. ECDO — Exothermic
+        Core-Mantle Decoupling, Dzhanibekov oscillation — is his hypothesis. This
+        desk only reads IERS Earth orientation against that question: where the
+        geographic pole is, how far it moved, and how strong the 433-day Chandler
+        band is. A low wobble is a measurement. It is not his conclusion, and it
+        is not a date for a 104° turn.
       </p>
 
       {busy && <p className="mt-2 text-[0.68rem] text-dim">Reading IERS…</p>}
@@ -148,7 +152,7 @@ export function EcdoTestDesk() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-[0.62rem] text-primary hover:underline"
         >
-          ECDO write-up <ExternalLink className="h-3 w-3" />
+          Ethical Skeptic · ECDO <ExternalLink className="h-3 w-3" />
         </a>
       </div>
       <p className="mt-2 text-[0.6rem] leading-relaxed text-dim">

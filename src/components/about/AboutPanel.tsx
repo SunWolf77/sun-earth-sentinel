@@ -76,9 +76,10 @@ export function AboutPanel() {
             volcano alerts, global context layers
           </li>
           <li>
-            <strong className="text-fg">Solar</strong> — NOAA SWPC space weather + SDO imagery, plus
-            optional timing patterns on flares / CMEs, Historical Storm Desk (Carrington → 2024), and
-            GIC literacy + IGRF field-model note under Magneto
+            <strong className="text-fg">Solar</strong> — NOAA SWPC space weather, GOES imagery,
+            Magneto, and a Pole tab (IERS). Pole tests{" "}
+            <XPerson profile="ethicalskeptic" withAvatar={false} />’s ECDO research
+            against public Earth-orientation data. It does not adopt that research as a forecast.
           </li>
           <li>
             <strong className="text-fg">Rhythm</strong> — earthquake spacing over time (ordinary vs
@@ -493,12 +494,12 @@ export function AboutPanel() {
           </div>
 
           <div>
-            <p className="font-semibold text-fg">Deep Earth (context only)</p>
+            <p className="font-semibold text-fg">Deep Earth · ECDO research</p>
             <p>
-              Core-flow / geodynamo research and ECDO-style deep-Earth frameworks are educational
-              curiosity (Ethical Skeptic and literature as inspiration) — not a live hazard feed.
-              SES monitors the magnetic field’s surface effects (Kp/G, Magneto), not outer-core
-              velocity in real time.
+              Thank you to <XPerson profile="ethicalskeptic" withAvatar={false} /> for the ECDO
+              research this desk is built to test. Solar → Pole shows the IERS measurements
+              (polar motion, LOD, Chandler band). Those numbers are not an agency endorsement
+              of the hypothesis, and they are not a flip timetable.
             </p>
           </div>
 

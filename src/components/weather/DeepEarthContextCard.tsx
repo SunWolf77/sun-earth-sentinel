@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Earth, ExternalLink, Info } from "lucide-react";
+import { XPerson } from "@/components/ui/XProfileLink";
 
 /**
  * Deep Earth / core-flow literacy — educational only.
@@ -55,9 +56,10 @@ export function DeepEarthContextCard({ defaultOpen = false }: { defaultOpen?: bo
                 USGS/SWPC.
               </li>
               <li>
-                <strong className="text-fg">Optional context:</strong> deep-Earth / ECDO-style
-                frameworks stay educational or research-curiosity (Ethical Skeptic and others as
-                inspiration), not a red-banner channel.
+                <strong className="text-fg">Optional context:</strong>{" "}
+                <XPerson profile="ethicalskeptic" withAvatar={false} />’s ECDO research is
+                acknowledged on Solar → Pole. The desk shows IERS measurements only — not a
+                red-banner channel and not a flip call.
               </li>
             </ul>
           </div>
