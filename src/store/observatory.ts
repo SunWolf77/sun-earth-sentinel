@@ -1232,6 +1232,46 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       const fail = (k: keyof FeedSourceErrors, msg: string) => {
         errs[k] = msg;
       };
+      /** Paint USGS as soon as it returns. Regional boards still merge at the end. */
+      const publishUsgs = (catalog: EqCollection | null) => {
+        if (!catalog?.features?.length) return;
+        let next = catalog;
+        try {
+          const resolved = resolveFieldCatalog(next.features);
+          next = {
+            ...next,
+            features: resolved,
+            metadata: {
+              ...next.metadata,
+              generated: Date.now(),
+              count: resolved.length,
+            },
+          };
+        } catch {
+          /* raw USGS is still a catalog */
+        }
+        next = clipCollectionToWindow(next, timeWindow) ?? next;
+        if (next.features && next.features.length > cfg.maxMarkers) {
+          next = {
+            ...next,
+            features: capFeaturesForMode(
+              next.features,
+              cfg.maxMarkers,
+              priorityNodeBounds(get().volcWatchNodes),
+              {
+                minMag: cfg.minMag,
+                maxPriorityMicro: Math.min(120, Math.floor(cfg.maxMarkers * 0.2)),
+              },
+            ),
+          };
+        }
+        if (!next.features?.length) return;
+        set({
+          eq: next,
+          newestEventAgeMs: latestEventAgeMs(next.features),
+          feedTimestamps: { ...get().feedTimestamps, eq: Date.now() },
+        });
+      };
 
       if (!eq) {
         tasks.push(
@@ -1240,6 +1280,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               eq = d;
               setCache(eqCacheKey, d);
               stamp("eq");
+              publishUsgs(d);
             })
             .catch((e) => {
               // Other window caches beat empty map when USGS blips
@@ -1255,6 +1296,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
                 if (hit?.features?.length) {
                   eq = hit;
                   stamp("eq");
+                  publishUsgs(hit);
                   break;
                 }
               }
@@ -1263,6 +1305,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         );
       } else if (!get().feedTimestamps.eq) {
         stamps.eq = Date.now();
+        publishUsgs(eq);
+      } else {
+        publishUsgs(eq);
       }
       tasks.push(
         withTimeout(fetchRealtimePulse(), 12_000, "usgs-pulse")
