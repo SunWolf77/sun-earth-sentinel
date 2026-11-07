@@ -1140,8 +1140,8 @@ function ObservatoryApp() {
             }
           >
             {mapImmersive && (
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-[810] flex items-center justify-between gap-2 bg-gradient-to-b from-black/50 to-transparent px-3 py-2">
-                <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-primary/90">
+              <div className="pointer-events-none absolute left-3 top-2 z-[810] flex items-center gap-2">
+                <span className="rounded-md bg-black/50 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-wider text-primary/90">
                   Full · {mapView === "3d" ? "3D" : "2D"}
                 </span>
                 <button

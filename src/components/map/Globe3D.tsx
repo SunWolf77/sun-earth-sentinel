@@ -2149,7 +2149,7 @@ export function Globe3D() {
         <AuroraOfficialPanel />
       </div>
 
-      <div className="pointer-events-auto absolute left-2 top-2 z-20 flex flex-col items-start gap-1">
+      <div className={`pointer-events-auto absolute left-2 z-20 flex flex-col items-start gap-1 ${mapImmersive ? "top-12" : "top-2"}`}>
         <button
           type="button"
           className="rounded-md border border-border/70 bg-surface/90 px-1.5 py-0.5 text-left text-[0.5rem] font-semibold uppercase tracking-wider shadow backdrop-blur sm:text-[0.55rem]"

@@ -32,8 +32,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.30.6: Polar-motion track — two-year IERS path, last step, m/year drift.
  * 1.30.7: Polar motion has its own Solar tab.
  * 1.30.8: Pole desk credits Ethical Skeptic’s ECDO research.
+ * 1.30.9: Exit full sits top-left in 3D so it no longer covers the toggle strip.
  */
-export const APP_VERSION = "1.30.8";
+export const APP_VERSION = "1.30.9";
 
 
 
