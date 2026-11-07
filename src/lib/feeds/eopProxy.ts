@@ -12,7 +12,7 @@ const DAILY =
 const C04 =
   "https://datacenter.iers.org/products/eop/long-term/c04_14/iau2000/eopc04_14_IAU2000.62-now";
 
-const cache = new LastGood<EcdoPoints>(12 * 60 * 60_000);
+const cache = new LastGood<EcdoPoints>(3 * 60 * 60_000);
 
 /** IERS polar motion → ECDO test points. Cached 12 h. Not a flip score. */
 export const fetchEcdoPoints = createServerFn({ method: "GET" }).handler(

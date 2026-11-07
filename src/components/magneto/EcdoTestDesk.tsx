@@ -114,6 +114,14 @@ export function EcdoTestDesk() {
         </dl>
       )}
 
+      {points && points.track.length > 1 && (
+        <PoleTrack
+          pts={points.track}
+          wander={points.wanderMperYear}
+          step={points.stepM}
+        />
+      )}
+
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -160,6 +168,69 @@ function Stat({ k, v, s }: { k: string; v: string; s: string }) {
       <dt className="text-[0.58rem] font-semibold uppercase tracking-wide text-dim">{k}</dt>
       <dd className="font-mono text-sm font-semibold tabular-nums text-fg">{v}</dd>
       <dd className="text-[0.58rem] text-dim">{s}</dd>
+    </div>
+  );
+}
+
+function PoleTrack({
+  pts,
+  wander,
+  step,
+}: {
+  pts: { d: string; x: number; y: number }[];
+  wander: number | null;
+  step: number | null;
+}) {
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  let minX = Math.min(...xs);
+  let maxX = Math.max(...xs);
+  let minY = Math.min(...ys);
+  let maxY = Math.max(...ys);
+  const padX = Math.max(0.004, (maxX - minX) * 0.08);
+  const padY = Math.max(0.004, (maxY - minY) * 0.08);
+  minX -= padX;
+  maxX += padX;
+  minY -= padY;
+  maxY += padY;
+  const W = 360;
+  const H = 210;
+  const sx = (x: number) => ((x - minX) / (maxX - minX)) * (W - 36) + 28;
+  const sy = (y: number) => H - 18 - ((y - minY) / (maxY - minY)) * (H - 32);
+  const d = pts
+    .map((p, i) => `${i ? "L" : "M"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`)
+    .join(" ");
+  const last = pts[pts.length - 1]!;
+  const first = pts[0]!;
+  return (
+    <div className="mt-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+          Polar motion
+        </h4>
+        <p className="text-[0.58rem] text-dim">
+          {first.d} → {last.d} · IERS daily · not a minute feed
+        </p>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 w-full text-primary" role="img" aria-label="Geographic pole path">
+        <line x1={28} y1={sy(0)} x2={W - 8} y2={sy(0)} stroke="#334155" strokeWidth="0.6" />
+        <line x1={sx(0)} y1={14} x2={sx(0)} y2={H - 18} stroke="#334155" strokeWidth="0.6" />
+        <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx={sx(first.x)} cy={sy(first.y)} r="2.2" fill="#64748b" />
+        <circle cx={sx(last.x)} cy={sy(last.y)} r="3.4" fill="#f87171" />
+        <text x={W - 8} y={H - 4} textAnchor="end" fill="#64748b" fontSize="9">
+          x″ toward Greenwich
+        </text>
+        <text x={4} y={12} fill="#64748b" fontSize="9">
+          y″
+        </text>
+      </svg>
+      <p className="text-[0.6rem] text-dim">
+        Red is the latest observed day
+        {step != null ? ` · last step ${meters(step)}` : ""}. Drift of this path{" "}
+        {wander != null ? `${wander.toFixed(2)} m/year` : "—"} (linear fit, so the wobble mostly
+        cancels). That is polar motion, not a measured mantle flip.
+      </p>
     </div>
   );
 }

@@ -30,7 +30,15 @@ export type EcdoPoints = {
   recentSpan: string;
   refSpan: string;
   c04Through: string | null;
+  /** Recent geographic-pole path, arcseconds. Daily where Bulletin A exists. */
+  track: PoleTrackPoint[];
+  /** Linear drift of that path, meters per year. Not a flip rate. */
+  wanderMperYear: number | null;
+  /** Last observed day-to-day step, meters. */
+  stepM: number | null;
 };
+
+export type PoleTrackPoint = { d: string; x: number; y: number };
 
 /** ECDO State-2 claim: 104° from the north pole along 31°E. Not a measured pole. */
 export const ECDO_STATE2 = { lat: -14, lon: 31 } as const;
@@ -206,6 +214,69 @@ function between(rows: PoleSample[], y0: number, y1: number): PoleSample[] {
   return rows.filter((r) => r.year >= y0 && r.year < y1);
 }
 
+const TRACK_DAYS = 730;
+
+/** Last two years of the pole. Bulletin A overwrites C04 on the same day. */
+function mergedWindow(daily: PoleSample[], c04: PoleSample[]): PoleSample[] {
+  const end = daily[daily.length - 1]?.mjd ?? c04[c04.length - 1]?.mjd;
+  if (end == null) return [];
+  const start = end - TRACK_DAYS;
+  const byMjd = new Map<number, PoleSample>();
+  for (const r of c04) {
+    if (r.mjd >= start && r.mjd <= end) byMjd.set(Math.round(r.mjd), r);
+  }
+  for (const r of daily) {
+    if (r.mjd >= start) byMjd.set(Math.round(r.mjd), r);
+  }
+  return [...byMjd.values()].sort((a, b) => a.mjd - b.mjd);
+}
+
+export function poleTrack(daily: PoleSample[], c04: PoleSample[]): PoleTrackPoint[] {
+  const rows = mergedWindow(daily, c04);
+  if (rows.length < 2) return [];
+  const step = Math.max(1, Math.ceil(rows.length / 200));
+  const out: PoleTrackPoint[] = [];
+  for (let i = 0; i < rows.length; i += step) {
+    const r = rows[i]!;
+    out.push({ d: ymd(r), x: Math.round(r.x * 10000) / 10000, y: Math.round(r.y * 10000) / 10000 });
+  }
+  const last = rows[rows.length - 1]!;
+  if (out[out.length - 1]?.d !== ymd(last)) {
+    out.push({
+      d: ymd(last),
+      x: Math.round(last.x * 10000) / 10000,
+      y: Math.round(last.y * 10000) / 10000,
+    });
+  }
+  return out;
+}
+
+/** Secular speed of the pole path, m/year. Linear fit, so the Chandler loop mostly cancels. */
+export function wanderMetersPerYear(rows: PoleSample[]): number | null {
+  if (rows.length < 30) return null;
+  const t0 = rows[0]!.mjd;
+  const t = rows.map((r) => (r.mjd - t0) / 365.25);
+  const slope = (y: number[]) => {
+    const n = t.length;
+    let st = 0;
+    let sy = 0;
+    let stt = 0;
+    let sty = 0;
+    for (let i = 0; i < n; i++) {
+      st += t[i]!;
+      sy += y[i]!;
+      stt += t[i]! * t[i]!;
+      sty += t[i]! * y[i]!;
+    }
+    const det = n * stt - st * st;
+    if (Math.abs(det) < 1e-9) return 0;
+    return (n * sty - st * sy) / det;
+  };
+  const vx = slope(rows.map((r) => r.x));
+  const vy = slope(rows.map((r) => r.y));
+  return Math.hypot(vx, vy) * ARCSEC_M;
+}
+
 export function buildEcdoPoints(daily: PoleSample[], c04: PoleSample[]): EcdoPoints | null {
   const now = daily.length ? daily : c04;
   if (!now.length) return null;
@@ -235,5 +306,8 @@ export function buildEcdoPoints(daily: PoleSample[], c04: PoleSample[]): EcdoPoi
     recentSpan: recent.length ? `${ymd(recent[0]!)} → ${ymd(recent[recent.length - 1]!)}` : "—",
     refSpan: "1985–1994",
     c04Through: c04Last ? ymd(c04Last) : null,
+    track: poleTrack(daily, c04),
+    wanderMperYear: wanderMetersPerYear(mergedWindow(daily, c04)),
+    stepM: now.length > 1 ? meters(now[now.length - 2]!, last) : null,
   };
 }
