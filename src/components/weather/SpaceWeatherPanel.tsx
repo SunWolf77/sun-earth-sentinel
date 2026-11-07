@@ -278,26 +278,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             : "border-border bg-panel";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-3 sm:space-y-4">
+    <div className="mx-auto w-full max-w-[90rem] space-y-3">
       <header className="space-y-1">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-primary sm:text-xl">Solar</h2>
-            <p className="text-xs text-muted">
-              Live NOAA SWPC + NASA ·{" "}
-              <a
-                href="https://www.swpc.noaa.gov/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                SWPC
-              </a>{" "}
-              is authority
-            </p>
-          </div>
-        </div>
-
         <div
           className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-panel/90 p-1"
           role="tablist"
@@ -325,160 +307,124 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       </header>
 
       {solarView === "now" && (
-        <div className="space-y-3">
-          <NowBoard
-            kpVal={kpVal}
-            kpTime={latestKp?.time_tag ?? null}
-            xClass={xClass}
-            highKp={highKp}
-            highX={highX}
-            wind={solarWind}
-            southBz={southBz}
-            scales={scales}
-            flux={flux10cm?.flux ?? null}
-          />
+        <div className="grid items-start gap-3 lg:grid-cols-12">
+          <div className="space-y-3 lg:col-span-7">
+            <NowBoard
+              kpVal={kpVal}
+              kpTime={latestKp?.time_tag ?? null}
+              xClass={xClass}
+              highKp={highKp}
+              highX={highX}
+              wind={solarWind}
+              southBz={southBz}
+              scales={scales}
+              flux={flux10cm?.flux ?? null}
+            />
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
-            <AttentionSparkline showLabel height={22} className="min-w-0" />
-            {kpUpcoming.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
-                <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
-                {kpUpcoming.slice(0, 6).map((p) => {
-                  const k = p.kp;
-                  const tone =
-                    k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
-                  const lab = p.time_tag.slice(5, 13).replace("T", " ");
-                  return (
-                    <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
-                      {lab}·{k.toFixed(1)}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <section className={`rounded-xl border p-3 sm:p-4 ${levelBorder}`}>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-fg">{impact.title}</h3>
-              <span className="rounded-full border border-border bg-bg/50 px-2 py-0.5 text-[0.62rem] uppercase tracking-wide text-dim">
-                {impact.level}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
+              <AttentionSparkline showLabel height={22} className="min-w-0" />
+              {kpUpcoming.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
+                  <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
+                  {kpUpcoming.slice(0, 6).map((p) => {
+                    const k = p.kp;
+                    const tone = k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
+                    const lab = p.time_tag.slice(5, 13).replace("T", " ");
+                    return (
+                      <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
+                        {lab}·{k.toFixed(1)}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <p className="text-sm text-muted">{impact.summary}</p>
-            <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted">
-              {impact.bullets.map((b, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary" />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
 
-          <div id="ses-solar-protons" className="grid scroll-mt-20 grid-cols-3 gap-2">
-            <Gauge
-              icon={<Atom className="h-3.5 w-3.5" />}
-              label="p ≥10 MeV"
-              value={
-                assessment.protons.p10 != null
-                  ? assessment.protons.p10 >= 10
-                    ? assessment.protons.p10.toFixed(1)
-                    : assessment.protons.p10.toFixed(2)
-                  : "—"
-              }
-              alert={assessment.protons.sLike}
-            />
-            <Gauge
-              icon={<Atom className="h-3.5 w-3.5" />}
-              label="p ≥50 MeV"
-              value={
-                assessment.protons.p50 != null ? assessment.protons.p50.toFixed(3) : "—"
-              }
-              alert={assessment.protons.p50 != null && assessment.protons.p50 >= 1}
-            />
-            <Gauge
-              icon={<Atom className="h-3.5 w-3.5" />}
-              label="p ≥100 MeV"
-              value={
-                assessment.protons.p100 != null ? assessment.protons.p100.toFixed(3) : "—"
-              }
-              alert={assessment.protons.p100 != null && assessment.protons.p100 >= 1}
-            />
-          </div>
-          {assessment.protons.time && (
-            <p className="text-center text-[0.62rem] text-dim">
-              GOES protons (pfu) · {new Date(assessment.protons.time).toUTCString().replace("GMT", "UTC")}
-              {assessment.protons.sLike ? " · ≥10 MeV in S1-class range" : ""}
-            </p>
-          )}
-
-          {peak && (
-            <p className="text-center text-xs text-muted">
-              24 h flare peak:{" "}
-              <strong className={peak.class.startsWith("M") || peak.class.startsWith("X") ? "text-danger" : "text-gold"}>
-                {peak.class}
-              </strong>
-              {peak.time && (
-                <span className="text-dim">
-                  {" "}
-                  · {new Date(peak.time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} UTC
-                </span>
-              )}
-            </p>
-          )}
-
-          <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
-
-          {showImages && (
-            <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
-          )}
-
-          {(highlights.length > 0 || forecast?.issued) && (
-            <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-                  SWPC 3-day outlook
-                </h3>
-                {forecast?.issued && (
-                  <span className="text-[0.62rem] text-dim">Issued {forecast.issued}</span>
+            {impact.level === "quiet" ? (
+              <p className={`rounded-lg border px-3 py-2 text-xs text-muted ${levelBorder}`}>
+                <span className="font-semibold text-fg">{impact.title}.</span> {impact.summary}
+              </p>
+            ) : (
+              <section className={`rounded-xl border p-3 ${levelBorder}`}>
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-fg">{impact.title}</h3>
+                  <span className="rounded-full border border-border bg-bg/50 px-2 py-0.5 text-[0.62rem] uppercase tracking-wide text-dim">
+                    {impact.level}
+                  </span>
+                </div>
+                <p className="text-sm text-muted">{impact.summary}</p>
+                {impact.bullets.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs leading-relaxed text-muted">
+                    {impact.bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-              <ul className="space-y-1.5 text-xs text-muted">
-                {highlights.map((h, i) => (
-                  <li key={i}>{h}</li>
-                ))}
-              </ul>
-              {scales?.RMinorProb && (
-                <p className="mt-2 text-[0.68rem] text-dim">
-                  Day-1 probs · R minor {scales.RMinorProb}% · R major {scales.RMajorProb ?? "—"}% · S{" "}
-                  {scales.SProb ?? "—"}% · G {scales.G1 ?? "—"}
-                </p>
+              </section>
+            )}
+
+            <p id="ses-solar-protons" className="scroll-mt-20 text-[0.7rem] text-muted">
+              Protons{" "}
+              <span className={assessment.protons.sLike ? "font-mono text-warn" : "font-mono text-fg"}>
+                ≥10 {assessment.protons.p10 != null ? assessment.protons.p10.toFixed(2) : "—"}
+              </span>
+              <span className="text-dim"> · </span>
+              <span className="font-mono text-fg">
+                ≥50 {assessment.protons.p50 != null ? assessment.protons.p50.toFixed(3) : "—"}
+              </span>
+              <span className="text-dim"> · </span>
+              <span className="font-mono text-fg">
+                ≥100 {assessment.protons.p100 != null ? assessment.protons.p100.toFixed(3) : "—"}
+              </span>
+              <span className="text-dim"> pfu</span>
+              {peak && (
+                <>
+                  <span className="text-dim"> · </span>
+                  24 h peak{" "}
+                  <strong className={peak.class.startsWith("M") || peak.class.startsWith("X") ? "text-danger" : "text-gold"}>
+                    {peak.class}
+                  </strong>
+                </>
               )}
-            </section>
-          )}
+            </p>
 
-          <SwpcStormWarnings />
+            <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
+          </div>
 
-          <SolarCycleStrip />
-          <EclipseWatch />
+          <div className="space-y-3 lg:col-span-5">
+            {showImages && (
+              <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
+            )}
 
-          <p className="text-center text-[0.65rem] text-dim">
-            Need pictures or CME lists? Use{" "}
-            <button type="button" className="font-semibold text-primary hover:underline" onClick={() => selectSolarView("images")}>
-              Images
-            </button>
-            {" · "}
-            <button type="button" className="font-semibold text-primary hover:underline" onClick={() => selectSolarView("catalogs")}>
-              Catalogs
-            </button>
-            . Timing / history live under{" "}
-            <button type="button" className="font-semibold text-primary hover:underline" onClick={() => selectSolarView("context")}>
-              Context
-            </button>
-            .
-          </p>
+            {(highlights.length > 0 || forecast?.issued) && (
+              <section className="rounded-xl border border-border bg-panel p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
+                    SWPC 3-day outlook
+                  </h3>
+                  {forecast?.issued && (
+                    <span className="text-[0.62rem] text-dim">Issued {forecast.issued}</span>
+                  )}
+                </div>
+                <ul className="space-y-1.5 text-xs text-muted">
+                  {highlights.map((h, i) => (
+                    <li key={i}>{h}</li>
+                  ))}
+                </ul>
+                {scales?.RMinorProb && (
+                  <p className="mt-2 text-[0.68rem] text-dim">
+                    Day-1 probs · R minor {scales.RMinorProb}% · R major {scales.RMajorProb ?? "—"}% · S{" "}
+                    {scales.SProb ?? "—"}% · G {scales.G1 ?? "—"}
+                  </p>
+                )}
+              </section>
+            )}
+
+            <SwpcStormWarnings />
+            <SolarCycleStrip />
+            <EclipseWatch />
+          </div>
         </div>
       )}
 
@@ -531,7 +477,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      <footer className="border-t border-border/60 pb-2 pt-2 text-[0.62rem] leading-relaxed text-dim">
+      <footer className="border-t border-border/60 pb-2 pt-2 text-[0.62rem] leading-relaxed text-dim sm:hidden">
         Free feeds · observation desk · not an official forecast product.
       </footer>
     </div>
@@ -592,28 +538,28 @@ function NowBoard({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highKp ? "border-danger/50" : "border-border"}`}>
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Kp</div>
-          <div className={`font-mono text-4xl font-bold leading-none tabular-nums ${kpTone}`}>
+          <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${kpTone}`}>
             {kpVal != null ? kpVal.toFixed(1) : "—"}
           </div>
           <div className="mt-1 text-[0.62rem] text-dim">{utcStamp(kpTime)}</div>
         </div>
         <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highX ? "border-danger/50" : "border-border"}`}>
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">X-ray</div>
-          <div className={`font-mono text-4xl font-bold leading-none tabular-nums ${highX ? "text-danger" : "text-fg"}`}>
+          <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${highX ? "text-danger" : "text-fg"}`}>
             {xClass}
           </div>
           <div className="mt-1 text-[0.62rem] text-dim">GOES 1–8 Å</div>
         </div>
         <div className="rounded-xl border border-border bg-panel px-3 py-2.5">
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Wind</div>
-          <div className="font-mono text-4xl font-bold leading-none tabular-nums text-fg">
+          <div className="font-mono text-3xl font-bold leading-none tabular-nums text-fg">
             {wind?.speed != null ? Math.round(wind.speed) : "—"}
           </div>
           <div className="mt-1 text-[0.62rem] text-dim">km/s</div>
         </div>
         <div className={`rounded-xl border bg-panel px-3 py-2.5 ${southBz ? "border-warn/50" : "border-border"}`}>
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Bz</div>
-          <div className={`font-mono text-4xl font-bold leading-none tabular-nums ${southBz ? "text-warn" : "text-fg"}`}>
+          <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${southBz ? "text-warn" : "text-fg"}`}>
             {wind?.bz != null ? wind.bz.toFixed(1) : "—"}
           </div>
           <div className="mt-1 text-[0.62rem] text-dim">nT GSM</div>
@@ -621,10 +567,29 @@ function NowBoard({
       </div>
 
       {scales && (
-        <div className="grid grid-cols-3 gap-2">
-          <ScaleCard letter="R" name="Radio" value={scales.R} text={scales.RText} />
-          <ScaleCard letter="S" name="Radiation" value={scales.S} text={scales.SText} />
-          <ScaleCard letter="G" name="Geomagnetic" value={scales.G} text={scales.GText} />
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              ["R", scales.R, "Radio"],
+              ["S", scales.S, "Radiation"],
+              ["G", scales.G, "Geomagnetic"],
+            ] as const
+          ).map(([letter, value, name]) => {
+            const n = parseInt(value, 10) || 0;
+            const tone =
+              n >= 3 ? "border-danger/40 text-danger" : n >= 1 ? "border-warn/40 text-warn" : "border-border text-fg";
+            return (
+              <span
+                key={letter}
+                title={name}
+                className={`inline-flex items-baseline gap-1 rounded-md border bg-panel px-2 py-1 font-mono text-sm font-semibold ${tone}`}
+              >
+                {letter}
+                {value}
+                <span className="font-sans text-[0.58rem] font-medium uppercase tracking-wide text-dim">{name}</span>
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -647,12 +612,10 @@ function NowBoard({
             </a>
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-          <Mini label="Speed" value={wind?.speed != null ? String(Math.round(wind.speed)) : "—"} unit="km/s" />
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
           <Mini label="Density" value={wind?.density != null ? wind.density.toFixed(1) : "—"} unit="/cm³" />
           <Mini label="Temp" value={fmtTemp(wind?.temperature)} unit="K" />
           <Mini label="Bt" value={wind?.bt != null ? wind.bt.toFixed(1) : "—"} unit="nT" />
-          <Mini label="Bz" value={wind?.bz != null ? wind.bz.toFixed(1) : "—"} unit="nT" alert={southBz} />
           <Mini label="By" value={wind?.by != null ? wind.by.toFixed(1) : "—"} unit="nT" />
           <Mini label="Bx" value={wind?.bx != null ? wind.bx.toFixed(1) : "—"} unit="nT" />
           <Mini label="φ" value={wind?.phi != null ? wind.phi.toFixed(0) : "—"} unit="°" />
