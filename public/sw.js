@@ -424,7 +424,20 @@ self.addEventListener("fetch", (event) => {
           if (res.ok) await putRuntime(req, res.clone());
           return res;
         } catch {
-          return new Response("", { status: 504 });
+          // One retry — mobile blips kill dynamic imports on empty 504.
+          try {
+            const res = await fetch(req);
+            if (res.ok) await putRuntime(req, res.clone());
+            return res;
+          } catch {
+            if (/\.js$/i.test(url.pathname)) {
+              return new Response("/* chunk fetch failed */", {
+                status: 504,
+                headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
+              });
+            }
+            return new Response("", { status: 504 });
+          }
         }
       }
 
@@ -453,7 +466,19 @@ self.addEventListener("fetch", (event) => {
         if (res.ok) await putRuntime(req, res.clone());
         return res;
       } catch {
-        return new Response("", { status: 504 });
+        try {
+          const res = await fetch(req);
+          if (res.ok) await putRuntime(req, res.clone());
+          return res;
+        } catch {
+          if (/\.js$/i.test(url.pathname)) {
+            return new Response("/* chunk fetch failed */", {
+              status: 504,
+              headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
+            });
+          }
+          return new Response("", { status: 504 });
+        }
       }
     })(),
   );
