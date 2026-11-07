@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, Suspense, lazy } from "react";
+import { Component, useEffect, useMemo, useRef, useState, Suspense, lazy, type ReactNode } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -64,13 +64,46 @@ import { magColor } from "@/lib/feeds/usgs";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import { useMapChrome } from "@/lib/hooks/useMapChrome";
 import { Link2, Check } from "lucide-react";
+import { lazyRetry } from "@/lib/pwa/lazyRetry";
 
 const LiveMap = lazy(() =>
-  import("@/components/map/LiveMap").then((m) => ({ default: m.LiveMap })),
+  lazyRetry(() =>
+    import("@/components/map/LiveMap").then((m) => ({ default: m.LiveMap })),
+  ),
 );
 const Globe3D = lazy(() =>
-  import("@/components/map/Globe3D").then((m) => ({ default: m.Globe3D })),
+  lazyRetry(() =>
+    import("@/components/map/Globe3D").then((m) => ({ default: m.Globe3D })),
+  ),
 );
+
+
+class MapErrorBoundary extends Component<{ children: ReactNode }, { err: Error | null }> {
+  state = { err: null as Error | null };
+  static getDerivedStateFromError(err: Error) {
+    return { err };
+  }
+  render() {
+    if (!this.state.err) return this.props.children;
+    const msg = this.state.err.message || "Map failed to load";
+    return (
+      <div className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-3 bg-bg px-4 text-center">
+        <div className="text-sm font-semibold text-white">Map failed to load</div>
+        <div className="max-w-sm text-[0.75rem] text-muted">{msg}</div>
+        <button
+          type="button"
+          onClick={() => {
+            try { sessionStorage.removeItem("ww-chunk-reload"); } catch { /* */ }
+            window.location.reload();
+          }}
+          className="rounded-md border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-semibold text-primary"
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
+}
 
 export const Route = createFileRoute("/")({
   component: ObservatoryApp,
@@ -1139,6 +1172,7 @@ function ObservatoryApp() {
                     </div>
                   }
                 >
+                  <MapErrorBoundary>
                   <Suspense
                     fallback={
                       <div className="flex h-full items-center justify-center text-sm text-muted">
@@ -1148,6 +1182,7 @@ function ObservatoryApp() {
                   >
                     {mapView === "3d" ? <Globe3D /> : <LiveMap />}
                   </Suspense>
+                  </MapErrorBoundary>
                 </ClientOnly>
                 {loading && !eq?.features?.length && (
                   <div
