@@ -26,8 +26,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.30.0: public host is https://wolfwatch.site
  * 1.30.1: USGS catalog paints when it returns — not after solar and volcano feeds.
  * 1.30.2: Solar Now leads with Kp and the latest RTSW minute.
+ * 1.30.3: Live GOES SUVI / CCOR frames and SWPC model stills on Solar.
  */
-export const APP_VERSION = "1.30.2";
+export const APP_VERSION = "1.30.3";
 
 
 

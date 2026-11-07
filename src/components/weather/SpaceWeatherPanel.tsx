@@ -48,6 +48,7 @@ import { KIndexScalesPanel } from "@/components/weather/KIndexScalesPanel";
 import { EclipseWatch } from "@/components/weather/EclipseWatch";
 import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
 import { GoesXrayDesk } from "@/components/weather/GoesXrayDesk";
+import { GoesLiveFeeds } from "@/components/weather/GoesLiveFeeds";
 import { SolarCycleStrip } from "@/components/weather/SolarCycleStrip";
 import {
   Activity,
@@ -72,7 +73,7 @@ type SolarView = "now" | "xray" | "images" | "catalogs" | "magneto" | "context";
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
   { id: "now", label: "Now", hint: "Kp · RTSW · NOAA scales" },
   { id: "xray", label: "X-ray", hint: "GOES 18/19 log flux · A–X bands" },
-  { id: "images", label: "Images", hint: "Disk · corona · models" },
+  { id: "images", label: "Images", hint: "GOES SUVI · CCOR · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
   { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
   { id: "context", label: "Context", hint: "Field pairing · history · timing" },
@@ -430,6 +431,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
 
+          {showImages && (
+            <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
+          )}
+
           {(highlights.length > 0 || forecast?.issued) && (
             <section className="rounded-xl border border-border bg-panel p-3 sm:p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
@@ -481,7 +486,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "images" && showImages && (
         <div className="space-y-3">
-          <p className="text-xs text-muted">Open Images sub-tabs for disk, corona, far side, and models.</p>
+          <GoesLiveFeeds />
           <SolarImageryWall mode={mode} bust={bust} />
         </div>
       )}

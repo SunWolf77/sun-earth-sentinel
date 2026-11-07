@@ -105,6 +105,43 @@ export function soloScreenshotUrl(dateIso: string, layer: "174" | "304" = "174")
   return `${HELIOVIEWER}/takeScreenshot/?${q.toString()}`;
 }
 
+/** GOES-R SUVI bands on the SWPC primary animation (latest frame, minutes). */
+export const SUVI_BANDS = [
+  { id: "094", label: "94", hint: "Flare plasma" },
+  { id: "131", label: "131", hint: "Hot flare" },
+  { id: "171", label: "171", hint: "Quiet corona" },
+  { id: "195", label: "195", hint: "Corona · active regions" },
+  { id: "284", label: "284", hint: "Hot corona" },
+  { id: "304", label: "304", hint: "Chromosphere" },
+] as const;
+
+export type SuviBandId = (typeof SUVI_BANDS)[number]["id"];
+
+/** SWPC `latest` stills. Cache-bust with `t` — these files update every few minutes. */
+export function suviLatest(band: string, bust = 0) {
+  return `${SWPC_IMG}/animations/suvi/primary/${band}/latest.png?t=${bust}`;
+}
+
+export function ccorLatest(bust = 0) {
+  return `${SWPC_IMG}/animations/ccor1/latest.jpg?t=${bust}`;
+}
+
+export function enlilLatestStill(bust = 0) {
+  return `${SWPC_IMG}/animations/enlil/latest.jpg?t=${bust}`;
+}
+
+export function ovationLatestStill(hemi: "north" | "south", bust = 0) {
+  return `${SWPC_IMG}/animations/ovation/${hemi}/latest.jpg?t=${bust}`;
+}
+
+export function geospaceLatestStill(bust = 0) {
+  return `${SWPC_IMG}/geospace/geospace_1_day.png?t=${bust}`;
+}
+
+export function drapLatestStill(bust = 0) {
+  return `${SWPC_IMG}/animations/d-rap/global/latest.png?t=${bust}`;
+}
+
 export type ImageryWallItem = {
   id: string;
   group: "sdo" | "maps" | "corona" | "swpc" | "models";
