@@ -38,6 +38,7 @@ import {
 } from "@/lib/ops/focusNav";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
+import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
 import { SolarImageryWall } from "@/components/weather/SolarImageryWall";
 import { HistoricalStormDesk } from "@/components/weather/HistoricalStormDesk";
@@ -68,14 +69,15 @@ import {
 
 type MediaTab = "disk" | "corona" | "farside" | "models";
 /** Top-level Solar IA — one job per view (stops the wall of mixed jargon). */
-type SolarView = "now" | "xray" | "images" | "catalogs" | "magneto" | "context";
+type SolarView = "now" | "xray" | "images" | "catalogs" | "magneto" | "pole" | "context";
 
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
   { id: "now", label: "Now", hint: "Kp · RTSW · NOAA scales" },
   { id: "xray", label: "X-ray", hint: "GOES 18/19 log flux · A–X bands" },
   { id: "images", label: "Images", hint: "GOES SUVI · CCOR · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
-  { id: "magneto", label: "Magneto", hint: "Cordaro H · ECDO test points" },
+  { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
+  { id: "pole", label: "Pole", hint: "IERS polar motion · daily path" },
   { id: "context", label: "Context", hint: "Field pairing · history · timing" },
 ];
 
@@ -105,9 +107,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
     try {
       const q = new URLSearchParams(window.location.search);
       const v = q.get("solar");
-      if (v === "images" || v === "catalogs" || v === "context" || v === "now" || v === "magneto" || v === "xray") return v;
+      if (v === "images" || v === "catalogs" || v === "context" || v === "now" || v === "magneto" || v === "xray" || v === "pole") return v;
       const raw = localStorage.getItem("ww_solar_view");
-      if (raw === "images" || raw === "catalogs" || raw === "context" || raw === "now" || raw === "magneto" || raw === "xray") return raw;
+      if (raw === "images" || raw === "catalogs" || raw === "context" || raw === "now" || raw === "magneto" || raw === "xray" || raw === "pole") return raw;
     } catch {
       /* */
     }
@@ -458,6 +460,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           <MagnetoPanel />
         </div>
       )}
+
+      {solarView === "pole" && <EcdoTestDesk />}
 
       {solarView === "context" && (
         <div className="space-y-3">

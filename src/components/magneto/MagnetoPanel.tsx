@@ -27,7 +27,6 @@ import { IgrfFieldNote } from "@/components/magneto/IgrfFieldNote";
 import { Igrf14Explorer } from "@/components/magneto/Igrf14Explorer";
 import { Wmm2025Sampler } from "@/components/magneto/Wmm2025Sampler";
 import { StationEntityDesk } from "@/components/magneto/StationEntityDesk";
-import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
 import { CitationRow } from "@/components/ops/CitationLink";
 import { requestFocus } from "@/lib/ops/focusNav";
 
@@ -459,8 +458,6 @@ export function MagnetoPanel({ compact = false }: { compact?: boolean }) {
           </ul>
         </div>
       )}
-
-      <EcdoTestDesk />
 
       <details className="rounded-lg border border-border/70 bg-bg/30 px-3 py-2 text-[0.68rem] text-dim">
         <summary className="cursor-pointer font-semibold text-muted">

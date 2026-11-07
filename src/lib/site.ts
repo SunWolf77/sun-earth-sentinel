@@ -30,8 +30,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.30.4: Solar Now is one desk — numbers left, frames and outlook right, no repeated gauges.
  * 1.30.5: Magneto ECDO test points — IERS pole, LOD, Chandler band. Not a flip time.
  * 1.30.6: Polar-motion track — two-year IERS path, last step, m/year drift.
+ * 1.30.7: Polar motion has its own Solar tab.
  */
-export const APP_VERSION = "1.30.6";
+export const APP_VERSION = "1.30.7";
 
 
 
