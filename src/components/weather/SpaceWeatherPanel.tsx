@@ -75,7 +75,7 @@ const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
   { id: "xray", label: "X-ray", hint: "GOES 18/19 log flux · A–X bands" },
   { id: "images", label: "Images", hint: "GOES SUVI · CCOR · models" },
   { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
-  { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
+  { id: "magneto", label: "Magneto", hint: "Cordaro H · ECDO test points" },
   { id: "context", label: "Context", hint: "Field pairing · history · timing" },
 ];
 
