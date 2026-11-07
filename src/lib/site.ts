@@ -28,8 +28,7 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.30.2: Solar Now leads with Kp and the latest RTSW minute.
  * 1.30.3: Live GOES SUVI / CCOR frames and SWPC model stills on Solar.
  * 1.30.4: Solar Now is one desk — numbers left, frames and outlook right, no repeated gauges.
- */
-* 1.30.5: Magneto ECDO test points — IERS pole, LOD, Chandler band. Not a flip time.
+ * 1.30.5: Magneto ECDO test points — IERS pole, LOD, Chandler band. Not a flip time.
  */
 export const APP_VERSION = "1.30.5";
 
