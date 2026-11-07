@@ -23,8 +23,10 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.29.7: Rhythm “Pick an event” opens the live map instead of a dead button.
  * 1.29.9: 3D globe chunk retry + SW asset fetch retry (mobile dynamic import).
  * 1.29.8: Waveform button stays enabled and reads nearest BHZ (newest M4.5+ if none selected).
+ * 1.30.0: public host is https://wolfwatch.site
+ * 1.30.1: USGS catalog paints when it returns — not after solar and volcano feeds.
  */
-export const APP_VERSION = "1.30.0";
+export const APP_VERSION = "1.30.1";
 
 
 
