@@ -37,7 +37,11 @@ export async function registerShellServiceWorker(opts?: {
     const hadController = Boolean(navigator.serviceWorker.controller);
 
     navigator.serviceWorker.addEventListener("message", (ev) => {
-      const data = ev.data as { type?: string } | undefined;
+      const data = ev.data as { type?: string; url?: string } | undefined;
+      if (data?.type === "ses-open-event" && data.url) {
+        window.location.assign(data.url);
+        return;
+      }
       if (data?.type !== "WW_SW_ACTIVATED") return;
       // Only force reload when this tab was already controlled (update path)
       if (!hadController) return;

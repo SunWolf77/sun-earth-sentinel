@@ -59,6 +59,7 @@ function runItem(
     } | null) => void;
     setTab: (t: TabId) => void;
     setMobileSheet: (s: MobileSheet) => void;
+    flyMapTo: (lat: number, lon: number, zoom?: number, id?: string) => void;
   },
 ) {
   if (item.tab === "solar") {
@@ -84,6 +85,7 @@ function runItem(
     });
     api.setTab("live");
     api.setMobileSheet("events");
+    api.flyMapTo(item.lat, item.lon, (item.mag ?? 0) >= 6 ? 5.5 : 6, item.eventId);
   } else if (item.focusNodeId) {
     api.setTab("live");
   }
@@ -105,6 +107,7 @@ export function SinceLastVisitStrip({
   const pickEvent = useObservatory((s) => s.pickEvent);
   const setTab = useObservatory((s) => s.setTab);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
+  const flyMapTo = useObservatory((s) => s.flyMapTo);
 
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -241,6 +244,7 @@ export function SinceLastVisitStrip({
                       pickEvent,
                       setTab,
                       setMobileSheet,
+                      flyMapTo,
                     })
                   }
                 >

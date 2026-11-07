@@ -45,6 +45,8 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
   const neos = useObservatory((s) => s.neos);
   const setTab = useObservatory((s) => s.setTab);
   const setOverlay = useObservatory((s) => s.setOverlay);
+  const pickEvent = useObservatory((s) => s.pickEvent);
+  const flyMapTo = useObservatory((s) => s.flyMapTo);
   const timeWindow = useObservatory((s) => s.timeWindow);
   const [open, setOpen] = useState(true);
 
@@ -90,7 +92,33 @@ export function CrossFeedChips({ className = "" }: { className?: string }) {
       setTab("live");
     } else if (id === "neo") setTab("solar");
     else if (id === "timing" || id === "lunar") setTab("resonance");
-    else if (id === "volc" || id === "eq-strong" || id === "eq-busy") setTab("live");
+    else if (id === "volc") setTab("live");
+    else if (id === "eq-strong" || id === "eq-busy") {
+      const feats = filteredEq(eq?.features, minMag, maxMag);
+      const ranked = [...feats].sort((a, b) => {
+        if (id === "eq-busy") return (b.properties.time ?? 0) - (a.properties.time ?? 0);
+        return (b.properties.mag ?? 0) - (a.properties.mag ?? 0);
+      });
+      const f = ranked[0];
+      if (!f) {
+        setTab("live");
+        return;
+      }
+      const [lon, lat] = f.geometry.coordinates;
+      const eid = String(f.id ?? `${lat},${lon}`);
+      const mag = f.properties.mag ?? 0;
+      pickEvent({
+        id: eid,
+        lat,
+        lon,
+        mag,
+        place: f.properties.place || "Event",
+        depth: f.geometry.coordinates[2] ?? 0,
+        time: f.properties.time ?? null,
+        url: f.properties.url,
+      });
+      flyMapTo(lat, lon, mag >= 6 ? 5.5 : 6, eid);
+    }
     else if (id.startsWith("geo") || id === "radio" || id === "radiation") setTab("solar");
   };
 

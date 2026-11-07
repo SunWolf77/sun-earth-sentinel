@@ -600,6 +600,8 @@ export function LiveMap() {
     if (!map) return;
     if (useObservatory.getState().focusNodeId) return;
     const id = window.setTimeout(() => {
+      const s = useObservatory.getState();
+      if (s.mapFlyTo || s.pickedEvent) return;
       map.invalidateSize(false);
       fitWorldView(map, { animate: false });
     }, 60);
@@ -621,7 +623,8 @@ export function LiveMap() {
     }
     const node = getFocusNode(focusNodeId);
     if (!node) {
-      if (focusNodeId === null) {
+      const pending = useObservatory.getState();
+      if (focusNodeId === null && !pending.mapFlyTo && !pending.pickedEvent) {
         fitWorldView(map, { animate: true });
       }
       return;

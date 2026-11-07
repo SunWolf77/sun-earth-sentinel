@@ -4,6 +4,7 @@
  */
 
 import type { EqFeature } from "@/lib/feeds/usgs";
+import { buildShareFocusUrl } from "@/lib/pwa/shareFocus";
 
 export type CatalogNotice = {
   id: string;
@@ -150,19 +151,39 @@ export async function requestOsNotify(): Promise<boolean> {
   }
 }
 
+/** Absolute URL that opens this origin on the live map, focused on the event. */
+export function eventFocusUrl(n: CatalogNotice, origin?: string): string {
+  return buildShareFocusUrl({
+    origin:
+      origin ||
+      (typeof window !== "undefined" ? window.location.origin : undefined),
+    tab: "live",
+    eventId: n.id,
+    lat: n.lat,
+    lon: n.lon,
+    zoom: 6,
+    place: n.place,
+    mag: n.mag ?? undefined,
+  });
+}
+
 /** Browser/OS notification — sourced relay, never “warning / take cover”. */
 export function showOsRelay(n: CatalogNotice): void {
   if (!osNotifySupported() || Notification.permission !== "granted") return;
   const mag = n.mag != null && Number.isFinite(n.mag) ? `M${n.mag.toFixed(1)}` : "M–";
+  const url = eventFocusUrl(n);
   try {
     const note = new Notification(`${mag} · ${n.place}`, {
-      body: `${n.authority} catalog · SES relay — not an official alert`,
+      body: `${n.authority} catalog · tap to open this event`,
       tag: `ses-eq-${n.id}`,
       silent: false,
+      data: { url },
     });
     note.onclick = () => {
       try {
         window.focus();
+        const here = window.location.href.split("#")[0];
+        if (here !== url.split("#")[0]) window.location.assign(url);
       } catch {
         /* ignore */
       }

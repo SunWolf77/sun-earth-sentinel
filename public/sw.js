@@ -32,7 +32,7 @@ const MUTABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const PRECACHE_CORE = ["/favicon.svg", "/manifest.webmanifest"];
 const PRECACHE_DESK = ["/og.png"];
 /** Build stamp — bump with shell version so clients drop stale HTML/asset maps */
-const SW_BUILD = "v9-2026-10-13-chunk-retry";
+const SW_BUILD = "v9-2026-11-08-event-notify";
 
 /** @type {Map<string, true>} */
 let lru = new Map();
@@ -424,20 +424,7 @@ self.addEventListener("fetch", (event) => {
           if (res.ok) await putRuntime(req, res.clone());
           return res;
         } catch {
-          // One retry — mobile blips kill dynamic imports on empty 504.
-          try {
-            const res = await fetch(req);
-            if (res.ok) await putRuntime(req, res.clone());
-            return res;
-          } catch {
-            if (/\.js$/i.test(url.pathname)) {
-              return new Response("/* chunk fetch failed */", {
-                status: 504,
-                headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
-              });
-            }
-            return new Response("", { status: 504 });
-          }
+          return new Response("", { status: 504 });
         }
       }
 
@@ -466,20 +453,35 @@ self.addEventListener("fetch", (event) => {
         if (res.ok) await putRuntime(req, res.clone());
         return res;
       } catch {
-        try {
-          const res = await fetch(req);
-          if (res.ok) await putRuntime(req, res.clone());
-          return res;
-        } catch {
-          if (/\.js$/i.test(url.pathname)) {
-            return new Response("/* chunk fetch failed */", {
-              status: 504,
-              headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
-            });
-          }
-          return new Response("", { status: 504 });
-        }
+        return new Response("", { status: 504 });
       }
+    })(),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const raw = event.notification.data && event.notification.data.url;
+  const url = new URL(typeof raw === "string" && raw ? raw : "/?tab=live", self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of all) {
+        if (!client.url.startsWith(self.location.origin)) continue;
+        if (typeof client.navigate === "function") {
+          try {
+            await client.navigate(url);
+            await client.focus();
+            return;
+          } catch {
+            /* older client — message instead */
+          }
+        }
+        client.postMessage({ type: "ses-open-event", url });
+        if (typeof client.focus === "function") await client.focus();
+        return;
+      }
+      await self.clients.openWindow(url);
     })(),
   );
 });
