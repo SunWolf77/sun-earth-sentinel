@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, RefreshCw } from "lucide-react";
 import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
 import { useMapChrome } from "@/lib/hooks/useMapChrome";
 import { useObservatory, getFocusNode } from "@/store/observatory";
@@ -19,6 +19,8 @@ export function MobileMapChrome() {
   const setTab = useObservatory((s) => s.setTab);
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
   const mobileSheet = useObservatory((s) => s.mobileSheet);
+  const refresh = useObservatory((s) => s.refresh);
+  const loading = useObservatory((s) => s.loading);
 
   const resolved = focusNodeId ? resolveNodeId(focusNodeId) ?? focusNodeId : null;
   const pub = resolved ? getPublishedMonitor(resolved) : null;
@@ -74,6 +76,20 @@ export function MobileMapChrome() {
           >
             <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>{leaveLabel}</span>
+          </button>
+        )}
+        {!pulseOpen && (
+          <button
+            type="button"
+            className="ww-chrome-peek"
+            style={{ maxWidth: "6.8rem" }}
+            onClick={() => void refresh(true)}
+            disabled={loading}
+            title="Refresh catalogs and solar now"
+            aria-label="Refresh data"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${loading ? "animate-spin" : ""}`} aria-hidden />
+            <span>Refresh</span>
           </button>
         )}
         {!pulseOpen && isMap && (

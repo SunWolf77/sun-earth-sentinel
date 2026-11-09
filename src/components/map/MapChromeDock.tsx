@@ -19,6 +19,7 @@ import {
   History,
   ChevronUp,
   RotateCw,
+  RefreshCw,
 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { timeWindowChip, timeWindowTitle, TIME_WINDOWS } from "@/lib/map/timeWindowLabel";
@@ -60,6 +61,8 @@ export function MapChromeDock({
   const resumeGlobeSpin = useObservatory((s) => s.resumeGlobeSpin);
   const setReplayActive = useObservatory((s) => s.setReplayActive);
   const replayActive = useObservatory((s) => s.replayActive);
+  const refresh = useObservatory((s) => s.refresh);
+  const loading = useObservatory((s) => s.loading);
   const pickedEvent = useObservatory((s) => s.pickedEvent);
   const mobile = useIsMobile();
   const [level, setLevel] = useState<DockLevel>("compact");
@@ -110,6 +113,20 @@ export function MapChromeDock({
   };
 
   const showTilt = mapView === "3d" && (onTiltUp || onTiltDown || onTiltPreset || true);
+
+  const refreshBtn = (
+    <button
+      type="button"
+      className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
+      title="Refresh catalogs and solar now"
+      aria-label="Refresh data"
+      disabled={loading}
+      onClick={() => void refresh(true)}
+    >
+      <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+      <span className="text-[0.55rem] font-bold">Refresh</span>
+    </button>
+  );
   const ViewIcon = mapView === "3d" ? Globe2 : MapIcon;
 
   const spinBtn = mapView === "3d" && (
@@ -207,6 +224,7 @@ export function MapChromeDock({
             ))}
           </div>
           {spinBtn}
+          {refreshBtn}
           <button
             type="button"
             className="ww-map-dock__icon-btn ww-map-dock__icon-btn--sm"
@@ -355,6 +373,17 @@ export function MapChromeDock({
             <span className="ww-map-dock__label">Replay</span>
           </button>
         )}
+        <button
+          type="button"
+          className="ww-map-dock__icon-btn"
+          title="Refresh catalogs and solar now"
+          aria-label="Refresh data"
+          disabled={loading}
+          onClick={() => void refresh(true)}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <span className="ww-map-dock__label">Refresh</span>
+        </button>
         <button type="button" className="ww-map-dock__icon-btn" title="World home view" onClick={home}>
           <Home className="h-3.5 w-3.5" />
           <span className="ww-map-dock__label">Home</span>

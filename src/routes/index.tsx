@@ -947,11 +947,12 @@ function ObservatoryApp() {
               type="button"
               onClick={() => void refresh(true)}
               disabled={loading}
-              className="ww-btn ww-btn--icon ww-btn--compact"
-              title="Refresh data"
+              className="ww-btn inline-flex min-h-8 items-center gap-1 px-2 text-[0.65rem] font-semibold"
+              title="Refresh catalogs and solar now"
               aria-label="Refresh data"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
             </button>
             <button
               type="button"
