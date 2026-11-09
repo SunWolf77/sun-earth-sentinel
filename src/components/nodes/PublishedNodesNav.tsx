@@ -6,6 +6,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { ChevronDown, ExternalLink, Home, X } from "lucide-react";
+import { SectionToggle, useSectionOpen } from "@/components/ops/CollapsibleTabs";
 import { useObservatory } from "@/store/observatory";
 import {
   WOLFWATCH_NETWORK,
@@ -50,6 +51,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
   const setMobileSheet = useObservatory((s) => s.setMobileSheet);
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [railOpen, toggleRail] = useSectionOpen("ww_nodes_rail_open", false);
   const sheetTitleId = useId();
 
   const focused = focusNodeId ? resolveNodeId(focusNodeId) ?? focusNodeId : null;
@@ -109,7 +111,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
           <span className="ww-nodes-rail__brand-text">WolfWatch</span>
         </span>
 
-        <div className="ww-nodes-seg" role="group" aria-label="Desk focus">
+        <div className="ww-nodes-seg" role="group" aria-label="Desk focus" hidden={!railOpen}>
           <button
             type="button"
             className={`ww-nodes-seg__btn ww-nodes-seg__btn--home ${
@@ -149,6 +151,13 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
           })}
         </div>
 
+        {!railOpen && (
+          <span className="min-w-0 flex-1 truncate text-[0.68rem] font-semibold text-fg">
+            {focusedMon ? chipCaption(focusedMon) : "SES world"}
+          </span>
+        )}
+
+        <SectionToggle open={railOpen} onClick={toggleRail} />
         <button
           type="button"
           className={`ww-nodes-rail__all ${sheetOpen ? "ww-nodes-rail__all--on" : ""}`}

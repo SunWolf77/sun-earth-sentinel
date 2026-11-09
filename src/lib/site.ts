@@ -36,8 +36,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.0: EQ notices open that event. A focused quake no longer snaps back to the world view.
  * 1.31.1: Map catalog no longer waits on solar imagery. Regional catalogs cache for 3 minutes.
  * 1.31.2: Refresh is a labeled control on the header, the map dock, and the phone map.
+ * 1.31.3: Section tabs collapse to the current choice, with the same Open / Close.
  */
-export const APP_VERSION = "1.31.2";
+export const APP_VERSION = "1.31.3";
 
 
 

@@ -37,6 +37,7 @@ import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { CatalogNoticeBanner } from "@/components/ops/CatalogNoticeBanner";
+import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { MobileAppTabs, APP_TABS } from "@/components/ops/MobileAppTabs";
 import { MobileMapChrome } from "@/components/ops/MobileMapChrome";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
@@ -844,33 +845,19 @@ function ObservatoryApp() {
             </p>
           </div>
 
-          <nav
-            className="ww-tablist ww-tablist--inline hidden min-w-0 flex-1 sm:!flex"
-            role="tablist"
-            aria-label="Main sections"
-          >
-            {APP_TABS.map(({ id, label, short, Icon }, i) => {
-              const selected = tab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`tab-${id}`}
-                  aria-selected={selected}
-                  aria-controls={`panel-${id}`}
-                  tabIndex={selected ? 0 : -1}
-                  title={`${label} (${i + 1})`}
-                  onClick={() => setTab(id)}
-                  className={`ww-tab ${selected ? "ww-tab--active" : ""}`}
-                >
-                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="ww-only-lg hidden sm:inline">{label}</span>
-                  <span className="ww-only-sm sm:hidden">{short}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <div className="hidden min-w-0 flex-1 sm:!block">
+            <CollapsibleTabs
+              label="View"
+              storageKey="ww_main_tabs_open"
+              value={tab}
+              onChange={(id) => setTab(id as typeof tab)}
+              tabs={APP_TABS.map(({ id, label, short }) => ({
+                id,
+                label,
+                hint: short,
+              }))}
+            />
+          </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             {!isMobile && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, RefreshCw } from "lucide-react";
+import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import {
   SUVI_BANDS,
   ccorLatest,
@@ -119,23 +120,13 @@ export function GoesLiveFeeds({
       </div>
 
       {!compact && (
-        <div className="flex flex-wrap gap-1" role="tablist" aria-label="SUVI band">
-          {SUVI_BANDS.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              role="tab"
-              aria-selected={band === b.id}
-              title={b.hint}
-              onClick={() => setBand(b.id)}
-              className={`min-h-8 rounded-md px-2 text-[0.68rem] font-semibold ${
-                band === b.id ? "bg-primary/15 text-primary" : "text-muted hover:bg-elevated hover:text-fg"
-              }`}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
+        <CollapsibleTabs
+          label="SUVI band"
+          storageKey="ww_suvi_band_open"
+          value={band}
+          onChange={(id) => setBand(id as SuviBandId)}
+          tabs={SUVI_BANDS.map((b) => ({ id: b.id, label: `${b.label} Å`, hint: b.hint }))}
+        />
       )}
 
       <div className={`grid gap-2 ${compact ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 sm:grid-cols-2"}`}>

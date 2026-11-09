@@ -37,6 +37,7 @@ import {
   type FocusTarget,
 } from "@/lib/ops/focusNav";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
+import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
@@ -281,31 +282,14 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="mx-auto w-full max-w-[90rem] space-y-3">
-      <header className="space-y-1">
-        <div
-          className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-panel/90 p-1"
-          role="tablist"
-          aria-label="Solar sections"
-        >
-          {SOLAR_VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              role="tab"
-              aria-selected={solarView === v.id}
-              title={v.hint}
-              onClick={() => selectSolarView(v.id)}
-              className={`min-h-10 min-w-[4.5rem] flex-1 rounded-md px-2.5 py-1.5 text-[0.72rem] font-semibold transition ${
-                solarView === v.id
-                  ? "bg-primary/15 text-primary shadow-sm"
-                  : "text-muted hover:bg-elevated hover:text-fg"
-              }`}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-[0.62rem] text-dim">{SOLAR_VIEWS.find((v) => v.id === solarView)?.hint}</p>
+      <header>
+        <CollapsibleTabs
+          label="Solar"
+          storageKey="ww_solar_tabs_open"
+          value={solarView}
+          onChange={(id) => selectSolarView(id as SolarView)}
+          tabs={SOLAR_VIEWS.map((v) => ({ id: v.id, label: v.label, hint: v.hint }))}
+        />
       </header>
 
       {solarView === "now" && (

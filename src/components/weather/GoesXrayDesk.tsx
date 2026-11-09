@@ -24,6 +24,7 @@ import {
 } from "@/lib/feeds/xrayAttention";
 import { fluxToClass } from "@/lib/feeds/swpc";
 import { Loader2, Sun } from "lucide-react";
+import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 
 type Props = {
   compact?: boolean;
@@ -183,32 +184,18 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
         </div>
       )}
 
-      <div className="mb-2 flex flex-wrap gap-1" role="tablist" aria-label="X-ray window">
-        {windows.map((w) => (
-          <button
-            key={w.id}
-            type="button"
-            role="tab"
-            aria-selected={window === w.id}
-            onClick={() => setWindow(w.id)}
-            className={`min-h-9 min-w-[2.6rem] rounded-md px-2.5 text-[0.72rem] font-semibold ${
-              window === w.id
-                ? "bg-gold text-black"
-                : "border border-border bg-elevated text-muted hover:text-fg"
-            }`}
-          >
-            {w.label}
-          </button>
-        ))}
-        {!compact && (
-          <span
-            className="inline-flex min-h-9 items-center rounded-md border border-border/70 px-2 text-[0.62rem] text-dim"
-            title="NOAA SWPC public JSON tops out at 7 days"
-          >
-            30d n/a
-          </span>
-        )}
-      </div>
+      <CollapsibleTabs
+        label="X-ray window"
+        storageKey="ww_xray_window_open"
+        value={window}
+        onChange={(id) => setWindow(id as GoesXrayWindow)}
+        tabs={windows.map((w) => ({ id: w.id, label: w.label, hint: "GOES 18/19 flux" }))}
+      />
+      {!compact && (
+        <p className="text-[0.6rem] text-dim" title="NOAA SWPC public JSON tops out at 7 days">
+          30d is not in the public SWPC file.
+        </p>
+      )}
 
       <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[0.68rem]">
         <span className="text-dim">Satellites:</span>
