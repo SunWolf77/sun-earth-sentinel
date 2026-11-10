@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Settings2 } from "lucide-react";
+import { Settings2, Sun, Wind } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import {
   buildPulseTape,
@@ -78,7 +78,7 @@ export function PulseTape() {
                   <button
                     key={`${copy}-${item.id}`}
                     type="button"
-                    className={`mx-6 shrink-0 whitespace-nowrap font-medium ${
+                    className={`mx-6 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-medium ${
                       item.major ? "text-warn" : "text-fg"
                     }`}
                     title={item.major ? "Major — shown even if this feed is off" : item.kind}
@@ -88,6 +88,7 @@ export function PulseTape() {
                     }}
                   >
                     {item.major ? "● " : ""}
+                    <TapeMark item={item} />
                     {item.text}
                   </button>
                 ))}
@@ -119,3 +120,31 @@ export function PulseTape() {
 }
 
 const TAPE_FALLBACK: TapeToggles = { quake: true, solar: true, volcano: true };
+
+function TapeMark({ item }: { item: { id: string; kind: TapeKind } }) {
+  if (item.kind === "quake") return <FractureIcon />;
+  if (item.kind === "volcano") {
+    return (
+      <span className="text-[0.85rem] leading-none" aria-hidden>
+        🌋
+      </span>
+    );
+  }
+  if (item.id === "wind") return <Wind className="h-3.5 w-3.5 shrink-0" aria-hidden />;
+  return <Sun className="h-3.5 w-3.5 shrink-0" aria-hidden />;
+}
+
+function FractureIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" aria-hidden>
+      <path
+        d="M2 2.5 6.2 7.2 4.4 8.2 8.6 14M6.2 7.2 10.4 5.6 8.2 10.4M10.4 5.6 14 3.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

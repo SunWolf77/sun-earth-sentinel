@@ -48,8 +48,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.32.2: Tape quakes are M5+ or M4+ on a monitored node. Quiet lines stay off.
  * 1.32.3: Pulse sits in its own row. It no longer covers the 3D globe.
  * 1.32.4: Solar-wind tape line is labeled RTSW, with the spacecraft when known.
+ * 1.32.5: Each tape line leads with a mark — fracture, volcano, sun, or wind.
  */
-export const APP_VERSION = "1.32.4";
+export const APP_VERSION = "1.32.5";
 
 
 
