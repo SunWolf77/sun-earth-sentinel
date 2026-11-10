@@ -1,4 +1,6 @@
 import type { EqFeature } from "@/lib/feeds/usgs";
+import { DRAGON_NODES } from "@/lib/feeds/usgs";
+import { pointInBounds } from "@/lib/geo/bounds";
 import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc";
 import { fluxToClass } from "@/lib/feeds/swpc";
@@ -57,6 +59,20 @@ function show(kind: TapeKind, major: boolean, toggles: TapeToggles): boolean {
   return toggles[kind] || major;
 }
 
+/** Map min-mag is too low for a ticker. Tape uses its own floor. */
+const QUAKE_ANYWHERE = 5;
+const QUAKE_ON_NODE = 4;
+const QUAKE_MAJOR = 6;
+
+const MONITORED = DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority);
+
+function monitoredNode(lat: number, lon: number): string | null {
+  for (const n of MONITORED) {
+    if (pointInBounds(lat, lon, n.bounds)) return n.name;
+  }
+  return null;
+}
+
 export function buildPulseTape(input: {
   features: EqFeature[] | undefined;
   kp: KpPoint[];
@@ -69,29 +85,37 @@ export function buildPulseTape(input: {
   const out: TapeItem[] = [];
   const feats = [...(input.features ?? [])]
     .filter((f) => f.properties.time != null && f.properties.mag != null)
-    .sort((a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0))
-    .slice(0, 8);
+    .sort((a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0));
 
+  let quakes = 0;
   for (const f of feats) {
+    if (quakes >= 4) break;
     const mag = f.properties.mag ?? 0;
-    const major = mag >= 6;
-    if (!show("quake", major, input.toggles)) continue;
     const [lon, lat] = f.geometry.coordinates;
+    const node = monitoredNode(lat, lon);
+    const onNode = node != null && mag >= QUAKE_ON_NODE;
+    const significant = mag >= QUAKE_ANYWHERE;
+    if (!onNode && !significant) continue;
+    const major = mag >= QUAKE_MAJOR;
+    if (!show("quake", major, input.toggles)) continue;
     const place = f.properties.place?.replace(/^.* of /, "") ?? "event";
     out.push({
       id: `q-${f.id ?? f.properties.time}`,
       kind: "quake",
-      text: `M${mag.toFixed(1)} · ${place}`,
+      text: `${node ? `${node} · ` : ""}M${mag.toFixed(1)} · ${place}`,
       major,
       lat,
       lon,
     });
+    quakes += 1;
   }
 
   const kp = input.kp.length ? Number(input.kp[input.kp.length - 1]!.Kp) : null;
   if (kp != null && Number.isFinite(kp)) {
     const major = kp >= 5;
-    if (show("solar", major, input.toggles)) {
+    if (kp < 4 && !major) {
+      /* quiet Kp stays off the tape */
+    } else if (show("solar", major, input.toggles)) {
       out.push({ id: "kp", kind: "solar", text: `Kp ${kp.toFixed(1)}`, major });
     }
   }
@@ -101,7 +125,8 @@ export function buildPulseTape(input: {
     const speed = wind.speed != null ? Math.round(wind.speed) : null;
     const bz = wind.bz;
     const major = (speed != null && speed >= 700) || (bz != null && bz <= -10);
-    if (show("solar", major, input.toggles)) {
+    const notable = (speed != null && speed >= 550) || (bz != null && Math.abs(bz) >= 5);
+    if ((notable || major) && show("solar", major, input.toggles)) {
       const bits = [
         speed != null ? `${speed} km/s` : null,
         bz != null ? `Bz ${bz.toFixed(1)}` : null,
@@ -115,7 +140,7 @@ export function buildPulseTape(input: {
     const s = scaleN(input.scales.S);
     const g = scaleN(input.scales.G);
     const major = r >= 3 || s >= 3 || g >= 3;
-    if (show("solar", major, input.toggles)) {
+    if ((r >= 1 || s >= 1 || g >= 1 || major) && show("solar", major, input.toggles)) {
       out.push({
         id: "scales",
         kind: "solar",
@@ -129,7 +154,8 @@ export function buildPulseTape(input: {
   if (xr && Number.isFinite(xr.flux)) {
     const klass = fluxToClass(xr.flux);
     const major = klass.startsWith("X");
-    if (show("solar", major, input.toggles)) {
+    const notable = klass.startsWith("M") || major;
+    if (notable && show("solar", major, input.toggles)) {
       out.push({ id: "xray", kind: "solar", text: `X-ray ${klass}`, major });
     }
   }

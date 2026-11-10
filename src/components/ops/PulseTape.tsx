@@ -52,7 +52,7 @@ export function PulseTape() {
     });
   };
 
-  const duration = `${Math.max(28, items.length * 7)}s`;
+  const duration = `${Math.max(48, items.length * 14)}s`;
 
   return (
     <div className="ww-tape pointer-events-auto absolute inset-x-2 top-2 z-[1100] flex h-8 items-stretch overflow-visible rounded-md border border-border/80 bg-bg/90 text-[0.68rem] shadow-md backdrop-blur">
@@ -78,7 +78,7 @@ export function PulseTape() {
                   <button
                     key={`${copy}-${item.id}`}
                     type="button"
-                    className={`mx-3 shrink-0 whitespace-nowrap font-medium ${
+                    className={`mx-6 shrink-0 whitespace-nowrap font-medium ${
                       item.major ? "text-warn" : "text-fg"
                     }`}
                     title={item.major ? "Major — shown even if this feed is off" : item.kind}
@@ -110,7 +110,7 @@ export function PulseTape() {
             </label>
           ))}
           <p className="mt-1 leading-snug text-dim">
-            Always on: M6+, Kp ≥ 5, R/S/G ≥ 3, X-class, Warning or Red volcanoes.
+            Quakes: M5+ anywhere, or M4+ on a monitored node. Always on: M6+, Kp ≥ 5, R/S/G ≥ 3, X-class, Warning or Red volcanoes.
           </p>
         </div>
       )}

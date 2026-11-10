@@ -45,8 +45,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.9: Live Map and Pulse menus paint over the map, not under it.
  * 1.32.0: Pulse leaves the header. It lives at the top of the map sidebar.
  * 1.32.1: Pulse is a scrolling tape. Toggles filter it. Majors always show.
+ * 1.32.2: Tape quakes are M5+ or M4+ on a monitored node. Quiet lines stay off.
  */
-export const APP_VERSION = "1.32.1";
+export const APP_VERSION = "1.32.2";
 
 
 
