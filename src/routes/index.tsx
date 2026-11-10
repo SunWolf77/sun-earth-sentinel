@@ -37,6 +37,7 @@ import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { CatalogNoticeBanner } from "@/components/ops/CatalogNoticeBanner";
+import { EruptionNoticeBanner } from "@/components/ops/EruptionNoticeBanner";
 import { CollapsibleTabs, SectionToggle, useSectionOpen } from "@/components/ops/CollapsibleTabs";
 import { MobileAppTabs, APP_TABS } from "@/components/ops/MobileAppTabs";
 import { MobileMapChrome } from "@/components/ops/MobileMapChrome";
@@ -671,7 +672,7 @@ function ObservatoryApp() {
             checked={audioAlerts}
             onChange={(e) => setAudioAlerts(e.target.checked)}
           />
-          Sound on new M4.5+
+          Sound on new M4.5+ and eruptions
         </label>
         <label className="inline-flex items-center gap-1.5 text-[0.7rem] text-muted">
           <input
@@ -679,7 +680,7 @@ function ObservatoryApp() {
             checked={desktopNotify}
             onChange={(e) => setDesktopNotify(e.target.checked)}
           />
-          OS notice M4.5+
+          OS notice M4.5+ and eruptions
         </label>
       </div>
       <div>
@@ -965,6 +966,7 @@ function ObservatoryApp() {
       )}
       <OfflineBanner />
       <CatalogNoticeBanner />
+      <EruptionNoticeBanner />
       {toast && (
         <div
           className="pointer-events-none absolute inset-x-0 top-14 z-[800] flex justify-center px-3 sm:top-[4.5rem]"

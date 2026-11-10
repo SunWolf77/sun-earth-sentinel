@@ -50,8 +50,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.32.4: Solar-wind tape line is labeled RTSW, with the spacecraft when known.
  * 1.32.5: Each tape line leads with a mark — fracture, volcano, sun, or wind.
  * 1.32.6: Volcano tape lines are notices from the last 7 days, newest first.
+ * 1.32.7: A new agency RED / WARNING eruption raises a notice.
  */
-export const APP_VERSION = "1.32.6";
+export const APP_VERSION = "1.32.7";
 
 
 

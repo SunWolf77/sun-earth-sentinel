@@ -58,6 +58,7 @@ import { fetchOpenWildfires, type WildfireEvent } from "@/lib/feeds/wildfires";
 import { fetchNeoToday, type NeoItem } from "@/lib/feeds/neows";
 
 import { pruneVolcTransitions } from "@/lib/ops/raisedTimeout";
+import { relayNewEruptions, type EruptionNotice } from "@/lib/ops/eruptionNotice";
 import {
   diffVolcWatch,
   fetchUsgsElevatedVolcanoes,
@@ -306,9 +307,10 @@ type ObservatoryState = {
 
   useGeofon: boolean;
   audioAlerts: boolean;
-  /** Opt-in OS/browser notice when a new M4.5+ origin appears in the catalog. */
+  /** Opt-in OS/browser notice for a new M4.5+ origin, and for a confirmed eruption. */
   desktopNotify: boolean;
   lastCatalogNotice: CatalogNotice | null;
+  lastEruptionNotice: EruptionNotice | null;
   globeAutoSpin: boolean;
   /** Bumps when user re-asserts Spin (resume after focus). */
   globeSpinEpoch: number;
@@ -406,6 +408,7 @@ type ObservatoryState = {
   setAudioAlerts: (v: boolean) => void;
   setDesktopNotify: (v: boolean) => void;
   dismissCatalogNotice: () => void;
+  dismissEruptionNotice: () => void;
   setGlobeAutoSpin: (v: boolean) => void;
   /** Re-enable spin even if already ON (after focus pause). */
   resumeGlobeSpin: () => void;
@@ -601,6 +604,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   audioAlerts: false,
   desktopNotify: false,
   lastCatalogNotice: null,
+  lastEruptionNotice: null,
   globeAutoSpin: true,
   globeSpinEpoch: 0,
   globeStemScale: 0.2,
@@ -1027,6 +1031,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     });
   },
   dismissCatalogNotice: () => set({ lastCatalogNotice: null }),
+  dismissEruptionNotice: () => set({ lastEruptionNotice: null }),
   setGlobeAutoSpin: (v) => {
     try {
       localStorage.setItem("wolfwatch_globe_spin", v ? "1" : "0");
@@ -1740,6 +1745,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         );
       }
 
+      const eruption = usgsVolcAlerts?.length
+        ? relayNewEruptions(usgsVolcAlerts, { desktop: desktopNotify, sound: audioAlerts })
+        : null;
+
       set({
         eq: eqFinal,
         volc: volc ?? get().volc,
@@ -1792,6 +1801,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         feedTimestamps: { ...get().feedTimestamps, ...stamps },
         feedErrors: { ...get().feedErrors, ...errs },
         error: null,
+        ...(eruption ? { lastEruptionNotice: eruption } : {}),
       });
 
       if (get().focusNodeId && get().overlays.mmiContours) {
@@ -1812,6 +1822,12 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           const enlilNow = enlil ?? get().enlil;
           const nextAlerts = usgsVolcAlerts ?? get().usgsVolcAlerts;
           const prevAlerts = get().usgsVolcAlerts;
+          const eruption = nextAlerts?.length
+            ? relayNewEruptions(nextAlerts, {
+                desktop: get().desktopNotify,
+                sound: get().audioAlerts,
+              })
+            : null;
           set({
             volc: volc ?? get().volc,
             usgsVolcAlerts: nextAlerts,
@@ -1858,6 +1874,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             }),
             feedTimestamps: { ...get().feedTimestamps, ...stamps },
             feedErrors: { ...get().feedErrors, ...errs },
+            ...(eruption ? { lastEruptionNotice: eruption } : {}),
           });
         });
       }
