@@ -22,6 +22,7 @@ export function PulseTape() {
   const scales = useObservatory((s) => s.scales);
   const xray = useObservatory((s) => s.xray);
   const volcanoes = useObservatory((s) => s.usgsVolcAlerts);
+  const transitions = useObservatory((s) => s.volcWatchTransitions);
   const flyMapTo = useObservatory((s) => s.flyMapTo);
   const [toggles, setToggles] = useState<TapeToggles>(TAPE_FALLBACK);
   const [menu, setMenu] = useState(false);
@@ -39,9 +40,10 @@ export function PulseTape() {
         scales,
         xray,
         volcanoes,
+        transitions,
         toggles,
       }),
-    [eq?.features, kp, solarWind, scales, xray, volcanoes, toggles],
+    [eq?.features, kp, solarWind, scales, xray, volcanoes, transitions, toggles],
   );
 
   const setKind = (id: TapeKind, on: boolean) => {
@@ -111,7 +113,7 @@ export function PulseTape() {
             </label>
           ))}
           <p className="mt-1 leading-snug text-dim">
-            Quakes: M5+ anywhere, or M4+ on a monitored node. Always on: M6+, Kp ≥ 5, R/S/G ≥ 3, X-class, Warning or Red volcanoes.
+            Quakes: M5+ anywhere, or M4+ on a monitored node. Volcanoes: notices from the last 7 days, newest first. Always on: M6+, Kp ≥ 5, R/S/G ≥ 3, X-class, Warning or Red.
           </p>
         </div>
       )}

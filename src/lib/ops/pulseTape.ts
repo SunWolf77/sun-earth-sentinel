@@ -1,7 +1,7 @@
 import type { EqFeature } from "@/lib/feeds/usgs";
 import { DRAGON_NODES } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
-import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
+import type { UsgsVolcanoAlert, VolcWatchTransition } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc";
 import { fluxToClass } from "@/lib/feeds/swpc";
 
@@ -80,7 +80,9 @@ export function buildPulseTape(input: {
   scales: NoaaScales | null;
   xray: XrayPoint[];
   volcanoes: UsgsVolcanoAlert[];
+  transitions?: VolcWatchTransition[];
   toggles: TapeToggles;
+  now?: number;
 }): TapeItem[] {
   const out: TapeItem[] = [];
   const feats = [...(input.features ?? [])]
@@ -163,21 +165,90 @@ export function buildPulseTape(input: {
     }
   }
 
-  const vols = [...input.volcanoes]
-    .filter((v) => v.alertLevel !== "NORMAL" && v.colorCode !== "GREEN")
-    .slice(0, 4);
+  const vols = freshVolcanoLines(input.volcanoes, input.transitions ?? [], input.now ?? Date.now());
   for (const v of vols) {
-    const major = v.alertLevel === "WARNING" || v.colorCode === "RED";
-    if (!show("volcano", major, input.toggles)) continue;
-    out.push({
-      id: `v-${v.id}`,
-      kind: "volcano",
-      text: `${v.name} · ${v.alertLevel}`,
-      major,
-      lat: v.lat ?? undefined,
-      lon: v.lon ?? undefined,
-    });
+    if (!show("volcano", v.major, input.toggles)) continue;
+    out.push(v.item);
   }
 
   return out;
+}
+
+const VOLC_FRESH_MS = 7 * 24 * 3600_000;
+
+function noticeMs(v: UsgsVolcanoAlert): number | null {
+  if (v.sentUnix != null && Number.isFinite(v.sentUnix) && v.sentUnix > 0) {
+    return v.sentUnix > 1e12 ? v.sentUnix : v.sentUnix * 1000;
+  }
+  if (v.sentUtc) {
+    const t = Date.parse(v.sentUtc);
+    if (Number.isFinite(t)) return t;
+  }
+  return null;
+}
+
+function ageLabel(ms: number, now: number): string {
+  const h = Math.max(0, (now - ms) / 3600_000);
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))}m`;
+  if (h < 48) return `${Math.round(h)}h`;
+  return `${Math.round(h / 24)}d`;
+}
+
+function freshVolcanoLines(
+  volcanoes: UsgsVolcanoAlert[],
+  transitions: VolcWatchTransition[],
+  now: number,
+): { item: TapeItem; major: boolean }[] {
+  const lines: { item: TapeItem; major: boolean; at: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const tr of [...transitions].sort((a, b) => b.at - a.at)) {
+    if (now - tr.at > VOLC_FRESH_MS) continue;
+    const key = tr.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const hit = volcanoes.find((v) => v.name === tr.name);
+    const major = tr.alertLevel === "WARNING" || tr.colorCode === "RED";
+    const verb = tr.kind === "baseline" ? "eased" : tr.alertLevel;
+    lines.push({
+      at: tr.at,
+      major,
+      item: {
+        id: `vt-${tr.id}`,
+        kind: "volcano",
+        text: `${tr.name} · ${verb} · ${ageLabel(tr.at, now)}`,
+        major,
+        lat: hit?.lat ?? undefined,
+        lon: hit?.lon ?? undefined,
+      },
+    });
+  }
+
+  const dated = volcanoes
+    .map((v) => ({ v, t: noticeMs(v) }))
+    .filter((x): x is { v: UsgsVolcanoAlert; t: number } => x.t != null && now - x.t <= VOLC_FRESH_MS)
+    .sort((a, b) => b.t - a.t);
+
+  for (const { v, t } of dated) {
+    if (seen.has(v.name.toLowerCase())) continue;
+    seen.add(v.name.toLowerCase());
+    const major = v.alertLevel === "WARNING" || v.colorCode === "RED";
+    lines.push({
+      at: t,
+      major,
+      item: {
+        id: `v-${v.id}-${t}`,
+        kind: "volcano",
+        text: `${v.name} · ${v.alertLevel} · ${ageLabel(t, now)}`,
+        major,
+        lat: v.lat ?? undefined,
+        lon: v.lon ?? undefined,
+      },
+    });
+  }
+
+  return lines
+    .sort((a, b) => b.at - a.at)
+    .slice(0, 3)
+    .map(({ item, major }) => ({ item, major }));
 }
