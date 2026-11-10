@@ -127,9 +127,12 @@ export function buildPulseTape(input: {
     const major = (speed != null && speed >= 700) || (bz != null && bz <= -10);
     const notable = (speed != null && speed >= 550) || (bz != null && Math.abs(bz) >= 5);
     if ((notable || major) && show("solar", major, input.toggles)) {
+      const bzBit = bz != null ? `Bz ${bz > 0 ? "+" : ""}${bz.toFixed(1)}` : null;
       const bits = [
+        wind.rtsw ? "RTSW" : "Solar wind",
+        wind.source,
         speed != null ? `${speed} km/s` : null,
-        bz != null ? `Bz ${bz.toFixed(1)}` : null,
+        bzBit,
       ].filter(Boolean);
       out.push({ id: "wind", kind: "solar", text: bits.join(" · "), major });
     }
