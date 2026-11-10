@@ -56,8 +56,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.34.0: Flare window on the GOES 7-day record. Solar is the front door.
  * 1.34.1: Mode details drop over the map instead of stretching the header.
  * 1.34.2: The view menu is a fixed dropdown, so the map cannot cover it.
+ * 1.35.0: Solar opens as a dashboard. The chart and the pictures sit under Closer look.
  */
-export const APP_VERSION = "1.34.2";
+export const APP_VERSION = "1.35.0";
 
 
 

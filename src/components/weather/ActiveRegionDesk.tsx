@@ -23,7 +23,7 @@ function fill(r: ActiveRegion): string {
 function SunDisk({ regions }: { regions: ActiveRegion[] }) {
   const onDisk = regions.filter((r) => r.lon <= 95 && r.lon >= -95);
   return (
-    <svg viewBox="0 0 200 210" className="mx-auto h-52 w-52" role="img" aria-label="Sun as seen from Earth">
+    <svg viewBox="0 0 200 210" className="mx-auto h-36 w-36" role="img" aria-label="Sun as seen from Earth">
       <circle cx="100" cy="96" r="78" fill="rgba(251,191,36,0.16)" stroke="rgba(253,230,138,0.55)" strokeWidth="1.5" />
       <rect x="87" y="18" width="26" height="156" fill="rgba(34,211,238,0.12)" />
       <line x1="100" y1="18" x2="100" y2="174" stroke="rgba(34,211,238,0.8)" strokeWidth="1" strokeDasharray="3 3" />
@@ -66,11 +66,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
-          Sunspots facing Earth
+          Sunspots aimed at Earth
         </h2>
-        <p className="text-[0.6rem] text-dim">
-          NOAA SWPC{observed ? ` · ${observed}` : ""} · not a flare forecast
-        </p>
       </div>
       <div className="grid items-center gap-3 md:grid-cols-[13rem_1fr]">
         <SunDisk regions={regions} />
@@ -86,24 +83,22 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
           {lead && !lead.reachedDelta && lead.growing && (
             <p className="text-[0.72rem] text-warn">Magnetic complexity is growing.</p>
           )}
-          <ul className="space-y-1.5">
-            {headlines.map((r) => (
+          <ul className="space-y-1">
+            {headlines.slice(0, 3).map((r) => (
               <li key={r.region} className="text-[0.72rem] leading-snug text-fg">
                 <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
                 <span className="text-muted"> · {r.haleLabel}</span>
                 <span className="text-muted"> · {r.phaseLabel}</span>
-                <span className="text-dim"> · {r.location}</span>
-                {r.mProb >= 10 && (
-                  <span className="text-dim"> · SWPC M {r.mProb}%{r.xProb >= 5 ? ` · X ${r.xProb}%` : ""}</span>
-                )}
-                {r.growing && <span className="text-warn"> · growing</span>}
               </li>
             ))}
           </ul>
-          <p className="text-[0.6rem] leading-snug text-dim">
-            Delta (beta-delta or beta-gamma-delta) is the complex class most often tied to stronger flares.
-            The shaded band is the Earth-direct window. East is left, west is right.
-          </p>
+          <details>
+            <summary className="cursor-pointer text-[0.65rem] text-dim">What the disk means</summary>
+            <p className="mt-1 text-[0.6rem] leading-snug text-dim">
+              Center faces Earth. East is left, west is right. Delta is the complex class most often tied to stronger flares.
+              {observed ? ` NOAA report ${observed}.` : ""} Not a flare forecast.
+            </p>
+          </details>
         </div>
       </div>
     </section>

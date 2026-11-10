@@ -61,7 +61,6 @@ import {
   Play,
   Radio,
   Satellite,
-  Shield,
   Sun,
   Wind,
   Zap,
@@ -75,13 +74,13 @@ type MediaTab = "disk" | "corona" | "farside" | "models";
 type SolarView = "now" | "xray" | "images" | "catalogs" | "magneto" | "pole" | "context";
 
 const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
-  { id: "now", label: "Now", hint: "Kp · RTSW · NOAA scales" },
-  { id: "xray", label: "X-ray", hint: "GOES 18/19 log flux · A–X bands" },
-  { id: "images", label: "Images", hint: "GOES SUVI · CCOR · models" },
-  { id: "catalogs", label: "Catalogs", hint: "CMEs · flares · NEOs" },
-  { id: "magneto", label: "Magneto", hint: "Cordaro INTERMAGNET · H × flare × EQ" },
-  { id: "pole", label: "Pole", hint: "IERS polar motion · daily path" },
-  { id: "context", label: "Context", hint: "Field pairing · history · timing" },
+  { id: "now", label: "Now", hint: "The dashboard" },
+  { id: "xray", label: "X-ray", hint: "The flare chart" },
+  { id: "images", label: "Images", hint: "Pictures of the Sun" },
+  { id: "catalogs", label: "Catalogs", hint: "Lists of events" },
+  { id: "magneto", label: "Magneto", hint: "Magnets on the ground" },
+  { id: "pole", label: "Pole", hint: "Where Earth's pole is drifting" },
+  { id: "context", label: "Context", hint: "How the pieces connect" },
 ];
 
 export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
@@ -272,17 +271,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
     );
   }
 
-  const levelBorder =
-    impact.color === "danger"
-      ? "border-danger/40 bg-danger/10"
-      : impact.color === "warn"
-        ? "border-warn/35 bg-warn/10"
-        : impact.color === "gold"
-          ? "border-gold/35 bg-gold/10"
-          : impact.color === "primary"
-            ? "border-primary/30 bg-primary/5"
-            : "border-border bg-panel";
-
   return (
     <div className="mx-auto w-full max-w-[90rem] space-y-3">
       <header>
@@ -296,131 +284,112 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       </header>
 
       {solarView === "now" && (
-        <div className="grid items-start gap-3 lg:grid-cols-12">
-          <div className="space-y-3 lg:col-span-12">
+        <div className="space-y-3">
+          <p className="text-[0.95rem] leading-snug text-fg">
+            <span className="font-semibold">{impact.title}.</span>{" "}
+            <span className="text-muted">{impact.summary}</span>
+          </p>
+
+          <NowBoard
+            kpVal={kpVal}
+            kpTime={latestKp?.time_tag ?? null}
+            xClass={xClass}
+            highKp={highKp}
+            highX={highX}
+            wind={solarWind}
+            southBz={southBz}
+            scales={scales}
+            flux={flux10cm?.flux ?? null}
+          />
+
+          <div className="grid items-start gap-3 lg:grid-cols-2">
             <FlareOutlookDesk />
             <ActiveRegionDesk
               regions={activeRegions}
               observed={activeRegions[0]?.observed ?? null}
             />
           </div>
-          <div className="space-y-3 lg:col-span-7">
-            <NowBoard
-              kpVal={kpVal}
-              kpTime={latestKp?.time_tag ?? null}
-              xClass={xClass}
-              highKp={highKp}
-              highX={highX}
-              wind={solarWind}
-              southBz={southBz}
-              scales={scales}
-              flux={flux10cm?.flux ?? null}
-            />
 
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/80 bg-panel/80 px-2.5 py-1.5">
-              <AttentionSparkline showLabel height={22} className="min-w-0" />
-              {kpUpcoming.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
-                  <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
-                  {kpUpcoming.slice(0, 6).map((p) => {
-                    const k = p.kp;
-                    const tone = k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
-                    const lab = p.time_tag.slice(5, 13).replace("T", " ");
-                    return (
-                      <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
-                        {lab}·{k.toFixed(1)}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {impact.level === "quiet" ? (
-              <p className={`rounded-lg border px-3 py-2 text-xs text-muted ${levelBorder}`}>
-                <span className="font-semibold text-fg">{impact.title}.</span> {impact.summary}
-              </p>
-            ) : (
-              <section className={`rounded-xl border p-3 ${levelBorder}`}>
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-fg">{impact.title}</h3>
-                  <span className="rounded-full border border-border bg-bg/50 px-2 py-0.5 text-[0.62rem] uppercase tracking-wide text-dim">
-                    {impact.level}
-                  </span>
-                </div>
-                <p className="text-sm text-muted">{impact.summary}</p>
-                {impact.bullets.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-xs leading-relaxed text-muted">
-                    {impact.bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
-
-            <p id="ses-solar-protons" className="scroll-mt-20 text-[0.7rem] text-muted">
-              Protons{" "}
-              <span className={assessment.protons.sLike ? "font-mono text-warn" : "font-mono text-fg"}>
-                ≥10 {assessment.protons.p10 != null ? assessment.protons.p10.toFixed(2) : "—"}
+          <details className="rounded-xl border border-border bg-panel/80">
+            <summary className="cursor-pointer list-none px-3 py-2.5 text-[0.75rem] font-semibold text-primary">
+              Closer look
+              <span className="ml-2 font-normal text-dim">
+                X-ray chart · pictures · 3-day outlook · solar cycle
               </span>
-              <span className="text-dim"> · </span>
-              <span className="font-mono text-fg">
-                ≥50 {assessment.protons.p50 != null ? assessment.protons.p50.toFixed(3) : "—"}
-              </span>
-              <span className="text-dim"> · </span>
-              <span className="font-mono text-fg">
-                ≥100 {assessment.protons.p100 != null ? assessment.protons.p100.toFixed(3) : "—"}
-              </span>
-              <span className="text-dim"> pfu</span>
-              {peak && (
-                <>
-                  <span className="text-dim"> · </span>
-                  24 h peak{" "}
-                  <strong className={peak.class.startsWith("M") || peak.class.startsWith("X") ? "text-danger" : "text-gold"}>
-                    {peak.class}
-                  </strong>
-                </>
-              )}
-            </p>
-
-            <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
-          </div>
-
-          <div className="space-y-3 lg:col-span-5">
-            {showImages && (
-              <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
-            )}
-
-            {(highlights.length > 0 || forecast?.issued) && (
-              <section className="rounded-xl border border-border bg-panel p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-                    SWPC 3-day outlook
-                  </h3>
-                  {forecast?.issued && (
-                    <span className="text-[0.62rem] text-dim">Issued {forecast.issued}</span>
+            </summary>
+            <div className="grid items-start gap-3 border-t border-border/70 p-3 lg:grid-cols-12">
+              <div className="space-y-3 lg:col-span-7">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <AttentionSparkline showLabel height={22} className="min-w-0" />
+                  {kpUpcoming.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
+                      <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
+                      {kpUpcoming.slice(0, 6).map((p) => {
+                        const k = p.kp;
+                        const tone = k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
+                        const lab = p.time_tag.slice(5, 13).replace("T", " ");
+                        return (
+                          <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
+                            {lab}·{k.toFixed(1)}
+                          </span>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-                <ul className="space-y-1.5 text-xs text-muted">
-                  {highlights.map((h, i) => (
-                    <li key={i}>{h}</li>
-                  ))}
-                </ul>
-                {scales?.RMinorProb && (
-                  <p className="mt-2 text-[0.68rem] text-dim">
-                    Day-1 probs · R minor {scales.RMinorProb}% · R major {scales.RMajorProb ?? "—"}% · S{" "}
-                    {scales.SProb ?? "—"}% · G {scales.G1 ?? "—"}
-                  </p>
+                <p id="ses-solar-protons" className="scroll-mt-20 text-[0.7rem] text-muted">
+                  Protons{" "}
+                  <span className={assessment.protons.sLike ? "font-mono text-warn" : "font-mono text-fg"}>
+                    ≥10 {assessment.protons.p10 != null ? assessment.protons.p10.toFixed(2) : "—"}
+                  </span>
+                  <span className="text-dim"> · </span>
+                  <span className="font-mono text-fg">
+                    ≥50 {assessment.protons.p50 != null ? assessment.protons.p50.toFixed(3) : "—"}
+                  </span>
+                  <span className="text-dim"> · </span>
+                  <span className="font-mono text-fg">
+                    ≥100 {assessment.protons.p100 != null ? assessment.protons.p100.toFixed(3) : "—"}
+                  </span>
+                  <span className="text-dim"> pfu</span>
+                  {peak && (
+                    <>
+                      <span className="text-dim"> · </span>
+                      24 h peak{" "}
+                      <strong className={peak.class.startsWith("M") || peak.class.startsWith("X") ? "text-danger" : "text-gold"}>
+                        {peak.class}
+                      </strong>
+                    </>
+                  )}
+                </p>
+                <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
+              </div>
+              <div className="space-y-3 lg:col-span-5">
+                {showImages && (
+                  <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
                 )}
-              </section>
-            )}
-
-            <SwpcStormWarnings />
-            <SolarCycleStrip />
-            <EclipseWatch />
-          </div>
+                {(highlights.length > 0 || forecast?.issued) && (
+                  <section className="rounded-xl border border-border bg-panel p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
+                        Next 3 days
+                      </h3>
+                      {forecast?.issued && (
+                        <span className="text-[0.62rem] text-dim">Issued {forecast.issued}</span>
+                      )}
+                    </div>
+                    <ul className="space-y-1.5 text-xs text-muted">
+                      {highlights.map((h, i) => (
+                        <li key={i}>{h}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                <SwpcStormWarnings />
+                <SolarCycleStrip />
+                <EclipseWatch />
+              </div>
+            </div>
+          </details>
         </div>
       )}
 
@@ -539,28 +508,32 @@ function NowBoard({
           <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${kpTone}`}>
             {kpVal != null ? kpVal.toFixed(1) : "—"}
           </div>
-          <div className="mt-1 text-[0.62rem] text-dim">{utcStamp(kpTime)}</div>
+          <div className="mt-1 text-[0.62rem] text-dim">
+            {kpVal == null ? "planetary K" : kpVal >= 5 ? "storm" : kpVal >= 4 ? "active" : "quiet"}
+            {" · "}
+            {utcStamp(kpTime)}
+          </div>
         </div>
         <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highX ? "border-danger/50" : "border-border"}`}>
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">X-ray</div>
           <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${highX ? "text-danger" : "text-fg"}`}>
             {xClass}
           </div>
-          <div className="mt-1 text-[0.62rem] text-dim">GOES 1–8 Å</div>
+          <div className="mt-1 text-[0.62rem] text-dim">flare class now</div>
         </div>
         <div className="rounded-xl border border-border bg-panel px-3 py-2.5">
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Wind</div>
           <div className="font-mono text-3xl font-bold leading-none tabular-nums text-fg">
             {wind?.speed != null ? Math.round(wind.speed) : "—"}
           </div>
-          <div className="mt-1 text-[0.62rem] text-dim">km/s</div>
+          <div className="mt-1 text-[0.62rem] text-dim">solar wind, km/s</div>
         </div>
         <div className={`rounded-xl border bg-panel px-3 py-2.5 ${southBz ? "border-warn/50" : "border-border"}`}>
           <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Bz</div>
           <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${southBz ? "text-warn" : "text-fg"}`}>
             {wind?.bz != null ? wind.bz.toFixed(1) : "—"}
           </div>
-          <div className="mt-1 text-[0.62rem] text-dim">nT GSM</div>
+          <div className="mt-1 text-[0.62rem] text-dim">{southBz ? "south, opens Earth" : "north or quiet"}</div>
         </div>
       </div>
 
@@ -591,26 +564,15 @@ function NowBoard({
         </div>
       )}
 
-      <section className="rounded-xl border border-border bg-panel px-3 py-2.5">
-        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
-            RTSW
-          </h3>
-          <p className="text-[0.62rem] text-dim">
-            {wind?.rtsw ? "1-min primary" : "summary"}
-            {wind?.source ? ` · ${wind.source}` : ""}
-            {" · "}
-            <a
-              href="https://www.swpc.noaa.gov/products/real-time-solar-wind"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              SWPC
-            </a>
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <details className="rounded-xl border border-border bg-panel px-3 py-2">
+        <summary className="cursor-pointer text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+          Wind detail
+          <span className="ml-2 font-normal normal-case tracking-normal text-dim">
+            {wind?.source ? wind.source : "solar wind"}
+            {flux != null ? ` · radio flux ${Math.round(flux)}` : ""}
+          </span>
+        </summary>
+        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
           <Mini label="Density" value={wind?.density != null ? wind.density.toFixed(1) : "—"} unit="/cm³" />
           <Mini label="Temp" value={fmtTemp(wind?.temperature)} unit="K" />
           <Mini label="Bt" value={wind?.bt != null ? wind.bt.toFixed(1) : "—"} unit="nT" />
@@ -621,10 +583,9 @@ function NowBoard({
         <p className="mt-2 text-[0.62rem] text-dim">
           Plasma {plasma}
           {sameClock ? "" : ` · B ${mag}`}
-          {flux != null ? ` · F10.7 ${Math.round(flux)}` : ""}
           {" · observation, not a forecast"}
         </p>
-      </section>
+      </details>
     </section>
   );
 }

@@ -118,30 +118,29 @@ export function FlareOutlookDesk() {
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
-          Flare window
+          Chance of a flare
         </h2>
-        <p className="text-[0.6rem] text-dim">GOES 7-day fit · 6-hour horizon</p>
       </div>
       {err && <p className="text-[0.75rem] text-danger">{err}</p>}
       {!outlook && !err && <p className="text-[0.75rem] text-muted">Reading the X-ray record…</p>}
       {outlook && (
-        <div className="grid items-start gap-3 sm:grid-cols-[8.5rem_1fr]">
-          <div className="rounded-lg border border-border/80 bg-bg/60 px-2 py-2 text-center">
-            <div className="text-[0.58rem] uppercase tracking-wide text-dim">M within 6 h</div>
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 text-center">
             <div className={`text-[2rem] font-semibold leading-none ${pct != null && pct >= 40 ? "text-warn" : "text-fg"}`}>
               {pct != null ? `${pct}%` : "—"}
             </div>
-            <div className="mt-1 text-[0.62rem] text-muted">
-              {outlook.learnedM ? "trained on this week" : "trend + region"}
-            </div>
-            {outlook.pC != null && (
-              <div className="mt-1 text-[0.62rem] text-dim">C or above {Math.round(outlook.pC * 100)}%</div>
-            )}
+            <div className="mt-1 text-[0.62rem] text-dim">M flare, next 6 h</div>
           </div>
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-[0.9rem] font-medium leading-snug text-fg">{outlook.sentence}</p>
-            {note && <p className="text-[0.68rem] text-primary">{note}</p>}
-            <p className="text-[0.6rem] leading-snug text-dim">{outlook.honesty}</p>
+          <div className="min-w-0">
+            <p className="text-[0.9rem] font-medium leading-snug text-fg">
+              {outlook.sentence.split(/(?<=\.)\s+/).slice(0, 2).join(" ")}
+            </p>
+            <details className="mt-1">
+              <summary className="cursor-pointer text-[0.65rem] text-dim">How this number is made</summary>
+              <p className="mt-1 text-[0.68rem] leading-snug text-muted">{outlook.sentence}</p>
+              {note && <p className="mt-1 text-[0.65rem] text-primary">{note}</p>}
+              <p className="mt-1 text-[0.6rem] leading-snug text-dim">{outlook.honesty}</p>
+            </details>
           </div>
         </div>
       )}
