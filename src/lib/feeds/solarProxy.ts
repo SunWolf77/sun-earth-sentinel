@@ -33,6 +33,7 @@ import { buildGoesXrayPlot, type GoesXrayPlot, type GoesXrayWindow } from "@/lib
 import { buildXrayAttentionBundle, type XrayAttentionBundle } from "@/lib/feeds/xrayAttention";
 import { buildSolarCycleBundle, type SolarCycleBundle } from "@/lib/feeds/solarCycle";
 import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
+import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
 
@@ -118,18 +119,20 @@ export type SolarNowBundle = {
   solarWind: SolarWind;
   scales: NoaaScales | null;
   flux10cm: Flux10cm;
+  regions: ActiveRegion[];
 };
 
 /** Kp, RTSW minute, NOAA scales, F10.7 — the part of Solar that should not wait on ENLIL. */
 export const fetchSolarNow = createServerFn({ method: "GET" }).handler(
   async (): Promise<SolarNowBundle> => {
-    const [kp, solarWind, scales, flux10cm] = await Promise.all([
+    const [kp, solarWind, scales, flux10cm, regions] = await Promise.all([
       fetchKp().catch(() => [] as KpPoint[]),
       fetchSolarWind(),
       fetchNoaaScales(),
       fetch10cmFlux(),
+      fetchSolarRegions().catch(() => [] as ActiveRegion[]),
     ]);
-    return { kp, solarWind, scales, flux10cm };
+    return { kp, solarWind, scales, flux10cm, regions };
   },
 );
 

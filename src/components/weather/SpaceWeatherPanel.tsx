@@ -38,6 +38,7 @@ import {
 } from "@/lib/ops/focusNav";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
+import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
@@ -88,6 +89,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const solarWind = useObservatory((s) => s.solarWind);
   const scales = useObservatory((s) => s.scales);
   const flux10cm = useObservatory((s) => s.flux10cm);
+  const activeRegions = useObservatory((s) => s.activeRegions);
   const forecast = useObservatory((s) => s.forecast);
   const enlil = useObservatory((s) => s.enlil);
   const ovation = useObservatory((s) => s.ovation);
@@ -294,6 +296,12 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "now" && (
         <div className="grid items-start gap-3 lg:grid-cols-12">
+          <div className="lg:col-span-12">
+            <ActiveRegionDesk
+              regions={activeRegions}
+              observed={activeRegions[0]?.observed ?? null}
+            />
+          </div>
           <div className="space-y-3 lg:col-span-7">
             <NowBoard
               kpVal={kpVal}

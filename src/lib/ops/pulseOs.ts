@@ -8,6 +8,7 @@ import { buildPulseTape, type TapeItem, type TapeKind, type TapeToggles } from "
 import type { EqFeature } from "@/lib/feeds/usgs";
 import type { UsgsVolcanoAlert, VolcWatchTransition } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc";
+import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { buildShareFocusUrl } from "@/lib/pwa/shareFocus";
 
 export type PulseOsInput = {
@@ -18,6 +19,7 @@ export type PulseOsInput = {
   xray: XrayPoint[];
   volcanoes: UsgsVolcanoAlert[];
   transitions?: VolcWatchTransition[];
+  regions?: ActiveRegion[];
   notify: TapeToggles;
   /** Last call of this refresh. Locks the seed so the next change can notify. */
   finishing: boolean;
@@ -107,6 +109,7 @@ export function relayPulseOs(input: PulseOsInput): void {
     xray: input.xray,
     volcanoes: input.volcanoes,
     transitions: input.transitions,
+    regions: input.regions,
     toggles: { quake: true, solar: true, volcano: true },
   });
   if (!bootstrapped) {

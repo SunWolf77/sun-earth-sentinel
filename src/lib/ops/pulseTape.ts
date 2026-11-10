@@ -4,6 +4,8 @@ import { pointInBounds } from "@/lib/geo/bounds";
 import type { UsgsVolcanoAlert, VolcWatchTransition } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc";
 import { fluxToClass } from "@/lib/feeds/swpc";
+import type { ActiveRegion } from "@/lib/feeds/solarRegions";
+import { haleRank } from "@/lib/feeds/solarRegions";
 
 export type TapeKind = "quake" | "solar" | "volcano";
 
@@ -81,6 +83,7 @@ export function buildPulseTape(input: {
   xray: XrayPoint[];
   volcanoes: UsgsVolcanoAlert[];
   transitions?: VolcWatchTransition[];
+  regions?: ActiveRegion[];
   toggles: TapeToggles;
   now?: number;
 }): TapeItem[] {
@@ -162,6 +165,21 @@ export function buildPulseTape(input: {
     const notable = klass.startsWith("M") || major;
     if (notable && show("solar", major, input.toggles)) {
       out.push({ id: "xray", kind: "solar", text: `X-ray ${klass}`, major });
+    }
+  }
+
+  const leadRegion = (input.regions ?? [])
+    .filter((r) => haleRank(r.hale) >= 3 && r.phase !== "off" && r.phase !== "departing")
+    .sort((a, b) => haleRank(b.hale) - haleRank(a.hale) || Math.abs(a.lon) - Math.abs(b.lon))[0];
+  if (leadRegion) {
+    const major = haleRank(leadRegion.hale) >= 4 && (leadRegion.phase === "direct" || leadRegion.phase === "entering" || leadRegion.phase === "leaving");
+    if (show("solar", major, input.toggles)) {
+      out.push({
+        id: `ar-${leadRegion.region}-${leadRegion.hale}-${leadRegion.phase}`,
+        kind: "solar",
+        text: `AR${leadRegion.region} ${leadRegion.haleLabel} · ${leadRegion.phaseLabel}`,
+        major,
+      });
     }
   }
 

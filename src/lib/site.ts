@@ -52,8 +52,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.32.6: Volcano tape lines are notices from the last 7 days, newest first.
  * 1.32.7: A new agency RED / WARNING eruption raises a notice.
  * 1.32.8: OS notices follow the Pulse tape, with a switch for quakes, solar, and volcanoes.
+ * 1.33.0: Sunspot desk shows Hale class and whether the region faces Earth.
  */
-export const APP_VERSION = "1.32.8";
+export const APP_VERSION = "1.33.0";
 
 
 

@@ -59,6 +59,7 @@ import { fetchNeoToday, type NeoItem } from "@/lib/feeds/neows";
 
 import { pruneVolcTransitions } from "@/lib/ops/raisedTimeout";
 import { relayNewEruptions, type EruptionNotice } from "@/lib/ops/eruptionNotice";
+import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { relayPulseOs } from "@/lib/ops/pulseOs";
 import type { TapeToggles } from "@/lib/ops/pulseTape";
 import {
@@ -360,6 +361,7 @@ type ObservatoryState = {
   scales: NoaaScales | null;
   alerts: AlertItem[];
   flux10cm: Flux10cm | null;
+  activeRegions: ActiveRegion[];
   protons: ProtonPoint[];
   forecast: ForecastBundle | null;
   enlil: EnlilFrame | null;
@@ -641,6 +643,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   scales: null,
   alerts: [],
   flux10cm: null,
+  activeRegions: [],
   protons: [],
   forecast: null,
   enlil: null,
@@ -1468,7 +1471,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
       // Solar stack via server proxy (CORS-safe) + DONKI.
       // Kp / RTSW / scales paint as soon as that slice returns — not after ENLIL.
-      if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !flux10cm || force)) {
+      if (cfg.loadSolarWind && (!kp?.length || !solarWind || !scales || !flux10cm || !get().activeRegions.length || force)) {
         ambientTasks.push(
           withTimeout(fetchSolarNow(), 12_000, "solar-now")
             .then((d) => {
@@ -1476,6 +1479,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
               if (d.solarWind) solarWind = d.solarWind;
               if (d.scales) scales = d.scales;
               if (d.flux10cm?.flux != null) flux10cm = d.flux10cm;
+              if (d.regions?.length) setCache("solar_regions", d.regions);
               if (d.kp?.length) setCache("kp", d.kp);
               if (d.solarWind) setCache("sw", d.solarWind);
               if (d.scales) setCache("scales", d.scales);
@@ -1486,6 +1490,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
                 solarWind: d.solarWind ?? get().solarWind,
                 scales: d.scales ?? get().scales,
                 flux10cm: d.flux10cm?.flux != null ? d.flux10cm : get().flux10cm,
+                activeRegions: d.regions?.length ? d.regions : get().activeRegions,
                 feedTimestamps: { ...get().feedTimestamps, solar: Date.now() },
               });
             })
@@ -1841,6 +1846,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         volcanoes: get().usgsVolcAlerts,
         transitions: get().volcWatchTransitions,
         notify: get().osNotify,
+        regions: get().activeRegions,
         finishing: ambientTasks.length === 0,
       });
 
@@ -1925,6 +1931,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             volcanoes: get().usgsVolcAlerts,
             transitions: get().volcWatchTransitions,
             notify: get().osNotify,
+            regions: get().activeRegions,
             finishing: true,
           });
         });
@@ -2155,6 +2162,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         volcanoes: get().usgsVolcAlerts,
         transitions: get().volcWatchTransitions,
         notify: get().osNotify,
+        regions: get().activeRegions,
         finishing: false,
       });
     } catch {

@@ -21,6 +21,7 @@ export function PulseTape() {
   const solarWind = useObservatory((s) => s.solarWind);
   const scales = useObservatory((s) => s.scales);
   const xray = useObservatory((s) => s.xray);
+  const regions = useObservatory((s) => s.activeRegions);
   const volcanoes = useObservatory((s) => s.usgsVolcAlerts);
   const transitions = useObservatory((s) => s.volcWatchTransitions);
   const flyMapTo = useObservatory((s) => s.flyMapTo);
@@ -41,9 +42,10 @@ export function PulseTape() {
         xray,
         volcanoes,
         transitions,
+        regions,
         toggles,
       }),
-    [eq?.features, kp, solarWind, scales, xray, volcanoes, transitions, toggles],
+    [eq?.features, kp, solarWind, scales, xray, volcanoes, transitions, regions, toggles],
   );
 
   const setKind = (id: TapeKind, on: boolean) => {
