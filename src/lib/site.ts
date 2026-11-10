@@ -43,8 +43,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.7: View menu drops under the title. Pulse no longer runs into the X link.
  * 1.31.8: The view control is a dropdown. Current choice, chevron, menu.
  * 1.31.9: Live Map and Pulse menus paint over the map, not under it.
+ * 1.32.0: Pulse leaves the header. It lives at the top of the map sidebar.
  */
-export const APP_VERSION = "1.31.9";
+export const APP_VERSION = "1.32.0";
 
 
 

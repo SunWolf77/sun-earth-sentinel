@@ -24,13 +24,14 @@ import { UI_FOLDERS_KEY, uiSeen } from "@/lib/ui/firstVisit";
 
 type Props = {
   overlay?: boolean;
-  /** Sit in the header gap. Expand drops over the map, not into a second row. */
   header?: boolean;
+  /** Readable block. Used in the map sidebar, not the header. */
+  panel?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
-export function MobilePulseStrip({ overlay = false, header = false, open: openProp, onOpenChange }: Props) {
+export function MobilePulseStrip({ overlay = false, header = false, panel = false, open: openProp, onOpenChange }: Props) {
   const [openInner, setOpenInner] = useState(false);
   const open = onOpenChange ? Boolean(openProp) : openInner;
   const setOpen = (v: boolean) => {
@@ -120,6 +121,10 @@ export function MobilePulseStrip({ overlay = false, header = false, open: openPr
       <FeedHealthStrip compact />
     </>
   );
+
+  if (panel) {
+    return <div className="space-y-1.5 px-2 py-2 text-[0.72rem] leading-snug">{body}</div>;
+  }
 
   if (!open) {
     const hint = isMobile && !foldersSeen;

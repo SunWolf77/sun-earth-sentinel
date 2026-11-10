@@ -839,7 +839,6 @@ function ObservatoryApp() {
           {tab === "live" && (
             <SectionToggle open={desksOpen} onClick={toggleDesks} dense closedLabel="Desks" />
           )}
-          {tab === "live" && !isMobile && <MobilePulseStrip header />}
 
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             {!isMobile && (
@@ -1042,6 +1041,12 @@ function ObservatoryApp() {
 
             {sidebarOpen ? (
               <div id="live-sidebar-body" className="flex min-h-0 flex-1 flex-col">
+                <section className="max-h-[48%] shrink-0 overflow-y-auto overscroll-contain border-b border-border/80">
+                  <div className="px-3 pt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-primary">
+                    Pulse
+                  </div>
+                  <MobilePulseStrip panel />
+                </section>
                 <div className="shrink-0 border-b border-border/80">
                   <button
                     type="button"
@@ -1090,7 +1095,7 @@ function ObservatoryApp() {
                   className="text-[0.6rem] font-semibold uppercase tracking-wider text-dim"
                   style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
                 >
-                  Events · {features.length}
+                  Pulse · Events · {features.length}
                 </span>
                 <button
                   type="button"
