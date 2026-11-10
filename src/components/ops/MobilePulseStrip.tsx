@@ -139,7 +139,7 @@ export function MobilePulseStrip({ overlay = false, header = false, open: openPr
         <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
       </button>
     );
-    if (header) return <div className="relative min-w-0 flex-1">{chip}</div>;
+    if (header) return <div className="relative min-w-0 flex-1 overflow-hidden">{chip}</div>;
     return <div className="min-w-0 space-y-0.5">{chip}</div>;
   }
 

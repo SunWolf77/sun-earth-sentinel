@@ -84,7 +84,7 @@ export function CollapsibleTabs({
   const panelId = `${storageKey}-panel`;
 
   return (
-    <div className={dense ? "min-w-0" : "min-w-0 rounded-lg border border-border bg-panel/90"}>
+    <div className={dense ? "relative shrink-0" : "min-w-0 rounded-lg border border-border bg-panel/90"}>
       <div className={`flex items-center gap-1.5 ${dense ? "" : "px-2 py-1"}`}>
         <div className="min-w-0">
           <p className={`truncate font-semibold text-fg ${dense ? "text-[0.72rem] leading-none" : "text-[0.72rem]"}`}>
@@ -107,7 +107,11 @@ export function CollapsibleTabs({
           id={panelId}
           role="tablist"
           aria-label={label}
-          className={`flex flex-wrap gap-1 ${dense ? "pt-1" : "border-t border-border/70 p-1"}`}
+          className={
+            dense
+              ? "absolute left-0 top-full z-[70] mt-1 flex min-w-[9.5rem] flex-col gap-0.5 rounded-lg border border-border bg-bg/95 p-1 shadow-lg"
+              : "flex flex-wrap gap-1 border-t border-border/70 p-1"
+          }
         >
           {tabs.map((t) => {
             const on = t.id === value;
@@ -118,8 +122,11 @@ export function CollapsibleTabs({
                 role="tab"
                 aria-selected={on}
                 title={t.hint}
-                onClick={() => onChange(t.id)}
-                className={`min-h-8 rounded-md px-2.5 text-[0.72rem] font-semibold ${
+                onClick={() => {
+                  onChange(t.id);
+                  if (dense) toggle();
+                }}
+                className={`min-h-8 rounded-md px-2.5 text-left text-[0.72rem] font-semibold ${
                   on ? "bg-primary/15 text-primary" : "text-muted hover:bg-elevated hover:text-fg"
                 }`}
               >

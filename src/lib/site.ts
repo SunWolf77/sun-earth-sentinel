@@ -40,8 +40,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.4: First screen is one header line. Desk rail stays closed until Desks.
  * 1.31.5: Live pulse sits in the header gap. The map starts on the next line.
  * 1.31.6: Full screen drops the header. Home frame includes South Sandwich / Drake.
+ * 1.31.7: View menu drops under the title. Pulse no longer runs into the X link.
  */
-export const APP_VERSION = "1.31.6";
+export const APP_VERSION = "1.31.7";
 
 
 
