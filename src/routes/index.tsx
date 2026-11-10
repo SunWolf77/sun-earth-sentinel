@@ -27,7 +27,7 @@ import { VolcanicDesk } from "@/components/nodes/VolcanicDesk";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { TodayBriefBar } from "@/components/ops/TodayBriefBar";
 import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
-import { MobilePulseStrip } from "@/components/ops/MobilePulseStrip";
+import { PulseTape } from "@/components/ops/PulseTape";
 import { ModeHonestyChip } from "@/components/ops/ModeHonestyChip";
 import { ActivityStoryPanel } from "@/components/ops/ActivityStoryPanel";
 import { PublishedNodesNav } from "@/components/nodes/PublishedNodesNav";
@@ -1041,12 +1041,6 @@ function ObservatoryApp() {
 
             {sidebarOpen ? (
               <div id="live-sidebar-body" className="flex min-h-0 flex-1 flex-col">
-                <section className="max-h-[48%] shrink-0 overflow-y-auto overscroll-contain border-b border-border/80">
-                  <div className="px-3 pt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-primary">
-                    Pulse
-                  </div>
-                  <MobilePulseStrip panel />
-                </section>
                 <div className="shrink-0 border-b border-border/80">
                   <button
                     type="button"
@@ -1095,7 +1089,7 @@ function ObservatoryApp() {
                   className="text-[0.6rem] font-semibold uppercase tracking-wider text-dim"
                   style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
                 >
-                  Pulse · Events · {features.length}
+                  Events · {features.length}
                 </span>
                 <button
                   type="button"
@@ -1123,6 +1117,7 @@ function ObservatoryApp() {
                   : "ww-map-stage relative min-h-0 flex-1"
               }
             >
+              <PulseTape />
               {/* Canvas track — map only; chrome cannot cover this area */}
               <div className="ww-map-stage__canvas relative">
                 <ClientOnly

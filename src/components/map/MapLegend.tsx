@@ -92,7 +92,7 @@ export function MapLegend() {
 
   const decayRows = timeDecayLegendRows(timeWindow);
   const hl = halfLifeLabel(timeWindow);
-  const topClass = focusNodeId ? "top-14 sm:top-16" : "top-2 sm:top-3";
+  const topClass = focusNodeId ? "top-14 sm:top-16" : "top-12";
 
   const miniSwatches: { color: string; title: string }[] = [];
   if (showPlates) {

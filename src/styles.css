@@ -61,6 +61,23 @@
 .ww-header__primary {
   overflow: visible;
 }
+
+.ww-tape-track {
+  display: flex;
+  width: max-content;
+  animation: ww-tape-scroll var(--ww-tape-dur, 42s) linear infinite;
+}
+.ww-tape:hover .ww-tape-track,
+.ww-tape:focus-within .ww-tape-track {
+  animation-play-state: paused;
+}
+@keyframes ww-tape-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ww-tape-track { animation: none; }
+}
 .ww-aside {
   background: color-mix(in oklab, var(--color-bg) 55%, var(--color-panel));
 }
