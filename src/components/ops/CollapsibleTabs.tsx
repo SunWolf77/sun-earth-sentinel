@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Check } from "lucide-react";
 
 export type CollapsibleTab = {
   id: string;
@@ -79,9 +79,81 @@ export function CollapsibleTabs({
   /** One line, no card. For the header. */
   dense?: boolean;
 }) {
-  const [open, toggle] = useSectionOpen(storageKey, false);
+  const [persistedOpen, togglePersisted] = useSectionOpen(storageKey, false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const open = dense ? menuOpen : persistedOpen;
+  const toggle = dense ? () => setMenuOpen((v) => !v) : togglePersisted;
+  const rootRef = useRef<HTMLDivElement>(null);
   const current = tabs.find((t) => t.id === value) ?? tabs[0];
   const panelId = `${storageKey}-panel`;
+
+  useEffect(() => {
+    if (!dense || !menuOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [dense, menuOpen]);
+
+  if (dense) {
+    return (
+      <div className="relative shrink-0" ref={rootRef}>
+        <button
+          type="button"
+          className="inline-flex min-h-8 items-center gap-2 rounded-md border border-border bg-panel px-2.5 text-[0.72rem] font-semibold text-fg shadow-sm"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-controls={panelId}
+          onClick={toggle}
+        >
+          <span className="text-primary">{current?.label ?? "—"}</span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+        </button>
+        {open && (
+          <div
+            id={panelId}
+            role="listbox"
+            aria-label={label}
+            className="absolute left-0 top-full z-[70] mt-1 min-w-[11.5rem] overflow-hidden rounded-md border border-border bg-bg py-1 shadow-xl"
+          >
+            {tabs.map((t) => {
+              const on = t.id === value;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="option"
+                  aria-selected={on}
+                  title={t.hint}
+                  onClick={() => {
+                    onChange(t.id);
+                    setMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[0.75rem] ${
+                    on ? "bg-primary/15 font-semibold text-primary" : "text-fg hover:bg-elevated"
+                  }`}
+                >
+                  <span>{t.label}</span>
+                  {on && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={dense ? "relative shrink-0" : "min-w-0 rounded-lg border border-border bg-panel/90"}>

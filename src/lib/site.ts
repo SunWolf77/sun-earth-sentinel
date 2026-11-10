@@ -41,8 +41,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.5: Live pulse sits in the header gap. The map starts on the next line.
  * 1.31.6: Full screen drops the header. Home frame includes South Sandwich / Drake.
  * 1.31.7: View menu drops under the title. Pulse no longer runs into the X link.
+ * 1.31.8: The view control is a dropdown. Current choice, chevron, menu.
  */
-export const APP_VERSION = "1.31.7";
+export const APP_VERSION = "1.31.8";
 
 
 
