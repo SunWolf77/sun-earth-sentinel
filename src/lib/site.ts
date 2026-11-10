@@ -37,8 +37,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.1: Map catalog no longer waits on solar imagery. Regional catalogs cache for 3 minutes.
  * 1.31.2: Refresh is a labeled control on the header, the map dock, and the phone map.
  * 1.31.3: Section tabs collapse to the current choice, with the same Open / Close.
+ * 1.31.4: First screen is one header line. Desk rail stays closed until Desks.
  */
-export const APP_VERSION = "1.31.3";
+export const APP_VERSION = "1.31.4";
 
 
 

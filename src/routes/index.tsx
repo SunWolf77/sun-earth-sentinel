@@ -37,7 +37,7 @@ import { useNavShortcuts } from "@/lib/hooks/useNavShortcuts";
 import { SuptOnboarding } from "@/components/ops/SuptOnboarding";
 import { OfflineBanner } from "@/components/ops/OfflineBanner";
 import { CatalogNoticeBanner } from "@/components/ops/CatalogNoticeBanner";
-import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
+import { CollapsibleTabs, SectionToggle, useSectionOpen } from "@/components/ops/CollapsibleTabs";
 import { MobileAppTabs, APP_TABS } from "@/components/ops/MobileAppTabs";
 import { MobileMapChrome } from "@/components/ops/MobileMapChrome";
 import { VolcanoAlertsBar } from "@/components/map/VolcanoAlertsBar";
@@ -141,7 +141,6 @@ function ObservatoryApp() {
   const liveStatus = useObservatory((s) => s.liveStatus);
   const loading = useObservatory((s) => s.loading);
   const lastUpdate = useObservatory((s) => s.lastUpdate);
-  const livePulseAt = useObservatory((s) => s.livePulseAt);
   const newestEventAgeMs = useObservatory((s) => s.newestEventAgeMs);
   const error = useObservatory((s) => s.error);
   const scales = useObservatory((s) => s.scales);
@@ -231,6 +230,7 @@ function ObservatoryApp() {
   const isMobile = useIsMobile();
   const { chrome: mapChrome } = useMapChrome();
   const [copiedShare, setCopiedShare] = useState(false);
+  const [desksOpen, toggleDesks] = useSectionOpen("ww_nodes_rail_open", false);
   const overlays = useObservatory((s) => s.overlays);
   const setOverlaysBulk = useObservatory((s) => s.setOverlaysBulk);
   const setFocusNode = useObservatory((s) => s.setFocusNode);
@@ -536,8 +536,6 @@ function ObservatoryApp() {
     [eq?.features, minMag, maxMag, focusNodeId],
   );
 
-  const currentTabMeta = APP_TABS.find((t) => t.id === tab) ?? APP_TABS[0]!;
-
   /* Phone: bottom dock is the nav. Swiping charts used to dump Solar → Timing. */
   const tabSwipe = isMobile
     ? null
@@ -804,60 +802,43 @@ function ObservatoryApp() {
         } ${isMobile ? "ww-header--mobile" : ""}`}
       >
         <div className="ww-header__primary flex min-w-0 items-center gap-1 px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5">
-          <div className="ww-header__brand min-w-0 shrink-0 sm:max-w-[10.5rem] lg:max-w-[12.5rem]">
-            <h1 className="truncate text-[0.72rem] font-semibold leading-none tracking-tight text-fg sm:text-[0.85rem]">
-              <span className="sm:hidden">
-                <span className="text-fg">SES</span>
-                <span className="text-dim"> · </span>
-                <span className="text-primary">{currentTabMeta.short}</span>
+          <div className="ww-header__brand min-w-0 shrink-0">
+            <h1 className="flex min-w-0 items-baseline gap-2 truncate text-[0.78rem] font-semibold leading-none tracking-tight text-fg">
+              <span className="shrink-0">
+                <span className="sm:hidden">SES</span>
+                <span className="hidden sm:inline">
+                  Sun-Earth <span className="text-primary">Sentinel</span>
+                </span>
               </span>
-              <span className="hidden sm:inline">
-                Sun-Earth <span className="text-primary">Sentinel</span>
+              <span className="truncate text-[0.55rem] font-normal text-dim">
+                {clockLabel}
+                {liveStatus === "ws"
+                  ? " · WS"
+                  : liveStatus === "live"
+                    ? " · LIVE"
+                    : liveStatus === "paused"
+                      ? " · paused"
+                      : ""}
               </span>
             </h1>
-            <p
-              className={`mt-0.5 truncate text-[0.5rem] leading-none text-dim sm:text-[0.55rem] ${
-                isMobile && tab === "live" ? "hidden" : ""
-              }`}
-            >
-              {isMobile ? (
-                <>
-                  {clockLabel}
-                  {liveStatus === "live" || liveStatus === "ws" ? " · LIVE" : ""}
-                </>
-              ) : (
-                <>
-                  {clockLabel}
-                  {livePulseAt ? " · pulse" : ""}
-                  {liveStatus === "ws"
-                    ? " · WS"
-                    : liveStatus === "live"
-                      ? " · LIVE"
-                      : liveStatus === "paused"
-                        ? " · paused"
-                        : liveStatus === "offline"
-                          ? " · offline"
-                          : liveStatus === "polling"
-                            ? " · …"
-                            : ""}
-                </>
-              )}
-            </p>
           </div>
 
-          <div className="hidden min-w-0 flex-1 sm:!block">
+          <div className="hidden min-w-0 sm:!block">
             <CollapsibleTabs
+              dense
               label="View"
               storageKey="ww_main_tabs_open"
               value={tab}
               onChange={(id) => setTab(id as typeof tab)}
-              tabs={APP_TABS.map(({ id, label, short }) => ({
+              tabs={APP_TABS.map(({ id, label }) => ({
                 id,
                 label,
-                hint: short,
               }))}
             />
           </div>
+          {tab === "live" && (
+            <SectionToggle open={desksOpen} onClick={toggleDesks} dense closedLabel="Desks" />
+          )}
 
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             {!isMobile && (
@@ -955,7 +936,7 @@ function ObservatoryApp() {
         </div>
 
         {/* Live only: desk rail — second band */}
-        {tab === "live" && <PublishedNodesNav />}
+        {tab === "live" && desksOpen && <PublishedNodesNav />}
       </header>
 
       {(bootWait && !lastUpdate && !loading) && (

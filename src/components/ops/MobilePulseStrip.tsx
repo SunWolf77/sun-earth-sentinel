@@ -99,7 +99,7 @@ export function MobilePulseStrip({ overlay = false, open: openProp, onOpenChange
 
   const chipClass = overlay
     ? `ww-pulse-chip flex w-full min-h-10 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] shadow-md backdrop-blur-md ${tone}`
-    : `flex w-full min-h-11 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] sm:min-h-8 sm:text-[0.62rem] ${tone}`;
+    : `flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] ${tone}`;
 
   const body = (
     <>
