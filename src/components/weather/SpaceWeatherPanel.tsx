@@ -300,6 +300,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             southBz={southBz}
             scales={scales}
             flux={flux10cm?.flux ?? null}
+            onOpenXray={() => selectSolarView("xray")}
           />
 
           <div className="grid items-start gap-3 lg:grid-cols-2">
@@ -477,6 +478,7 @@ function NowBoard({
   southBz,
   scales,
   flux,
+  onOpenXray,
 }: {
   kpVal: number | null;
   kpTime: string | null;
@@ -487,7 +489,9 @@ function NowBoard({
   southBz: boolean;
   scales: NoaaScales | null;
   flux: number | null;
+  onOpenXray: () => void;
 }) {
+  const [windOpen, setWindOpen] = useState(false);
   const kpTone =
     kpVal != null && kpVal >= 7
       ? "text-danger"
@@ -499,42 +503,52 @@ function NowBoard({
   const plasma = utcStamp(wind?.plasmaTime ?? wind?.time);
   const mag = utcStamp(wind?.magTime);
   const sameClock = !wind?.magTime || wind.magTime.slice(0, 16) === (wind.plasmaTime ?? "").slice(0, 16);
+  const openWind = () => setWindOpen(true);
 
   return (
     <section id="ses-solar-geo" className="scroll-mt-20 space-y-2">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highKp ? "border-danger/50" : "border-border"}`}>
-          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Kp</div>
-          <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${kpTone}`}>
-            {kpVal != null ? kpVal.toFixed(1) : "—"}
-          </div>
-          <div className="mt-1 text-[0.62rem] text-dim">
-            {kpVal == null ? "planetary K" : kpVal >= 5 ? "storm" : kpVal >= 4 ? "active" : "quiet"}
-            {" · "}
-            {utcStamp(kpTime)}
-          </div>
+      <div className="overflow-hidden rounded-xl border border-border bg-panel">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-[1fr_auto_1fr_1fr_auto_1fr] lg:divide-y-0">
+          <ChainCell
+            label="X-ray"
+            value={xClass}
+            hint="flare on the Sun"
+            tone={highX ? "text-danger" : "text-fg"}
+            hot={highX}
+            onClick={onOpenXray}
+          />
+          <ChainLink text="8 min" />
+          <ChainCell
+            label="Wind"
+            value={wind?.speed != null ? String(Math.round(wind.speed)) : "—"}
+            hint="km/s, already here"
+            onClick={openWind}
+          />
+          <ChainCell
+            label="Bz"
+            value={wind?.bz != null ? wind.bz.toFixed(1) : "—"}
+            hint={southBz ? "south, opens Earth" : "north or quiet"}
+            tone={southBz ? "text-warn" : "text-fg"}
+            hot={southBz}
+            onClick={openWind}
+          />
+          <ChainLink text="lifts" />
+          <ChainCell
+            label="Kp"
+            value={kpVal != null ? kpVal.toFixed(1) : "—"}
+            hint={
+              kpVal == null
+                ? "at Earth"
+                : `${kpVal >= 5 ? "storm" : kpVal >= 4 ? "active" : "quiet"} · ${utcStamp(kpTime)}`
+            }
+            tone={kpTone}
+            hot={highKp}
+            onClick={openWind}
+          />
         </div>
-        <div className={`rounded-xl border bg-panel px-3 py-2.5 ${highX ? "border-danger/50" : "border-border"}`}>
-          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">X-ray</div>
-          <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${highX ? "text-danger" : "text-fg"}`}>
-            {xClass}
-          </div>
-          <div className="mt-1 text-[0.62rem] text-dim">flare class now</div>
-        </div>
-        <div className="rounded-xl border border-border bg-panel px-3 py-2.5">
-          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Wind</div>
-          <div className="font-mono text-3xl font-bold leading-none tabular-nums text-fg">
-            {wind?.speed != null ? Math.round(wind.speed) : "—"}
-          </div>
-          <div className="mt-1 text-[0.62rem] text-dim">solar wind, km/s</div>
-        </div>
-        <div className={`rounded-xl border bg-panel px-3 py-2.5 ${southBz ? "border-warn/50" : "border-border"}`}>
-          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">Bz</div>
-          <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${southBz ? "text-warn" : "text-fg"}`}>
-            {wind?.bz != null ? wind.bz.toFixed(1) : "—"}
-          </div>
-          <div className="mt-1 text-[0.62rem] text-dim">{southBz ? "south, opens Earth" : "north or quiet"}</div>
-        </div>
+        <p className="border-t border-border/70 px-3 py-1.5 text-[0.65rem] leading-snug text-dim">
+          X-ray is the flare, seen in about 8 minutes. Wind and Bz are the same stream, already at Earth. A southward Bz is what lifts Kp.
+        </p>
       </div>
 
       {scales && (
@@ -564,7 +578,11 @@ function NowBoard({
         </div>
       )}
 
-      <details className="rounded-xl border border-border bg-panel px-3 py-2">
+      <details
+        className="rounded-xl border border-border bg-panel px-3 py-2"
+        open={windOpen}
+        onToggle={(e) => setWindOpen(e.currentTarget.open)}
+      >
         <summary className="cursor-pointer text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
           Wind detail
           <span className="ml-2 font-normal normal-case tracking-normal text-dim">
@@ -587,6 +605,43 @@ function NowBoard({
         </p>
       </details>
     </section>
+  );
+}
+
+function ChainLink({ text }: { text: string }) {
+  return (
+    <div className="hidden items-center px-1 text-[0.58rem] uppercase tracking-wide text-dim lg:flex" aria-hidden>
+      {text}
+      <span className="ml-1 text-primary">→</span>
+    </div>
+  );
+}
+
+function ChainCell({
+  label,
+  value,
+  hint,
+  tone = "text-fg",
+  hot = false,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  tone?: string;
+  hot?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-w-0 px-3 py-2.5 text-left hover:bg-elevated/60 ${hot ? "bg-warn/5" : ""}`}
+    >
+      <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-dim">{label}</div>
+      <div className={`font-mono text-3xl font-bold leading-none tabular-nums ${tone}`}>{value}</div>
+      <div className="mt-1 truncate text-[0.62rem] text-dim">{hint}</div>
+    </button>
   );
 }
 
