@@ -24,11 +24,13 @@ import { UI_FOLDERS_KEY, uiSeen } from "@/lib/ui/firstVisit";
 
 type Props = {
   overlay?: boolean;
+  /** Sit in the header gap. Expand drops over the map, not into a second row. */
+  header?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
-export function MobilePulseStrip({ overlay = false, open: openProp, onOpenChange }: Props) {
+export function MobilePulseStrip({ overlay = false, header = false, open: openProp, onOpenChange }: Props) {
   const [openInner, setOpenInner] = useState(false);
   const open = onOpenChange ? Boolean(openProp) : openInner;
   const setOpen = (v: boolean) => {
@@ -97,7 +99,9 @@ export function MobilePulseStrip({ overlay = false, open: openProp, onOpenChange
         ? "border-warn/30 bg-warn/8 text-warn"
         : "border-border/70 bg-panel/90 text-muted";
 
-  const chipClass = overlay
+  const chipClass = header
+    ? `flex w-full min-h-7 items-center gap-1 rounded-md px-1.5 text-left text-[0.62rem] ${tone}`
+    : overlay
     ? `ww-pulse-chip flex w-full min-h-10 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] shadow-md backdrop-blur-md ${tone}`
     : `flex w-full min-h-8 items-center gap-1 rounded-md border px-1.5 py-0.5 text-left text-[0.62rem] ${tone}`;
 
@@ -119,22 +123,44 @@ export function MobilePulseStrip({ overlay = false, open: openProp, onOpenChange
 
   if (!open) {
     const hint = isMobile && !foldersSeen;
+    const chip = (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`${chipClass}${hint ? " ww-pulse--hint" : ""}`}
+        aria-expanded={false}
+        aria-label="Expand pulse — space weather, story, feeds"
+      >
+        <span className="shrink-0 font-bold uppercase tracking-wide opacity-90">Pulse</span>
+        <span className="min-w-0 flex-1 truncate font-medium">{leadLine}</span>
+        <span className="shrink-0 tabular-nums text-dim">
+          R{scales?.R ?? "0"} S{scales?.S ?? "0"} G{scales?.G ?? "0"}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+      </button>
+    );
+    if (header) return <div className="relative min-w-0 flex-1">{chip}</div>;
+    return <div className="min-w-0 space-y-0.5">{chip}</div>;
+  }
+
+  if (header) {
     return (
-      <div className="min-w-0 space-y-0.5">
+      <div className="relative min-w-0 flex-1">
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className={`${chipClass}${hint ? " ww-pulse--hint" : ""}`}
-          aria-expanded={false}
-          aria-label="Expand pulse — space weather, story, feeds"
+          onClick={() => setOpen(false)}
+          className={chipClass}
+          aria-expanded
         >
-          <span className="shrink-0 font-bold uppercase tracking-wide opacity-90">Pulse</span>
+          <span className="shrink-0 font-bold uppercase tracking-wide">Pulse</span>
           <span className="min-w-0 flex-1 truncate font-medium">{leadLine}</span>
-          <span className="shrink-0 tabular-nums text-dim">
-            R{scales?.R ?? "0"} S{scales?.S ?? "0"} G{scales?.G ?? "0"}
-          </span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+          <ChevronUp className="h-3.5 w-3.5 shrink-0" />
         </button>
+        <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-w-[36rem]">
+          <div className="ww-pulse-sheet" role="dialog" aria-label="Pulse">
+            <div className="space-y-1">{body}</div>
+          </div>
+        </div>
       </div>
     );
   }

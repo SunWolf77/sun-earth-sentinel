@@ -839,6 +839,7 @@ function ObservatoryApp() {
           {tab === "live" && (
             <SectionToggle open={desksOpen} onClick={toggleDesks} dense closedLabel="Desks" />
           )}
+          {tab === "live" && !isMobile && <MobilePulseStrip header />}
 
           <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
             {!isMobile && (
@@ -895,6 +896,7 @@ function ObservatoryApp() {
                 <Link2 className="h-4 w-4" />
               )}
             </button>
+            {!isMobile && tab === "live" && <ModeHonestyChip liveMap />}
             {!isMobile && (
               <div className="ww-seg ww-seg--compact" role="group" aria-label="Performance mode">
                 {MODE_ORDER.map((m) => (
@@ -975,35 +977,20 @@ function ObservatoryApp() {
         </div>
       )}
 
-      {/* Brief strip — desktop + non-map tabs. Mobile live Pulse is a canvas overlay. */}
-      {tab !== "about" && !(isMobile && tab === "live") && (
-        <div
-          className={`ww-brief-strip shrink-0 border-b border-border/50 px-1.5 sm:px-2 ${
-            isMobile ? "py-0.5" : "py-0.5"
-          }`}
-        >
-          {tab === "live" ? (
+      {/* Other tabs keep a brief line. Live pulse sits in the header gap. */}
+      {tab !== "about" && tab !== "live" && (
+        <div className="ww-brief-strip shrink-0 border-b border-border/50 px-1.5 py-0.5 sm:px-2">
+          <div className="flex min-w-0 flex-col gap-1">
+            {tab !== "solar" && <FieldCouplingDesk compact />}
             <div className="flex min-w-0 items-center gap-1.5">
-              <div className="min-w-0 flex-1">
-                <MobilePulseStrip />
-              </div>
-              <div className="hidden shrink-0 sm:block">
-                <ModeHonestyChip liveMap />
-              </div>
-            </div>
-          ) : (
-            <div className="flex min-w-0 flex-col gap-1">
-              {tab !== "solar" && <FieldCouplingDesk compact />}
-              <div className="flex min-w-0 items-center gap-1.5">
               <div className="min-w-0 flex-1">
                 {tab === "solar" ? null : <TodayBriefBar dense />}
               </div>
               <div className="hidden shrink-0 sm:block">
                 <ModeHonestyChip liveMap={false} />
               </div>
-              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
       {/* Immersive mobile: keep device-tolerance chip floating — Full/3D still honest */}

@@ -38,8 +38,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.2: Refresh is a labeled control on the header, the map dock, and the phone map.
  * 1.31.3: Section tabs collapse to the current choice, with the same Open / Close.
  * 1.31.4: First screen is one header line. Desk rail stays closed until Desks.
+ * 1.31.5: Live pulse sits in the header gap. The map starts on the next line.
  */
-export const APP_VERSION = "1.31.4";
+export const APP_VERSION = "1.31.5";
 
 
 
