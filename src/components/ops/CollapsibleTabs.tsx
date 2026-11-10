@@ -108,7 +108,7 @@ export function CollapsibleTabs({
       <div className="relative shrink-0" ref={rootRef}>
         <button
           type="button"
-          className="inline-flex min-h-8 items-center gap-2 rounded-md border border-border bg-panel px-2.5 text-[0.72rem] font-semibold text-fg shadow-sm"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-panel px-2.5 text-[0.72rem] font-semibold text-fg shadow-sm"
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={panelId}

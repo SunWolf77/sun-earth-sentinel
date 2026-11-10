@@ -4,7 +4,7 @@
  * Quiet Standard+2D: nothing — zero chrome cost.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Gauge, Globe2, Map as MapIcon, Zap } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -27,96 +27,92 @@ export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
 
   const full = mode === "full";
   const warn3d = mapView === "3d" && mobile;
-  // Content tabs (non-live): desktop already has Standard|Full in header — only warn on phone
-  const showWarn = liveMap
-    ? full || warn3d
-    : mobile && (full || warn3d);
+  const showWarn = liveMap ? full || warn3d : mobile && (full || warn3d);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Quiet path: no chrome at all (deep dive lives under header mode + Details when warned)
+  useEffect(() => {
+    if (!deep) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setDeep(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDeep(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [deep]);
+
   if (!showWarn && !deep) return null;
-
-  if (deep) {
-    return (
-      <div className={`space-y-0.5 ${className}`}>
-        <ModeDeepDive defaultOpen />
-        <button
-          type="button"
-          className="px-1 text-[0.55rem] text-dim underline-offset-2 hover:underline"
-          onClick={() => setDeep(false)}
-        >
-          Collapse mode
-        </button>
-      </div>
-    );
-  }
 
   const bits: string[] = [];
   if (full) bits.push("Full");
   if (warn3d) bits.push("3D");
   const title = bits.join("+");
 
-  const risk =
-    full && warn3d
-      ? "dense + WebGL — may lag/heat"
-      : full
-        ? `M${MODES.full.minMag}+ · ≤${MODES.full.maxMarkers} pins`
-        : "WebGL may heat phone";
-
   return (
-    <div
-      className={`flex min-h-8 items-center gap-1 rounded-md border border-warn/35 bg-warn/8 px-1.5 py-0.5 text-[0.58rem] text-warn sm:min-h-8 sm:text-[0.6rem] ${className}`}
-      role="status"
-      aria-live="polite"
-    >
-      {full && warn3d ? (
-        <Zap className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
-      ) : full ? (
-        <Gauge className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
-      ) : (
-        <Globe2 className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
-      )}
-      <button
-        type="button"
-        className="min-w-0 flex-1 truncate text-left leading-tight"
-        onClick={() => setDeep(true)}
-        title="Mode deep dive — shuffle cost, pin caps, device load"
+    <div className={`relative shrink-0 ${className}`} ref={rootRef}>
+      <div
+        className="flex h-8 max-w-[16rem] items-center gap-1 whitespace-nowrap rounded-md border border-warn/35 bg-warn/8 px-1.5 text-[0.6rem] text-warn"
+        role="status"
       >
-        <span className="font-semibold text-fg">{title}</span>
-        <span className="text-muted">
-          {" "}
-          · {risk} · {profile.pressureLabel}
-        </span>
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5">
-        {full && (
-          <button
-            type="button"
-            onClick={() => setMode("standard")}
-            className="inline-flex min-h-7 items-center justify-center rounded border border-border bg-bg/90 px-1.5 text-[0.58rem] font-semibold text-fg hover:bg-elevated sm:min-h-7"
-            title={MODES.standard.description}
-          >
-            Std
-          </button>
-        )}
-        {warn3d && (
-          <button
-            type="button"
-            onClick={() => setMapView("2d")}
-            className="inline-flex min-h-7 items-center justify-center gap-0.5 rounded border border-border bg-bg/90 px-1.5 text-[0.58rem] font-semibold text-fg hover:bg-elevated sm:min-h-7"
-            title="2D map"
-          >
-            <MapIcon className="h-3 w-3" aria-hidden />
-            2D
-          </button>
+        {full && warn3d ? (
+          <Zap className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
+        ) : full ? (
+          <Gauge className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
+        ) : (
+          <Globe2 className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
         )}
         <button
           type="button"
-          onClick={() => setDeep(true)}
-          className="inline-flex min-h-7 items-center justify-center rounded border border-border bg-bg/90 px-1.5 text-[0.58rem] font-semibold text-fg hover:bg-elevated sm:min-h-7"
+          className="min-w-0 truncate text-left"
+          onClick={() => setDeep((v) => !v)}
+          title="Mode details — load, pin cap, shuffle cost"
+          aria-expanded={deep}
         >
-          ···
+          <span className="font-semibold text-fg">{title}</span>
+          <span className="text-muted"> · {profile.pressureLabel}</span>
         </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {full && (
+            <button
+              type="button"
+              onClick={() => setMode("standard")}
+              className="inline-flex h-6 items-center rounded border border-border bg-bg/90 px-1.5 text-[0.58rem] font-semibold text-fg hover:bg-elevated"
+              title={MODES.standard.description}
+            >
+              Std
+            </button>
+          )}
+          {warn3d && (
+            <button
+              type="button"
+              onClick={() => setMapView("2d")}
+              className="inline-flex h-6 items-center gap-0.5 rounded border border-border bg-bg/90 px-1.5 text-[0.58rem] font-semibold text-fg hover:bg-elevated"
+              title="2D map"
+            >
+              <MapIcon className="h-3 w-3" aria-hidden />
+              2D
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setDeep((v) => !v)}
+            className="inline-flex h-6 items-center rounded border border-border bg-bg/90 px-1.5 text-[0.58rem] font-semibold text-fg hover:bg-elevated"
+            aria-label="Mode details"
+          >
+            ···
+          </button>
+        </div>
       </div>
+      {deep && (
+        <div className="absolute right-0 top-full z-[80] mt-1 w-[min(24rem,calc(100vw-1.5rem))] max-h-[min(70vh,24rem)] overflow-y-auto rounded-md shadow-xl">
+          <ModeDeepDive defaultOpen />
+        </div>
+      )}
     </div>
   );
 }
