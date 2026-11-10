@@ -113,7 +113,7 @@ export function PulseTape() {
             </label>
           ))}
           <p className="mt-1 leading-snug text-dim">
-            Quakes: M5+ anywhere, or M4+ on a monitored node. Volcanoes: notices from the last 7 days, newest first. Always on: M6+, Kp ≥ 5, R/S/G ≥ 3, X-class, Warning or Red.
+            Quakes: M5+ anywhere, or M4+ on a monitored node. Volcanoes: notices from the last 7 days, newest first. OS notices for these lines are in Controls. Always on the tape: M6+, Kp ≥ 5, R/S/G ≥ 3, X-class, Warning or Red.
           </p>
         </div>
       )}

@@ -51,8 +51,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.32.5: Each tape line leads with a mark — fracture, volcano, sun, or wind.
  * 1.32.6: Volcano tape lines are notices from the last 7 days, newest first.
  * 1.32.7: A new agency RED / WARNING eruption raises a notice.
+ * 1.32.8: OS notices follow the Pulse tape, with a switch for quakes, solar, and volcanoes.
  */
-export const APP_VERSION = "1.32.7";
+export const APP_VERSION = "1.32.8";
 
 
 

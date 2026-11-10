@@ -165,8 +165,8 @@ function ObservatoryApp() {
   const setUseGeofon = useObservatory((s) => s.setUseGeofon);
   const audioAlerts = useObservatory((s) => s.audioAlerts);
   const setAudioAlerts = useObservatory((s) => s.setAudioAlerts);
-  const desktopNotify = useObservatory((s) => s.desktopNotify);
-  const setDesktopNotify = useObservatory((s) => s.setDesktopNotify);
+  const osNotify = useObservatory((s) => s.osNotify);
+  const setOsNotify = useObservatory((s) => s.setOsNotify);
   const antipodeOf = useObservatory((s) => s.antipodeOf);
   const pickEvent = useObservatory((s) => s.pickEvent);
   const setReplayActive = useObservatory((s) => s.setReplayActive);
@@ -677,10 +677,26 @@ function ObservatoryApp() {
         <label className="inline-flex items-center gap-1.5 text-[0.7rem] text-muted">
           <input
             type="checkbox"
-            checked={desktopNotify}
-            onChange={(e) => setDesktopNotify(e.target.checked)}
+            checked={osNotify.quake}
+            onChange={(e) => setOsNotify("quake", e.target.checked)}
           />
-          OS notice M4.5+ and eruptions
+          OS · quakes
+        </label>
+        <label className="inline-flex items-center gap-1.5 text-[0.7rem] text-muted">
+          <input
+            type="checkbox"
+            checked={osNotify.solar}
+            onChange={(e) => setOsNotify("solar", e.target.checked)}
+          />
+          OS · solar
+        </label>
+        <label className="inline-flex items-center gap-1.5 text-[0.7rem] text-muted">
+          <input
+            type="checkbox"
+            checked={osNotify.volcano}
+            onChange={(e) => setOsNotify("volcano", e.target.checked)}
+          />
+          OS · volcanoes
         </label>
       </div>
       <div>

@@ -59,6 +59,8 @@ import { fetchNeoToday, type NeoItem } from "@/lib/feeds/neows";
 
 import { pruneVolcTransitions } from "@/lib/ops/raisedTimeout";
 import { relayNewEruptions, type EruptionNotice } from "@/lib/ops/eruptionNotice";
+import { relayPulseOs } from "@/lib/ops/pulseOs";
+import type { TapeToggles } from "@/lib/ops/pulseTape";
 import {
   diffVolcWatch,
   fetchUsgsElevatedVolcanoes,
@@ -307,8 +309,9 @@ type ObservatoryState = {
 
   useGeofon: boolean;
   audioAlerts: boolean;
-  /** Opt-in OS/browser notice for a new M4.5+ origin, and for a confirmed eruption. */
+  /** Opt-in OS notices. Each kind follows the Pulse tape, not the map magnitude floor. */
   desktopNotify: boolean;
+  osNotify: TapeToggles;
   lastCatalogNotice: CatalogNotice | null;
   lastEruptionNotice: EruptionNotice | null;
   globeAutoSpin: boolean;
@@ -407,6 +410,7 @@ type ObservatoryState = {
   setUseGeofon: (v: boolean) => void;
   setAudioAlerts: (v: boolean) => void;
   setDesktopNotify: (v: boolean) => void;
+  setOsNotify: (kind: keyof TapeToggles, v: boolean) => void;
   dismissCatalogNotice: () => void;
   dismissEruptionNotice: () => void;
   setGlobeAutoSpin: (v: boolean) => void;
@@ -603,6 +607,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   useGeofon: false,
   audioAlerts: false,
   desktopNotify: false,
+  osNotify: { quake: false, solar: false, volcano: false },
   lastCatalogNotice: null,
   lastEruptionNotice: null,
   globeAutoSpin: true,
@@ -1011,23 +1016,44 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     set({ audioAlerts: v });
   },
   setDesktopNotify: (v) => {
-    try {
-      localStorage.setItem("wolfwatch_notify", v ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-    if (!v) {
-      set({ desktopNotify: false });
-      return;
-    }
-    void import("@/lib/ops/catalogNotice").then(async ({ requestOsNotify }) => {
-      const ok = await requestOsNotify();
+    const apply = (on: boolean) => {
+      const osNotify: TapeToggles = { quake: on, solar: on, volcano: on };
       try {
-        localStorage.setItem("wolfwatch_notify", ok ? "1" : "0");
+        localStorage.setItem("ww_os_quake", on ? "1" : "0");
+        localStorage.setItem("ww_os_solar", on ? "1" : "0");
+        localStorage.setItem("ww_os_volcano", on ? "1" : "0");
+        localStorage.setItem("wolfwatch_notify", on ? "1" : "0");
       } catch {
         /* ignore */
       }
-      set({ desktopNotify: ok });
+      set({ osNotify, desktopNotify: on });
+    };
+    if (!v) {
+      apply(false);
+      return;
+    }
+    void import("@/lib/ops/catalogNotice").then(async ({ requestOsNotify }) => {
+      apply(await requestOsNotify());
+    });
+  },
+  setOsNotify: (kind, v) => {
+    const apply = (on: boolean) => {
+      const osNotify = { ...get().osNotify, [kind]: on };
+      const desktopNotify = osNotify.quake || osNotify.solar || osNotify.volcano;
+      try {
+        localStorage.setItem(`ww_os_${kind}`, on ? "1" : "0");
+        localStorage.setItem("wolfwatch_notify", desktopNotify ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      set({ osNotify, desktopNotify });
+    };
+    if (!v) {
+      apply(false);
+      return;
+    }
+    void import("@/lib/ops/catalogNotice").then(async ({ requestOsNotify }) => {
+      apply(await requestOsNotify());
     });
   },
   dismissCatalogNotice: () => set({ lastCatalogNotice: null }),
@@ -1189,7 +1215,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
     }),
 
   refresh: async (force = false) => {
-    const { mode, timeWindow, loading, useGeofon, audioAlerts, desktopNotify } = get();
+    const { mode, timeWindow, loading, useGeofon, audioAlerts } = get();
     if (loading && !force) return;
     const gen = ++refreshGen;
     const cfg = MODES[mode];
@@ -1680,7 +1706,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       if (eqFinal?.features) {
         const relayed = relayNewEvents(eqFinal.features, seenEqIds, {
           sound: audioAlerts,
-          desktop: desktopNotify,
+          desktop: false,
           minMag: 4.5,
         });
         seenEqIds = relayed.nextIds;
@@ -1746,7 +1772,10 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       }
 
       const eruption = usgsVolcAlerts?.length
-        ? relayNewEruptions(usgsVolcAlerts, { desktop: desktopNotify, sound: audioAlerts })
+        ? relayNewEruptions(usgsVolcAlerts, {
+            desktop: get().osNotify.volcano,
+            sound: audioAlerts,
+          })
         : null;
 
       set({
@@ -1803,6 +1832,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         error: null,
         ...(eruption ? { lastEruptionNotice: eruption } : {}),
       });
+      relayPulseOs({
+        features: get().eq?.features,
+        kp: get().kp,
+        solarWind: get().solarWind,
+        scales: get().scales,
+        xray: get().xray,
+        volcanoes: get().usgsVolcAlerts,
+        transitions: get().volcWatchTransitions,
+        notify: get().osNotify,
+        finishing: ambientTasks.length === 0,
+      });
 
       if (get().focusNodeId && get().overlays.mmiContours) {
         void get().loadFocusMmi();
@@ -1824,7 +1864,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           const prevAlerts = get().usgsVolcAlerts;
           const eruption = nextAlerts?.length
             ? relayNewEruptions(nextAlerts, {
-                desktop: get().desktopNotify,
+                desktop: get().osNotify.volcano,
                 sound: get().audioAlerts,
               })
             : null;
@@ -1876,6 +1916,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             feedErrors: { ...get().feedErrors, ...errs },
             ...(eruption ? { lastEruptionNotice: eruption } : {}),
           });
+          relayPulseOs({
+            features: get().eq?.features,
+            kp: get().kp,
+            solarWind: get().solarWind,
+            scales: get().scales,
+            xray: get().xray,
+            volcanoes: get().usgsVolcAlerts,
+            transitions: get().volcWatchTransitions,
+            notify: get().osNotify,
+            finishing: true,
+          });
         });
       }
     } catch (e) {
@@ -1902,7 +1953,11 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         auroraOfficial: loadBool("wolfwatch_aurora_official", false),
         useGeofon: loadBool("wolfwatch_geofon", false),
         audioAlerts: loadBool("wolfwatch_audio", false),
-        desktopNotify: loadBool("wolfwatch_notify", false),
+        osNotify: {
+          quake: loadBool("ww_os_quake", loadBool("wolfwatch_notify", false)),
+          solar: loadBool("ww_os_solar", loadBool("wolfwatch_notify", false)),
+          volcano: loadBool("ww_os_volcano", loadBool("wolfwatch_notify", false)),
+        },
         globeAutoSpin: loadBool("wolfwatch_globe_spin", true),
         globeStemScale: loadNum("wolfwatch_globe_stem", 0.2, 0.08, 0.4),
         globeMarkerScale: loadNum("wolfwatch_globe_hex", 1.25, 0.6, 2.2),
@@ -1913,6 +1968,9 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         volcWatchPins: [...loadPins()],
         volcWatchMutes: [...loadMutes()],
       };
+      patch.desktopNotify = !!(
+        patch.osNotify?.quake || patch.osNotify?.solar || patch.osNotify?.volcano
+      );
 
       const m = loadMode();
       const saved = localStorage.getItem("wolfwatch_mode");
@@ -2069,7 +2127,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
       if (eqFinal?.features) {
         const relayed = relayNewEvents(eqFinal.features, seenEqIds, {
           sound: get().audioAlerts,
-          desktop: get().desktopNotify,
+          desktop: false,
           minMag: 4.5,
         });
         seenEqIds = relayed.nextIds;
@@ -2087,6 +2145,17 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
           pulse: now,
           eq: now,
         },
+      });
+      relayPulseOs({
+        features: get().eq?.features,
+        kp: get().kp,
+        solarWind: get().solarWind,
+        scales: get().scales,
+        xray: get().xray,
+        volcanoes: get().usgsVolcAlerts,
+        transitions: get().volcWatchTransitions,
+        notify: get().osNotify,
+        finishing: false,
       });
     } catch {
       /* silent */
