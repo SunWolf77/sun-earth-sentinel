@@ -2068,10 +2068,11 @@
    */
   display: grid;
   grid-template-areas:
+    "tape"
     "canvas"
     "dock";
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.35rem;
   flex: 1 1 auto;
   min-height: 0;
@@ -2146,11 +2147,15 @@
 .ww-shell--immersive .ww-aside {
   display: none !important;
 }
+.ww-tape {
+  grid-area: tape;
+  margin: 0 0.15rem;
+}
 .ww-map-stage--immersive {
   padding: 0;
-  gap: 0;
+  gap: 0.2rem;
   border-radius: 0;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 .ww-map-stage--immersive .ww-map-stage__canvas {
   border-radius: 0;
@@ -2167,10 +2172,11 @@
 @media (max-width: 639px) {
   .ww-map-stage {
     grid-template-areas:
+      "tape"
       "canvas"
       "dock";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 0.25rem;
     padding: 0.2rem 0.2rem 0.15rem;
   }

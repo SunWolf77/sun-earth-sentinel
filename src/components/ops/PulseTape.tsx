@@ -55,7 +55,7 @@ export function PulseTape() {
   const duration = `${Math.max(48, items.length * 14)}s`;
 
   return (
-    <div className="ww-tape pointer-events-auto absolute inset-x-2 top-2 z-[1100] flex h-8 items-stretch overflow-visible rounded-md border border-border/80 bg-bg/90 text-[0.68rem] shadow-md backdrop-blur">
+    <div className="ww-tape pointer-events-auto relative z-[1200] flex h-8 items-stretch overflow-visible rounded-md border border-border/80 bg-bg/90 text-[0.68rem]">
       <button
         type="button"
         className="flex shrink-0 items-center gap-1 border-r border-border/70 px-2 font-semibold uppercase tracking-wide text-primary"
