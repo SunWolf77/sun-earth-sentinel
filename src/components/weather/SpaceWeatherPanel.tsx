@@ -39,6 +39,7 @@ import {
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
+import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
@@ -296,7 +297,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "now" && (
         <div className="grid items-start gap-3 lg:grid-cols-12">
-          <div className="lg:col-span-12">
+          <div className="space-y-3 lg:col-span-12">
+            <FlareOutlookDesk />
             <ActiveRegionDesk
               regions={activeRegions}
               observed={activeRegions[0]?.observed ?? null}

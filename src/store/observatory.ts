@@ -562,7 +562,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 export const useObservatory = create<ObservatoryState>((set, get) => ({
   // SSR-safe defaults (must match server HTML). Client bootstrap adjusts mode.
   mode: "standard",
-  tab: "live",
+  tab: "solar",
   mobileSheet: "closed",
   mapView: "2d",
   mapImmersive: false,

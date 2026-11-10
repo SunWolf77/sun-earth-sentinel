@@ -22,8 +22,8 @@ export const MANIFEST_FIELD_NOTES: ManifestFieldNote[] = [
   },
   {
     field: "start_url",
-    value: "/?source=pwa",
-    why: "Launch into app; source=pwa for analytics-free install attribution.",
+    value: "/?tab=solar&source=pwa",
+    why: "Open on Solar. source=pwa marks an installed launch.",
   },
   {
     field: "scope",

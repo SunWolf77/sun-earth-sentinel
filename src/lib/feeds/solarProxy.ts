@@ -34,6 +34,7 @@ import { buildXrayAttentionBundle, type XrayAttentionBundle } from "@/lib/feeds/
 import { buildSolarCycleBundle, type SolarCycleBundle } from "@/lib/feeds/solarCycle";
 import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
 import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
+import { buildFlareOutlook, type FlareOutlook } from "@/lib/solar/flareOutlook";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
 
@@ -258,6 +259,21 @@ export const fetchGoesXrayPlotFn = createServerFn({ method: "POST" })
 export const fetchXrayAttentionFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<XrayAttentionBundle> => {
     return buildXrayAttentionBundle();
+  },
+);
+
+/** 6-hour flare window fit on the GOES 7-day long channel plus today's regions. */
+export const fetchFlareOutlookFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<FlareOutlook> => {
+    const [xrays, regions] = await Promise.all([
+      fetch("https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json", {
+        headers: { Accept: "application/json" },
+      })
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => []),
+      fetchSolarRegions().catch(() => [] as ActiveRegion[]),
+    ]);
+    return buildFlareOutlook(Array.isArray(xrays) ? xrays : [], regions);
   },
 );
 

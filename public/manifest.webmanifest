@@ -3,7 +3,7 @@
   "name": "Sun Earth Sentinel",
   "short_name": "Sentinel",
   "description": "Sun Earth observatory — seismic + space weather + SUPT continuum. Free public feeds (USGS, NOAA SWPC, NASA). Null is valid.",
-  "start_url": "/?source=pwa",
+  "start_url": "/?tab=solar&source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "browser"],

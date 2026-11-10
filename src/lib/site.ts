@@ -53,8 +53,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.32.7: A new agency RED / WARNING eruption raises a notice.
  * 1.32.8: OS notices follow the Pulse tape, with a switch for quakes, solar, and volcanoes.
  * 1.33.0: Sunspot desk shows Hale class and whether the region faces Earth.
+ * 1.34.0: Flare window on the GOES 7-day record. Solar is the front door.
  */
-export const APP_VERSION = "1.33.0";
+export const APP_VERSION = "1.34.0";
 
 
 

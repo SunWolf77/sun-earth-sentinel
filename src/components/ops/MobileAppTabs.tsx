@@ -13,8 +13,8 @@ export const APP_TABS: {
   short: string;
   Icon: typeof MapIcon;
 }[] = [
-  { id: "live", label: "Live Map", short: "Map", Icon: MapIcon },
   { id: "solar", label: "Solar", short: "Solar", Icon: Sun },
+  { id: "live", label: "Live Map", short: "Map", Icon: MapIcon },
   { id: "resonance", label: "Rhythm", short: "Rhythm", Icon: Waves },
   { id: "analytics", label: "Charts", short: "Charts", Icon: Activity },
   { id: "about", label: "About", short: "About", Icon: BookOpen },
