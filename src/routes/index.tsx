@@ -1111,20 +1111,6 @@ function ObservatoryApp() {
                 : "relative flex min-h-0 min-w-0 flex-1 flex-col"
             }
           >
-            {mapImmersive && (
-              <div className="pointer-events-none absolute left-3 top-2 z-[810] flex items-center gap-2">
-                <span className="rounded-md bg-black/50 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-wider text-primary/90">
-                  Full · {mapView === "3d" ? "3D" : "2D"}
-                </span>
-                <button
-                  type="button"
-                  className="pointer-events-auto ww-btn text-[0.65rem] font-semibold"
-                  onClick={() => setMapImmersive(false)}
-                >
-                  Exit full
-                </button>
-              </div>
-            )}
             <div
               className={
                 mapImmersive

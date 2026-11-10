@@ -39,8 +39,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.31.3: Section tabs collapse to the current choice, with the same Open / Close.
  * 1.31.4: First screen is one header line. Desk rail stays closed until Desks.
  * 1.31.5: Live pulse sits in the header gap. The map starts on the next line.
+ * 1.31.6: Full screen drops the header. Home frame includes South Sandwich / Drake.
  */
-export const APP_VERSION = "1.31.5";
+export const APP_VERSION = "1.31.6";
 
 
 

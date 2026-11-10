@@ -12,8 +12,8 @@ import L from "leaflet";
  * Bering / dateline stays *in frame* as the Pacific spine, not the map edge.
  */
 export const WORLD_BOUNDS = L.latLngBounds(
-  L.latLng(-55, 20),
-  L.latLng(70, 340),
+  L.latLng(-68, 20),
+  L.latLng(72, 340),
 );
 
 /**
@@ -26,10 +26,11 @@ export const WORLD_MAX_BOUNDS = L.latLngBounds(
 );
 
 /**
- * Default center — mid-Pacific (near dateline / Bering spine).
- * Puts Tonga–Kermadec, Japan, Chile, Aleutians on one continuous canvas.
+ * Default center sits a little south of the equator so South Sandwich,
+ * the Drake Passage, and the Scotia Arc (SES node #6, about 56–64°S)
+ * stay in the home frame. Pacific longitude is unchanged.
  */
-export const WORLD_CENTER: [number, number] = [8, 180];
+export const WORLD_CENTER: [number, number] = [-6, 180];
 
 /**
  * Home framing: Pacific-weighted setView, not a clipped corridor.
@@ -53,18 +54,18 @@ export function fitWorldView(
   try {
     map.setMaxBounds(WORLD_MAX_BOUNDS);
     // Wide enough for global context; Pacific remains the home focus
-    const targetZoom = 2.05;
+    const targetZoom = 1.82;
     map.setMinZoom(1.4);
     map.setView(WORLD_CENTER, targetZoom, { animate });
   } catch {
     map.setMinZoom(1.4);
-    map.setView(WORLD_CENTER, 2.05, { animate });
+    map.setView(WORLD_CENTER, 1.82, { animate });
   }
 }
 
 export const WORLD_MAP_INIT = {
   center: WORLD_CENTER as [number, number],
-  zoom: 2.05,
+  zoom: 1.82,
   minZoom: 1.4,
   maxZoom: 18,
 } as const;
