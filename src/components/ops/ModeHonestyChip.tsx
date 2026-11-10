@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Gauge, Globe2, Map as MapIcon, Zap } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
@@ -29,18 +30,32 @@ export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
   const warn3d = mapView === "3d" && mobile;
   const showWarn = liveMap ? full || warn3d : mobile && (full || warn3d);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ top: number; right: number } | null>(null);
 
   useEffect(() => {
     if (!deep) return;
+    const place = () => {
+      const r = rootRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setBox({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    place();
     const onPointer = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setDeep(false);
+      const n = e.target as Node;
+      if (rootRef.current?.contains(n) || panelRef.current?.contains(n)) return;
+      setDeep(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDeep(false);
     };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
       document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
@@ -108,11 +123,18 @@ export function ModeHonestyChip({ className = "", liveMap = true }: Props) {
           </button>
         </div>
       </div>
-      {deep && (
-        <div className="absolute right-0 top-full z-[80] mt-1 w-[min(24rem,calc(100vw-1.5rem))] max-h-[min(70vh,24rem)] overflow-y-auto rounded-md shadow-xl">
-          <ModeDeepDive defaultOpen />
-        </div>
-      )}
+      {deep &&
+        box &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="fixed z-[5000] w-[min(24rem,calc(100vw-1rem))] max-h-[min(70vh,24rem)] overflow-y-auto rounded-md shadow-xl"
+            style={{ top: box.top, right: box.right }}
+          >
+            <ModeDeepDive defaultOpen />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

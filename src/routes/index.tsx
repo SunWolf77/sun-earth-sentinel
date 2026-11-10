@@ -818,7 +818,7 @@ function ObservatoryApp() {
           tab !== "live" ? "ww-header--content" : ""
         } ${isMobile ? "ww-header--mobile" : ""}`}
       >
-        <div className="ww-header__primary flex min-w-0 items-center gap-1 px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5">
+        <div className="ww-header__primary flex min-w-0 flex-nowrap items-center gap-1 px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5">
           <div className="ww-header__brand min-w-0 shrink-0">
             <h1 className="flex min-w-0 items-baseline gap-2 truncate text-[0.78rem] font-semibold leading-none tracking-tight text-fg">
               <span className="shrink-0">
@@ -840,7 +840,7 @@ function ObservatoryApp() {
             </h1>
           </div>
 
-          <div className="hidden min-w-0 sm:!block">
+          <div className="hidden shrink-0 sm:!block">
             <CollapsibleTabs
               dense
               label="View"

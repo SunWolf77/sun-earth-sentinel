@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp, Check } from "lucide-react";
 
 export type CollapsibleTab = {
@@ -84,20 +85,35 @@ export function CollapsibleTabs({
   const open = dense ? menuOpen : persistedOpen;
   const toggle = dense ? () => setMenuOpen((v) => !v) : togglePersisted;
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [box, setBox] = useState<{ top: number; left: number } | null>(null);
   const current = tabs.find((t) => t.id === value) ?? tabs[0];
   const panelId = `${storageKey}-panel`;
 
   useEffect(() => {
     if (!dense || !menuOpen) return;
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setBox({ top: r.bottom + 4, left: r.left });
+    };
+    place();
     const onPointer = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setMenuOpen(false);
+      const n = e.target as Node;
+      if (rootRef.current?.contains(n) || panelRef.current?.contains(n)) return;
+      setMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenuOpen(false);
     };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
     return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
       document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
@@ -107,50 +123,56 @@ export function CollapsibleTabs({
     return (
       <div className="relative shrink-0" ref={rootRef}>
         <button
+          ref={btnRef}
           type="button"
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-panel px-2.5 text-[0.72rem] font-semibold text-fg shadow-sm"
+          className="inline-flex h-8 w-auto shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-panel px-2.5 text-[0.72rem] font-semibold text-fg shadow-sm"
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={panelId}
           onClick={toggle}
         >
-          <span className="text-primary">{current?.label ?? "—"}</span>
+          <span className="whitespace-nowrap text-primary">{current?.label ?? "—"}</span>
           <ChevronDown
-            className={`h-3.5 w-3.5 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
             aria-hidden
           />
         </button>
-        {open && (
-          <div
-            id={panelId}
-            role="listbox"
-            aria-label={label}
-            className="absolute left-0 top-full z-[70] mt-1 min-w-[11.5rem] overflow-hidden rounded-md border border-border bg-bg py-1 shadow-xl"
-          >
-            {tabs.map((t) => {
-              const on = t.id === value;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="option"
-                  aria-selected={on}
-                  title={t.hint}
-                  onClick={() => {
-                    onChange(t.id);
-                    setMenuOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[0.75rem] ${
-                    on ? "bg-primary/15 font-semibold text-primary" : "text-fg hover:bg-elevated"
-                  }`}
-                >
-                  <span>{t.label}</span>
-                  {on && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {open &&
+          box &&
+          createPortal(
+            <div
+              ref={panelRef}
+              id={panelId}
+              role="listbox"
+              aria-label={label}
+              className="fixed z-[5000] min-w-[11.5rem] overflow-hidden rounded-md border border-border bg-bg py-1 shadow-xl"
+              style={{ top: box.top, left: box.left }}
+            >
+              {tabs.map((t) => {
+                const on = t.id === value;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    title={t.hint}
+                    onClick={() => {
+                      onChange(t.id);
+                      setMenuOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between gap-3 whitespace-nowrap px-3 py-1.5 text-left text-[0.75rem] ${
+                      on ? "bg-primary/15 font-semibold text-primary" : "text-fg hover:bg-elevated"
+                    }`}
+                  >
+                    <span>{t.label}</span>
+                    {on && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body,
+          )}
       </div>
     );
   }
