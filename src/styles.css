@@ -54,7 +54,12 @@
   background: var(--color-bg);
 }
 .ww-header {
-  z-index: 50;
+  position: relative;
+  z-index: 1200;
+  overflow: visible;
+}
+.ww-header__primary {
+  overflow: visible;
 }
 .ww-aside {
   background: color-mix(in oklab, var(--color-bg) 55%, var(--color-panel));
