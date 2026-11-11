@@ -59,15 +59,16 @@ function SunDisk({ regions }: { regions: ActiveRegion[] }) {
           {marks.map(({ r, p }, i) => {
             const hot = haleRank(r.hale) >= 3;
             const label = `AR${r.region}`;
-            const width = label.length * 4.6 + 7;
-            const leftSide = p.x > CX + 28;
-            const lx = leftSide ? p.x - width - 6 : p.x + 6;
-            const ly = Math.min(CY + R - 14, Math.max(CY - R + 12, p.y - 8 + (i % 2) * 12));
+            const width = label.length * 9.2 + 10;
+            const leftSide = p.x > CX + 18;
+            let lx = leftSide ? p.x - width - 8 : p.x + 8;
+            lx = Math.max(2, Math.min(198 - width, lx));
+            const ly = Math.min(CY + R - 18, Math.max(CY - R + 18, p.y - 2 + (i % 2) * 18));
             return (
               <g key={r.region}>
-                <circle cx={p.x} cy={p.y} r={hot ? 4.2 : 2.8} fill={fill(r)} stroke="#0b0b0f" strokeWidth="1" />
-                <rect x={lx} y={ly - 5.5} width={width} height={11} rx="2" fill="rgba(8,8,12,0.88)" />
-                <text x={lx + 3.5} y={ly + 2.5} fill={fill(r)} fontSize="7.5" fontWeight="700">
+                <circle cx={p.x} cy={p.y} r={hot ? 5.5 : 3.6} fill={fill(r)} stroke="#0b0b0f" strokeWidth="1.2" />
+                <rect x={lx} y={ly - 9} width={width} height={18} rx="3" fill="rgba(8,8,12,0.92)" />
+                <text x={lx + 5} y={ly + 4} fill={fill(r)} fontSize="13" fontWeight="700">
                   {label}
                 </text>
               </g>

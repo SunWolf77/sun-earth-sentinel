@@ -61,8 +61,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.36.0: A flare chance of 50% or more goes on Pulse and notifies. The fit learns from catalogued flares placed on the X-ray chart.
  * 1.37.0: The flare chance also uses the last 10 years of the NOAA GOES flare report.
  * 1.37.1: Sunspot desk uses the live visible-light Sun, with each region labeled.
+ * 1.37.2: Active-region numbers on the Sun are larger.
  */
-export const APP_VERSION = "1.37.1";
+export const APP_VERSION = "1.37.2";
 
 
 
