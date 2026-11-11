@@ -1,10 +1,12 @@
 /**
- * Plain view of sunspot class and where the region sits relative to Earth.
+ * Live visible-light Sun with each active region labeled.
  * East is left, west is right, center faces Earth. SWPC positions, not a flare forecast.
  */
 
+import { useState } from "react";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
+import { sdoStill } from "@/lib/feeds/solarMedia";
 
 function tone(r: ActiveRegion): string {
   if (haleRank(r.hale) >= 4) return "text-danger";
@@ -14,47 +16,67 @@ function tone(r: ActiveRegion): string {
 }
 
 function fill(r: ActiveRegion): string {
-  if (haleRank(r.hale) >= 4) return "var(--color-danger, #f87171)";
-  if (haleRank(r.hale) >= 3) return "var(--color-warn, #fbbf24)";
-  if (haleRank(r.hale) >= 2) return "var(--color-primary, #22d3ee)";
-  return "var(--color-muted, #94a3b8)";
+  if (haleRank(r.hale) >= 4) return "#fb7185";
+  if (haleRank(r.hale) >= 3) return "#fbbf24";
+  if (haleRank(r.hale) >= 2) return "#22d3ee";
+  return "#e2e8f0";
+}
+
+const CX = 100;
+const CY = 100;
+const R = 94;
+
+function place(r: ActiveRegion): { x: number; y: number } | null {
+  if (r.lon > 90 || r.lon < -90) return null;
+  const lon = (r.lon * Math.PI) / 180;
+  const lat = (r.lat * Math.PI) / 180;
+  const x = CX - Math.sin(lon) * Math.cos(lat) * R;
+  const y = CY - Math.sin(lat) * R;
+  return { x, y };
 }
 
 function SunDisk({ regions }: { regions: ActiveRegion[] }) {
-  const onDisk = regions.filter((r) => r.lon <= 95 && r.lon >= -95);
+  const [photo, setPhoto] = useState(true);
+  const marks = regions
+    .map((r) => ({ r, p: place(r) }))
+    .filter((m): m is { r: ActiveRegion; p: { x: number; y: number } } => m.p != null);
+
   return (
-    <svg viewBox="0 0 200 210" className="mx-auto h-36 w-36" role="img" aria-label="Sun as seen from Earth">
-      <circle cx="100" cy="96" r="78" fill="rgba(251,191,36,0.16)" stroke="rgba(253,230,138,0.55)" strokeWidth="1.5" />
-      <rect x="87" y="18" width="26" height="156" fill="rgba(34,211,238,0.12)" />
-      <line x1="100" y1="18" x2="100" y2="174" stroke="rgba(34,211,238,0.8)" strokeWidth="1" strokeDasharray="3 3" />
-      <text x="100" y="14" textAnchor="middle" fill="currentColor" className="text-primary" fontSize="8">
-        Earth
-      </text>
-      <text x="18" y="100" fill="currentColor" className="text-muted" fontSize="8">
-        E
-      </text>
-      <text x="176" y="100" fill="currentColor" className="text-muted" fontSize="8">
-        W
-      </text>
-      {onDisk.map((r) => {
-        const x = 100 - (r.lon / 90) * 74;
-        const y = 96 - (r.lat / 45) * 58;
-        const hot = haleRank(r.hale) >= 3;
-        return (
-          <g key={r.region}>
-            <circle cx={x} cy={y} r={hot ? 5.5 : 3.5} fill={fill(r)} />
-            {hot && (
-              <text x={x + 7} y={y + 3} fill="currentColor" className="text-fg" fontSize="8" fontWeight="600">
-                {r.region}
-              </text>
-            )}
-          </g>
-        );
-      })}
-      <text x="100" y="202" textAnchor="middle" fill="currentColor" className="text-dim" fontSize="8">
-        Center line faces Earth
-      </text>
-    </svg>
+    <div className="mx-auto w-full max-w-[16rem]">
+      <div className="relative aspect-square">
+        {photo ? (
+          <img
+            src={sdoStill("HMIIC", 512)}
+            alt="The Sun in visible light, SDO HMI"
+            className="h-full w-full rounded-full object-cover"
+            onError={() => setPhoto(false)}
+          />
+        ) : (
+          <div className="h-full w-full rounded-full bg-[radial-gradient(circle_at_50%_46%,#fde68a,#f59e0b_62%,#9a3412_100%)]" />
+        )}
+        <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full" role="img" aria-label="Active regions on the Sun">
+          <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeDasharray="2 2" />
+          {marks.map(({ r, p }, i) => {
+            const hot = haleRank(r.hale) >= 3;
+            const label = `AR${r.region}`;
+            const width = label.length * 4.6 + 7;
+            const leftSide = p.x > CX + 28;
+            const lx = leftSide ? p.x - width - 6 : p.x + 6;
+            const ly = Math.min(CY + R - 14, Math.max(CY - R + 12, p.y - 8 + (i % 2) * 12));
+            return (
+              <g key={r.region}>
+                <circle cx={p.x} cy={p.y} r={hot ? 4.2 : 2.8} fill={fill(r)} stroke="#0b0b0f" strokeWidth="1" />
+                <rect x={lx} y={ly - 5.5} width={width} height={11} rx="2" fill="rgba(8,8,12,0.88)" />
+                <text x={lx + 3.5} y={ly + 2.5} fill={fill(r)} fontSize="7.5" fontWeight="700">
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <p className="mt-1 text-center text-[0.58rem] text-dim">SDO visible light · center faces Earth</p>
+    </div>
   );
 }
 
@@ -69,7 +91,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
           Sunspots aimed at Earth
         </h2>
       </div>
-      <div className="grid items-center gap-3 md:grid-cols-[13rem_1fr]">
+      <div className="grid items-center gap-3 md:grid-cols-[16rem_1fr]">
         <SunDisk regions={regions} />
         <div className="min-w-0 space-y-2">
           {lead ? (
