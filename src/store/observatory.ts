@@ -50,7 +50,7 @@ import {
   type KpForecastPoint,
 } from "@/lib/feeds/swpc";
 import type { DonkiBundle } from "@/lib/feeds/donki";
-import { fetchDonkiBundle, fetchSolarCore, fetchSolarNow } from "@/lib/feeds/solarProxy";
+import { fetchDonkiBundle, fetchFlareOutlookFn, fetchSolarCore, fetchSolarNow } from "@/lib/feeds/solarProxy";
 import { MODES, normalizePerformanceMode, type PerformanceMode } from "@/lib/feeds/modes";
 
 import { fetchIssPosition, type IssPosition } from "@/lib/feeds/iss";
@@ -362,6 +362,8 @@ type ObservatoryState = {
   alerts: AlertItem[];
   flux10cm: Flux10cm | null;
   activeRegions: ActiveRegion[];
+  /** M-flare chance, 0–1. Pulse and the solar notice start at 0.5. */
+  flareChance: number | null;
   protons: ProtonPoint[];
   forecast: ForecastBundle | null;
   enlil: EnlilFrame | null;
@@ -644,6 +646,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   alerts: [],
   flux10cm: null,
   activeRegions: [],
+  flareChance: null,
   protons: [],
   forecast: null,
   enlil: null,
@@ -1847,8 +1850,30 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         transitions: get().volcWatchTransitions,
         notify: get().osNotify,
         regions: get().activeRegions,
+        flareChance: get().flareChance,
         finishing: ambientTasks.length === 0,
       });
+      void fetchFlareOutlookFn()
+        .then((o) => {
+          if (gen !== refreshGen) return;
+          set({ flareChance: o.pM });
+          relayPulseOs({
+            features: get().eq?.features,
+            kp: get().kp,
+            solarWind: get().solarWind,
+            scales: get().scales,
+            xray: get().xray,
+            volcanoes: get().usgsVolcAlerts,
+            transitions: get().volcWatchTransitions,
+            notify: get().osNotify,
+            regions: get().activeRegions,
+            flareChance: o.pM,
+            finishing: true,
+          });
+        })
+        .catch(() => {
+          /* flare window is additive */
+        });
 
       if (get().focusNodeId && get().overlays.mmiContours) {
         void get().loadFocusMmi();
@@ -1932,6 +1957,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             transitions: get().volcWatchTransitions,
             notify: get().osNotify,
             regions: get().activeRegions,
+            flareChance: get().flareChance,
             finishing: true,
           });
         });
@@ -2163,6 +2189,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         transitions: get().volcWatchTransitions,
         notify: get().osNotify,
         regions: get().activeRegions,
+        flareChance: get().flareChance,
         finishing: false,
       });
     } catch {

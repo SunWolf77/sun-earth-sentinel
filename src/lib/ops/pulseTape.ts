@@ -84,6 +84,8 @@ export function buildPulseTape(input: {
   volcanoes: UsgsVolcanoAlert[];
   transitions?: VolcWatchTransition[];
   regions?: ActiveRegion[];
+  /** M-flare chance over the next 6 hours, 0–1. Tape and notify from 0.5. */
+  flareChance?: number | null;
   toggles: TapeToggles;
   now?: number;
 }): TapeItem[] {
@@ -181,6 +183,15 @@ export function buildPulseTape(input: {
         major,
       });
     }
+  }
+
+  if (input.flareChance != null && input.flareChance >= 0.5 && show("solar", true, input.toggles)) {
+    out.push({
+      id: "flare-chance",
+      kind: "solar",
+      text: `Flare chance ${Math.round(input.flareChance * 100)}%`,
+      major: true,
+    });
   }
 
   const vols = freshVolcanoLines(input.volcanoes, input.transitions ?? [], input.now ?? Date.now());

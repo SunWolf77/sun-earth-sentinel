@@ -34,7 +34,7 @@ import { buildXrayAttentionBundle, type XrayAttentionBundle } from "@/lib/feeds/
 import { buildSolarCycleBundle, type SolarCycleBundle } from "@/lib/feeds/solarCycle";
 import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
 import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
-import { buildFlareOutlook, type FlareOutlook } from "@/lib/solar/flareOutlook";
+import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
 
@@ -262,18 +262,30 @@ export const fetchXrayAttentionFn = createServerFn({ method: "GET" }).handler(
   },
 );
 
-/** 6-hour flare window fit on the GOES 7-day long channel plus today's regions. */
+/** 6-hour flare window. Catalogued flares are placed on the 7-day X-ray chart. */
+let flareOutlookCache: { at: number; value: FlareOutlook } | null = null;
+
 export const fetchFlareOutlookFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<FlareOutlook> => {
-    const [xrays, regions] = await Promise.all([
-      fetch("https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json", {
-        headers: { Accept: "application/json" },
-      })
+    if (flareOutlookCache && Date.now() - flareOutlookCache.at < 5 * 60_000) {
+      return flareOutlookCache.value;
+    }
+    const load = (path: string) =>
+      fetch(`https://services.swpc.noaa.gov${path}`, { headers: { Accept: "application/json" } })
         .then((r) => (r.ok ? r.json() : []))
-        .catch(() => []),
+        .catch(() => []);
+    const [xrays, regions, flares] = await Promise.all([
+      load("/json/goes/primary/xrays-7-day.json"),
       fetchSolarRegions().catch(() => [] as ActiveRegion[]),
+      load("/json/goes/primary/xray-flares-7-day.json"),
     ]);
-    return buildFlareOutlook(Array.isArray(xrays) ? xrays : [], regions);
+    const value = buildFlareOutlook(
+      Array.isArray(xrays) ? xrays : [],
+      regions,
+      Array.isArray(flares) ? (flares as CatalogFlare[]) : [],
+    );
+    flareOutlookCache = { at: Date.now(), value };
+    return value;
   },
 );
 

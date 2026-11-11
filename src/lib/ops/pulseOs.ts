@@ -20,6 +20,7 @@ export type PulseOsInput = {
   volcanoes: UsgsVolcanoAlert[];
   transitions?: VolcWatchTransition[];
   regions?: ActiveRegion[];
+  flareChance?: number | null;
   notify: TapeToggles;
   /** Last call of this refresh. Locks the seed so the next change can notify. */
   finishing: boolean;
@@ -48,6 +49,10 @@ function stepKey(item: TapeItem): string {
     const sb = speed >= 800 ? 800 : speed >= 700 ? 700 : speed >= 600 ? 600 : speed >= 550 ? 550 : 0;
     const bb = b <= -15 ? -15 : b <= -10 ? -10 : b <= -5 ? -5 : 0;
     return `wind-${sb}-${bb}`;
+  }
+  if (item.id === "flare-chance") {
+    const n = Number(item.text.match(/(\d+)/)?.[1] ?? 0);
+    return n >= 70 ? "flare-70" : "flare-50";
   }
   return `${item.id}-${item.text}`;
 }
@@ -110,6 +115,7 @@ export function relayPulseOs(input: PulseOsInput): void {
     volcanoes: input.volcanoes,
     transitions: input.transitions,
     regions: input.regions,
+    flareChance: input.flareChance,
     toggles: { quake: true, solar: true, volcano: true },
   });
   if (!bootstrapped) {

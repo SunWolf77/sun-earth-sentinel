@@ -17,6 +17,13 @@ const X1 = 1e-4;
 const C1 = 1e-6;
 const HORIZON_MS = 6 * 3600_000;
 
+export type CatalogFlare = {
+  begin_time?: string;
+  max_time?: string;
+  max_class?: string;
+  max_xrlong?: number;
+};
+
 export type FlareOutlook = {
   generated: number;
   klass: string;
@@ -30,6 +37,7 @@ export type FlareOutlook = {
   learnedC: boolean;
   trainM: number;
   trainC: number;
+  catalogM: number;
   hindcastHit: number;
   hindcastN: number;
   regionLine: string | null;
@@ -189,6 +197,72 @@ function fit(rows: { x: number[]; y: number }[]): number[] {
   return w;
 }
 
+function nearestIndex(series: Sample[], t: number): number {
+  let lo = 0;
+  let hi = series.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (series[mid]!.t < t) lo = mid + 1;
+    else hi = mid;
+  }
+  const prev = Math.max(0, lo - 1);
+  return Math.abs(series[lo]!.t - t) <= Math.abs(series[prev]!.t - t) ? lo : prev;
+}
+
+function isMClass(klass: string | undefined): boolean {
+  const c = (klass ?? "").trim().toUpperCase();
+  return c.startsWith("M") || c.startsWith("X");
+}
+
+function isCClass(klass: string | undefined): boolean {
+  const c = (klass ?? "").trim().toUpperCase();
+  return c.startsWith("C") || isMClass(c);
+}
+
+/** Place each catalogued flare on the flux chart. The chart's own minute wins when it is close. */
+function mapCatalog(flares: CatalogFlare[], series: Sample[], want: "M" | "C"): Sample[] {
+  const out: Sample[] = [];
+  for (const fl of flares) {
+    if (want === "M" ? !isMClass(fl.max_class) : !isCClass(fl.max_class)) continue;
+    const t = Date.parse(fl.max_time ?? "");
+    if (!Number.isFinite(t)) continue;
+    const idx = nearestIndex(series, t);
+    const hit = series[idx]!;
+    if (Math.abs(hit.t - t) > 8 * 60_000) continue;
+    const prev = out[out.length - 1];
+    if (prev && Math.abs(hit.t - prev.t) < 20 * 60_000) {
+      if (hit.f > prev.f) out[out.length - 1] = hit;
+      continue;
+    }
+    out.push(hit);
+  }
+  return out;
+}
+
+function prelude(series: Sample[], i: number): number[] | null {
+  const vals: number[] = [];
+  for (let m = 60; m >= 0; m -= 10) {
+    const f = m === 0 ? series[i]!.f : fluxNear(series, i, m);
+    if (f == null || f <= 0) return null;
+    vals.push(Math.log10(f));
+  }
+  const base = vals[0]!;
+  return vals.map((v) => v - base);
+}
+
+function cosine(a: number[], b: number[]): number {
+  let dotp = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dotp += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
+  }
+  if (na <= 0 || nb <= 0) return 0;
+  return dotp / Math.sqrt(na * nb);
+}
+
 function findPeaks(series: Sample[], floor: number): Sample[] {
   const raw: Sample[] = [];
   for (let i = 2; i < series.length - 2; i++) {
@@ -231,7 +305,11 @@ function clampP(p: number): number {
   return Math.max(0.02, Math.min(0.9, p));
 }
 
-export function buildFlareOutlook(points: XrayPoint[], regions: ActiveRegion[]): FlareOutlook {
+export function buildFlareOutlook(
+  points: XrayPoint[],
+  regions: ActiveRegion[],
+  catalog: CatalogFlare[] = [],
+): FlareOutlook {
   const series = longSeries(points);
   const empty: FlareOutlook = {
     generated: Date.now(),
@@ -246,6 +324,7 @@ export function buildFlareOutlook(points: XrayPoint[], regions: ActiveRegion[]):
     learnedC: false,
     trainM: 0,
     trainC: 0,
+    catalogM: 0,
     hindcastHit: 0,
     hindcastN: 0,
     regionLine: null,
@@ -268,8 +347,12 @@ export function buildFlareOutlook(points: XrayPoint[], regions: ActiveRegion[]):
       ? (Math.log10(X1) - Math.log10(nowF)) / slope / 60
       : null;
 
-  const mPeaks = findPeaks(series, M1);
-  const cPeaks = findPeaks(series, C1 * 5);
+  const detectedM = findPeaks(series, M1);
+  const detectedC = findPeaks(series, C1 * 5);
+  const catalogM = mapCatalog(catalog, series, "M");
+  const catalogC = mapCatalog(catalog, series, "C");
+  const mPeaks = catalogM.length ? catalogM : detectedM;
+  const cPeaks = catalogC.length ? catalogC : detectedC;
   const labeledEnd = series[last]!.t - HORIZON_MS;
   const rowsM: { x: number[]; y: number }[] = [];
   const rowsC: { x: number[]; y: number }[] = [];
@@ -346,12 +429,25 @@ export function buildFlareOutlook(points: XrayPoint[], regions: ActiveRegion[]):
   if (harm.period) bits.push(`A ${harm.period}-min pulse stands out of the last 90 minutes.`);
   if (learnedM && pM != null) {
     bits.push(
-      `M-class within 6 hours: ${Math.round(pM * 100)}%. Fit on ${trainM} M flares in 7 days; hindcast caught ${hindcastHit} of ${hindcastN} before the peak.`,
+      `M-class within 6 hours: ${Math.round(pM * 100)}%. Learned from ${catalogM.length || trainM} flares placed on the 7-day X-ray chart. Hindcast caught ${hindcastHit} of ${hindcastN} before the peak.`,
     );
   } else if (pM != null) {
     bits.push(
-      `M-class watch ${Math.round(pM * 100)}%. Not enough M flares this week to train it — this is the live trend plus the region class.`,
+      `M-class watch ${Math.round(pM * 100)}%. ${catalogM.length} catalogued M flares on this week's chart, not enough to train. This is the live trend plus the region class.`,
     );
+  }
+  const nowShape = prelude(series, last);
+  if (nowShape && catalogM.length) {
+    let best = 0;
+    for (const peak of catalogM.slice(-8)) {
+      const idx = nearestIndex(series, peak.t);
+      const shape = prelude(series, idx);
+      if (!shape) continue;
+      best = Math.max(best, cosine(nowShape, shape));
+    }
+    if (best >= 0.82) {
+      bits.push("The last hour of the chart resembles the rise before a catalogued M flare.");
+    }
   }
 
   return {
@@ -367,12 +463,13 @@ export function buildFlareOutlook(points: XrayPoint[], regions: ActiveRegion[]):
     learnedC,
     trainM,
     trainC,
+    catalogM: catalogM.length,
     hindcastHit,
     hindcastN,
     regionLine: reg.line,
     sentence: bits.join(" "),
     honesty:
-      "Fit on the same 7 days it is scored against. Today's region class is applied across that week. Impulsive flares can still jump inside a few minutes. Not a civil alert.",
+      "Each catalogued flare is placed on the GOES X-ray chart, and the hour before it is what the fit learns. Scored on that same week. Not a civil alert.",
     recentFlares,
   };
 }
