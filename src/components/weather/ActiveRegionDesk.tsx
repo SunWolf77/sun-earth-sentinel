@@ -42,13 +42,13 @@ function SunDisk({ regions }: { regions: ActiveRegion[] }) {
     .filter((m): m is { r: ActiveRegion; p: { x: number; y: number } } => m.p != null);
 
   return (
-    <div className="mx-auto w-full max-w-[16rem]">
+    <div className="mx-auto w-full max-w-[11rem]">
       <div className="relative aspect-square">
         {photo ? (
           <img
             src={sdoStill("HMIIC", 512)}
             alt="The Sun in visible light, SDO HMI"
-            className="h-full w-full rounded-full object-cover"
+            className="h-full w-full scale-[1.08] rounded-full object-cover"
             onError={() => setPhoto(false)}
           />
         ) : (
@@ -56,22 +56,18 @@ function SunDisk({ regions }: { regions: ActiveRegion[] }) {
         )}
         <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full" role="img" aria-label="Active regions on the Sun">
           <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeDasharray="2 2" />
-          {marks.map(({ r, p }, i) => {
-            const hot = haleRank(r.hale) >= 3;
-            const label = `AR${r.region}`;
-            const width = label.length * 9.2 + 10;
-            const leftSide = p.x > CX + 18;
-            let lx = leftSide ? p.x - width - 8 : p.x + 8;
-            lx = Math.max(2, Math.min(198 - width, lx));
-            const ly = Math.min(CY + R - 18, Math.max(CY - R + 18, p.y - 2 + (i % 2) * 18));
+          {marks.map(({ r, p }) => {
+            const rank = haleRank(r.hale);
             return (
-              <g key={r.region}>
-                <circle cx={p.x} cy={p.y} r={hot ? 5.5 : 3.6} fill={fill(r)} stroke="#0b0b0f" strokeWidth="1.2" />
-                <rect x={lx} y={ly - 9} width={width} height={18} rx="3" fill="rgba(8,8,12,0.92)" />
-                <text x={lx + 5} y={ly + 4} fill={fill(r)} fontSize="13" fontWeight="700">
-                  {label}
-                </text>
-              </g>
+              <circle
+                key={r.region}
+                cx={p.x}
+                cy={p.y}
+                r={rank >= 4 ? 5.2 : rank >= 2 ? 3.6 : 2.6}
+                fill={fill(r)}
+                stroke="#0b0b0f"
+                strokeWidth="1.1"
+              />
             );
           })}
         </svg>
@@ -82,8 +78,10 @@ function SunDisk({ regions }: { regions: ActiveRegion[] }) {
 }
 
 export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[]; observed?: string | null }) {
-  const headlines = regions.filter((r) => haleRank(r.hale) > 0).slice(0, 4);
-  const lead = headlines[0];
+  const listed = regions
+    .filter((r) => r.lon <= 90 && r.lon >= -90 && (haleRank(r.hale) > 0 || r.cProb > 0 || r.mProb > 0 || r.xProb > 0))
+    .sort((a, b) => b.xProb - a.xProb || b.mProb - a.mProb || b.cProb - a.cProb || haleRank(b.hale) - haleRank(a.hale));
+  const lead = listed[0];
 
   return (
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
@@ -91,37 +89,40 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
         <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
           Sunspots aimed at Earth
         </h2>
+        <span className="text-[0.58rem] uppercase tracking-wide text-dim">NOAA chance, next day</span>
       </div>
-      <div className="grid items-center gap-3 md:grid-cols-[16rem_1fr]">
-        <SunDisk regions={regions} />
-        <div className="min-w-0 space-y-2">
-          {lead ? (
-            <p className={`text-[0.95rem] font-semibold leading-snug ${tone(lead)}`}>{lead.sentence}</p>
-          ) : (
-            <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
-          )}
+      <div className="grid items-start gap-3 md:grid-cols-[11rem_1fr]">
+        <SunDisk regions={listed} />
+        <div className="min-w-0">
           {lead?.reachedDelta && (
-            <p className="text-[0.72rem] text-danger">Complexity just reached delta.</p>
+            <p className="mb-1.5 text-[0.72rem] text-danger">AR{lead.region} just reached delta.</p>
           )}
-          {lead && !lead.reachedDelta && lead.growing && (
-            <p className="text-[0.72rem] text-warn">Magnetic complexity is growing.</p>
+          {listed.length === 0 ? (
+            <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
+          ) : (
+            <ul className="space-y-1">
+              {listed.slice(0, 8).map((r) => (
+                <li key={r.region} className="grid grid-cols-[4.4rem_1fr] items-baseline gap-x-2 text-[0.72rem] leading-snug sm:grid-cols-[4.4rem_1fr_auto]">
+                  <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
+                  <span className="truncate text-muted">
+                    {r.haleLabel} · {r.phaseLabel}
+                  </span>
+                  <span className="font-mono text-[0.68rem] tabular-nums sm:text-right">
+                    <span className="text-dim">C </span>
+                    {Math.round(r.cProb)}
+                    <span className="text-dim"> M </span>
+                    <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
+                    <span className="text-dim"> X </span>
+                    <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
-          <ul className="space-y-1">
-            {headlines.slice(0, 3).map((r) => (
-              <li key={r.region} className="text-[0.72rem] leading-snug text-fg">
-                <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
-                <span className="text-muted"> · {r.haleLabel}</span>
-                <span className="text-muted"> · {r.phaseLabel}</span>
-              </li>
-            ))}
-          </ul>
-          <details>
-            <summary className="cursor-pointer text-[0.65rem] text-dim">What the disk means</summary>
-            <p className="mt-1 text-[0.6rem] leading-snug text-dim">
-              Center faces Earth. East is left, west is right. Delta is the complex class most often tied to stronger flares.
-              {observed ? ` NOAA report ${observed}.` : ""} Not a flare forecast.
-            </p>
-          </details>
+          <p className="mt-2 text-[0.58rem] text-dim">
+            Dots match the list. Percentages are NOAA’s own C, M, and X odds, not a new forecast.
+            {observed ? ` Report ${observed}.` : ""}
+          </p>
         </div>
       </div>
     </section>

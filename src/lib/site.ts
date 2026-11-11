@@ -62,8 +62,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.37.0: The flare chance also uses the last 10 years of the NOAA GOES flare report.
  * 1.37.1: Sunspot desk uses the live visible-light Sun, with each region labeled.
  * 1.37.2: Active-region numbers on the Sun are larger.
+ * 1.37.3: Sunspots are dots on the disk. The list shows each region and NOAA’s C, M, and X chance.
  */
-export const APP_VERSION = "1.37.2";
+export const APP_VERSION = "1.37.3";
 
 
 
