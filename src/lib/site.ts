@@ -59,8 +59,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.35.0: Solar opens as a dashboard. The chart and the pictures sit under Closer look.
  * 1.35.1: Kp, X-ray, wind, and Bz are one chain from the Sun to the ground.
  * 1.36.0: A flare chance of 50% or more goes on Pulse and notifies. The fit learns from catalogued flares placed on the X-ray chart.
+ * 1.37.0: The flare chance also uses the last 10 years of the NOAA GOES flare report.
  */
-export const APP_VERSION = "1.36.0";
+export const APP_VERSION = "1.37.0";
 
 
 

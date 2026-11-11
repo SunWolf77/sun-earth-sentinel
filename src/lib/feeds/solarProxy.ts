@@ -35,6 +35,7 @@ import { buildSolarCycleBundle, type SolarCycleBundle } from "@/lib/feeds/solarC
 import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
 import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
 import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
+import { getFlareDecade } from "@/lib/solar/flareHistory";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
 
@@ -274,15 +275,17 @@ export const fetchFlareOutlookFn = createServerFn({ method: "GET" }).handler(
       fetch(`https://services.swpc.noaa.gov${path}`, { headers: { Accept: "application/json" } })
         .then((r) => (r.ok ? r.json() : []))
         .catch(() => []);
-    const [xrays, regions, flares] = await Promise.all([
+    const [xrays, regions, flares, decade] = await Promise.all([
       load("/json/goes/primary/xrays-7-day.json"),
       fetchSolarRegions().catch(() => [] as ActiveRegion[]),
       load("/json/goes/primary/xray-flares-7-day.json"),
+      getFlareDecade().catch(() => null),
     ]);
     const value = buildFlareOutlook(
       Array.isArray(xrays) ? xrays : [],
       regions,
       Array.isArray(flares) ? (flares as CatalogFlare[]) : [],
+      decade,
     );
     flareOutlookCache = { at: Date.now(), value };
     return value;

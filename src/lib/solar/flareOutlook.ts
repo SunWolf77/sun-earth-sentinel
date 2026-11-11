@@ -11,6 +11,7 @@ import type { XrayPoint } from "@/lib/feeds/swpc";
 import { fluxToClass } from "@/lib/feeds/swpc";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
+import type { FlareDecade } from "@/lib/solar/flareHistory";
 
 const M1 = 1e-5;
 const X1 = 1e-4;
@@ -38,6 +39,8 @@ export type FlareOutlook = {
   trainM: number;
   trainC: number;
   catalogM: number;
+  decadeM: number;
+  decadeYears: number;
   hindcastHit: number;
   hindcastN: number;
   regionLine: string | null;
@@ -309,6 +312,7 @@ export function buildFlareOutlook(
   points: XrayPoint[],
   regions: ActiveRegion[],
   catalog: CatalogFlare[] = [],
+  decade: FlareDecade | null = null,
 ): FlareOutlook {
   const series = longSeries(points);
   const empty: FlareOutlook = {
@@ -325,6 +329,8 @@ export function buildFlareOutlook(
     trainM: 0,
     trainC: 0,
     catalogM: 0,
+    decadeM: 0,
+    decadeYears: 0,
     hindcastHit: 0,
     hindcastN: 0,
     regionLine: null,
@@ -408,6 +414,14 @@ export function buildFlareOutlook(
     pM = clampP(sigmoid(prior));
   }
 
+  if (decade?.pM6h != null && pM != null) {
+    const rising = trend === "rising";
+    const wLive = learnedM || rising ? 0.75 : 0.45;
+    pM = clampP(wLive * pM + (1 - wLive) * decade.pM6h);
+  } else if (decade?.pM6h != null && pM == null) {
+    pM = clampP(decade.pM6h);
+  }
+
   const recentFlares = [...mPeaks]
     .sort((a, b) => b.t - a.t)
     .slice(0, 6)
@@ -449,6 +463,14 @@ export function buildFlareOutlook(
       bits.push("The last hour of the chart resembles the rise before a catalogued M flare.");
     }
   }
+  if (decade && decade.mCount + decade.xCount > 0) {
+    const hist =
+      decade.pM6h != null ? `${Math.round(decade.pM6h * 100)}% of 6-hour windows` : "a counted rate";
+    const like = decade.ssn != null && decade.matchedMonths >= 6 ? `at a sunspot count like now, ` : "";
+    bits.push(
+      `NOAA flare report ${decade.fromYear}–${decade.toYear}: ${decade.mCount} M and ${decade.xCount} X. ${like}${hist} had an M or X flare.`,
+    );
+  }
 
   return {
     generated: Date.now(),
@@ -464,12 +486,14 @@ export function buildFlareOutlook(
     trainM,
     trainC,
     catalogM: catalogM.length,
+    decadeM: decade ? decade.mCount + decade.xCount : 0,
+    decadeYears: decade?.years ?? 0,
     hindcastHit,
     hindcastN,
     regionLine: reg.line,
     sentence: bits.join(" "),
     honesty:
-      "Each catalogued flare is placed on the GOES X-ray chart, and the hour before it is what the fit learns. Scored on that same week. Not a civil alert.",
+      "This week's chart is scored on itself. The 10-year NOAA flare report supplies the rate at a similar sunspot level, not a minute-by-minute replay. Not a civil alert.",
     recentFlares,
   };
 }
