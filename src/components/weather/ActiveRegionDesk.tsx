@@ -86,7 +86,7 @@ function SunDisk({
   const badges = badgeSpot(marks);
 
   return (
-    <div className={large ? "mx-auto w-full max-w-[36rem]" : "mx-auto w-full max-w-[13rem]"}>
+    <div className={large ? "mx-auto w-full max-w-[16rem] sm:max-w-[28rem]" : "w-full"}>
       <div className="relative aspect-square">
         {photo ? (
           <img
@@ -130,7 +130,9 @@ function SunDisk({
           })}
         </svg>
       </div>
-      <p className="mt-1 text-center text-[0.58rem] text-dim">Numbers match the list · center faces Earth</p>
+      <p className="mt-1 hidden text-center text-[0.58rem] leading-tight text-dim sm:block">
+        Numbers match the list
+      </p>
     </div>
   );
 }
@@ -172,7 +174,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             Full
           </button>
         </div>
-        <div className="grid items-start gap-3 md:grid-cols-[13rem_1fr]">
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2 sm:grid-cols-[8.5rem_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:gap-3">
           <SunDisk regions={shown} active={hot ?? picked} onHover={setHot} onPick={setPicked} />
           <RegionList
             regions={shown}
@@ -242,25 +244,29 @@ function RegionList({
             <li key={r.region}>
               <button
                 type="button"
-                className={`grid w-full cursor-pointer grid-cols-[1.1rem_4.2rem_1fr] items-baseline gap-x-1.5 rounded px-1 py-0.5 text-left text-[0.72rem] leading-snug sm:grid-cols-[1.1rem_4.2rem_1fr_auto] ${hot === r.region ? "bg-elevated/80" : ""}`}
+                className={`flex w-full items-start gap-1 rounded px-0.5 py-1 text-left ${hot === r.region ? "bg-elevated/80" : ""}`}
                 onMouseEnter={() => onHover(r.region)}
                 onMouseLeave={() => onHover(null)}
                 onClick={() => onPick(r.region)}
               >
-                <span className="font-mono font-bold tabular-nums" style={{ color: markColor(i) }}>
+                <span className="w-4 shrink-0 pt-0.5 font-mono text-[0.72rem] font-bold tabular-nums" style={{ color: markColor(i) }}>
                   {i + 1}
                 </span>
-                <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
-                <span className="truncate text-muted">
-                  {r.haleLabel} · {r.phaseLabel}
-                </span>
-                <span className="font-mono text-[0.68rem] tabular-nums sm:text-right">
-                  <span className="text-dim">C </span>
-                  {Math.round(r.cProb)}
-                  <span className="text-dim"> M </span>
-                  <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
-                  <span className="text-dim"> X </span>
-                  <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
+                    <span className="shrink-0 font-mono text-[0.62rem] tabular-nums">
+                      <span className="text-dim">C </span>
+                      {Math.round(r.cProb)}
+                      <span className="text-dim"> M </span>
+                      <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
+                      <span className="text-dim"> X </span>
+                      <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
+                    </span>
+                  </span>
+                  <span className="block truncate text-[0.62rem] text-muted">
+                    {r.haleLabel} · {r.phaseLabel}
+                  </span>
                 </span>
               </button>
             </li>

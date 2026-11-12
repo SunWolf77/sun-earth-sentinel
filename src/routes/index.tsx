@@ -819,7 +819,7 @@ function ObservatoryApp() {
         } ${isMobile ? "ww-header--mobile" : ""}`}
       >
         <div className="ww-header__primary flex min-w-0 flex-nowrap items-center gap-1 px-1.5 py-0.5 sm:gap-1.5 sm:px-2.5">
-          <div className="ww-header__brand min-w-0 shrink-0">
+          <div className="ww-header__brand min-w-0 flex-1 overflow-hidden">
             <h1 className="flex min-w-0 items-baseline gap-2 truncate text-[0.78rem] font-semibold leading-none tracking-tight text-fg">
               <span className="shrink-0">
                 <span className="sm:hidden">SES</span>
@@ -885,7 +885,7 @@ function ObservatoryApp() {
             </span>
             <button
               type="button"
-              className={`ww-btn ww-btn--icon ww-btn--compact ${isMobile ? "hidden" : ""}`}
+              className="ww-btn ww-btn--icon ww-btn--compact hidden sm:inline-flex"
               title="Copy current view link (tab · filters · layers)"
               aria-label="Copy current view link"
               onClick={async () => {
@@ -938,7 +938,7 @@ function ObservatoryApp() {
               aria-label="Refresh data"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
               type="button"
