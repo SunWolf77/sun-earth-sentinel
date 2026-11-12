@@ -3,7 +3,7 @@
  * East is left, west is right, center faces Earth. SWPC positions, not a flare forecast.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
 import { sdoStill } from "@/lib/feeds/solarMedia";
@@ -70,10 +70,14 @@ function SunDisk({
   regions,
   active,
   onHover,
+  onPick,
+  large,
 }: {
   regions: ActiveRegion[];
   active: number | null;
   onHover: (id: number | null) => void;
+  onPick: (id: number) => void;
+  large?: boolean;
 }) {
   const [photo, setPhoto] = useState(true);
   const marks = regions
@@ -82,7 +86,7 @@ function SunDisk({
   const badges = badgeSpot(marks);
 
   return (
-    <div className="mx-auto w-full max-w-[13rem]">
+    <div className={large ? "mx-auto w-full max-w-[36rem]" : "mx-auto w-full max-w-[13rem]"}>
       <div className="relative aspect-square">
         {photo ? (
           <img
@@ -107,10 +111,18 @@ function SunDisk({
                 className="cursor-pointer"
                 onMouseEnter={() => onHover(r.region)}
                 onMouseLeave={() => onHover(null)}
+                onClick={() => onPick(r.region)}
               >
                 <circle cx={p.x} cy={p.y} r={active === r.region ? 5.4 : 3.4} fill={color} stroke="#0b0b0f" strokeWidth="1.1" />
                 <circle cx={b.x} cy={b.y} r="7" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="1.2" />
-                <text x={b.x} y={b.y + 3.2} textAnchor="middle" fill={color} fontSize="9" fontWeight="700">
+                <text
+                  x={b.x}
+                  y={b.y + (large ? 4 : 3.2)}
+                  textAnchor="middle"
+                  fill={color}
+                  fontSize={large ? "11" : "9"}
+                  fontWeight="700"
+                >
                   {i + 1}
                 </text>
               </g>
@@ -127,59 +139,169 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
   const listed = regions
     .filter((r) => r.lon <= 90 && r.lon >= -90 && (haleRank(r.hale) > 0 || r.cProb > 0 || r.mProb > 0 || r.xProb > 0))
     .sort((a, b) => b.xProb - a.xProb || b.mProb - a.mProb || b.cProb - a.cProb || haleRank(b.hale) - haleRank(a.hale));
-  const lead = listed[0];
+  const shown = listed.slice(0, 8);
+  const lead = shown[0];
   const [hot, setHot] = useState<number | null>(null);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [full, setFull] = useState(false);
+
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFull(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [full]);
+
+  const focus = listed.find((r) => r.region === (picked ?? hot)) ?? null;
 
   return (
-    <section className="rounded-xl border border-border bg-panel px-3 py-3">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
-          Sunspots aimed at Earth
-        </h2>
-        <span className="text-[0.58rem] uppercase tracking-wide text-dim">NOAA chance, next day</span>
-      </div>
-      <div className="grid items-start gap-3 md:grid-cols-[13rem_1fr]">
-        <SunDisk regions={listed.slice(0, 8)} active={hot} onHover={setHot} />
-        <div className="min-w-0">
-          {lead?.reachedDelta && (
-            <p className="mb-1.5 text-[0.72rem] text-danger">AR{lead.region} just reached delta.</p>
-          )}
-          {listed.length === 0 ? (
-            <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
-          ) : (
-            <ul className="space-y-0.5">
-              {listed.slice(0, 8).map((r, i) => (
-                <li
-                  key={r.region}
-                  className={`grid cursor-pointer grid-cols-[1.1rem_4.2rem_1fr] items-baseline gap-x-1.5 rounded px-1 py-0.5 text-[0.72rem] leading-snug sm:grid-cols-[1.1rem_4.2rem_1fr_auto] ${hot === r.region ? "bg-elevated/80" : ""}`}
-                  onMouseEnter={() => setHot(r.region)}
-                  onMouseLeave={() => setHot(null)}
-                >
-                  <span className="font-mono font-bold tabular-nums" style={{ color: markColor(i) }}>
-                    {i + 1}
-                  </span>
-                  <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
-                  <span className="truncate text-muted">
-                    {r.haleLabel} · {r.phaseLabel}
-                  </span>
-                  <span className="font-mono text-[0.68rem] tabular-nums sm:text-right">
-                    <span className="text-dim">C </span>
-                    {Math.round(r.cProb)}
-                    <span className="text-dim"> M </span>
-                    <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
-                    <span className="text-dim"> X </span>
-                    <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-2 text-[0.58rem] text-dim">
-            The number on the Sun is the same number in the list. Hover a row to pick its spot out.
-            {observed ? ` Report ${observed}.` : ""}
-          </p>
+    <>
+      <section className="rounded-xl border border-border bg-panel px-3 py-3">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
+            Sunspots aimed at Earth
+          </h2>
+          <span className="ml-auto text-[0.58rem] uppercase tracking-wide text-dim">NOAA next day</span>
+          <button
+            type="button"
+            onClick={() => setFull(true)}
+            className="rounded-md border border-border px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-wide text-primary"
+          >
+            Full
+          </button>
         </div>
-      </div>
+        <div className="grid items-start gap-3 md:grid-cols-[13rem_1fr]">
+          <SunDisk regions={shown} active={hot ?? picked} onHover={setHot} onPick={setPicked} />
+          <RegionList
+            regions={shown}
+            hot={hot ?? picked}
+            onHover={setHot}
+            onPick={setPicked}
+            leadNote={lead?.reachedDelta ? `AR${lead.region} just reached delta.` : null}
+            foot={`The number on the Sun is the same number in the list.${observed ? ` Report ${observed}.` : ""}`}
+          />
+        </div>
+      </section>
+      {full && (
+        <div className="fixed inset-0 z-[6000] overflow-auto bg-[#070b14]/95 p-3 sm:p-6">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
+            <button
+              type="button"
+              onClick={() => setFull(false)}
+              className="rounded-md border border-border bg-panel px-3 py-1 text-xs font-semibold text-fg"
+            >
+              Exit full
+            </button>
+          </div>
+          <div className="mx-auto mt-3 grid max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
+            <div className="space-y-3">
+              <RegionDossier region={focus} />
+              <RegionList
+                regions={listed.slice(0, 12)}
+                hot={picked ?? hot}
+                onHover={setHot}
+                onPick={setPicked}
+                leadNote={null}
+                foot="Click a number to pin that region. Escape leaves full screen."
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function RegionList({
+  regions,
+  hot,
+  onHover,
+  onPick,
+  leadNote,
+  foot,
+}: {
+  regions: ActiveRegion[];
+  hot: number | null;
+  onHover: (id: number | null) => void;
+  onPick: (id: number) => void;
+  leadNote: string | null;
+  foot: string;
+}) {
+  return (
+    <div className="min-w-0">
+      {leadNote && <p className="mb-1.5 text-[0.72rem] text-danger">{leadNote}</p>}
+      {regions.length === 0 ? (
+        <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {regions.map((r, i) => (
+            <li key={r.region}>
+              <button
+                type="button"
+                className={`grid w-full cursor-pointer grid-cols-[1.1rem_4.2rem_1fr] items-baseline gap-x-1.5 rounded px-1 py-0.5 text-left text-[0.72rem] leading-snug sm:grid-cols-[1.1rem_4.2rem_1fr_auto] ${hot === r.region ? "bg-elevated/80" : ""}`}
+                onMouseEnter={() => onHover(r.region)}
+                onMouseLeave={() => onHover(null)}
+                onClick={() => onPick(r.region)}
+              >
+                <span className="font-mono font-bold tabular-nums" style={{ color: markColor(i) }}>
+                  {i + 1}
+                </span>
+                <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
+                <span className="truncate text-muted">
+                  {r.haleLabel} · {r.phaseLabel}
+                </span>
+                <span className="font-mono text-[0.68rem] tabular-nums sm:text-right">
+                  <span className="text-dim">C </span>
+                  {Math.round(r.cProb)}
+                  <span className="text-dim"> M </span>
+                  <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
+                  <span className="text-dim"> X </span>
+                  <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[0.58rem] text-dim">{foot}</p>
+    </div>
+  );
+}
+
+function RegionDossier({ region }: { region: ActiveRegion | null }) {
+  if (!region) {
+    return (
+      <p className="rounded-xl border border-border bg-panel px-3 py-3 text-[0.75rem] text-muted">
+        Click a number. The region’s class, place, and flare odds open here.
+      </p>
+    );
+  }
+  return (
+    <section className="rounded-xl border border-border bg-panel px-3 py-3">
+      <p className={`text-[0.95rem] font-semibold leading-snug ${tone(region)}`}>{region.sentence}</p>
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
+        <Stat k="Place" v={region.location} />
+        <Stat k="Phase" v={region.phaseLabel} />
+        <Stat k="Class" v={region.haleLabel} />
+        <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "—"} />
+        <Stat k="Area" v={region.area != null ? String(region.area) : "—"} />
+        <Stat k="C / M / X" v={`${Math.round(region.cProb)} / ${Math.round(region.mProb)} / ${Math.round(region.xProb)}`} />
+        <Stat k="Flares seen" v={`C${region.cEvents} M${region.mEvents} X${region.xEvents}`} />
+        <Stat k="Change" v={region.reachedDelta ? "Reached delta" : region.growing ? "Complexity growing" : "Steady"} />
+      </dl>
     </section>
+  );
+}
+
+function Stat({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <dt className="text-[0.58rem] uppercase tracking-wide text-dim">{k}</dt>
+      <dd className="text-fg">{v}</dd>
+    </div>
   );
 }

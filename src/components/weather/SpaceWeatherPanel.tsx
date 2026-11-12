@@ -105,6 +105,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const kpForecast = useObservatory((s) => s.kpForecast);
   const [channel, setChannel] = useState<SdoChannelId>("0193");
   const [mediaTab, setMediaTab] = useState<MediaTab>("disk");
+  const [closer, setCloser] = useState(false);
   const [solarView, setSolarView] = useState<SolarView>(() => {
     if (typeof window === "undefined") return "now";
     try {
@@ -304,21 +305,33 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           />
 
           <div className="grid items-start gap-3 lg:grid-cols-2">
-            <FlareOutlookDesk />
+            <div className="space-y-2">
+              <FlareOutlookDesk />
+              {!closer && (
+                <button
+                  type="button"
+                  onClick={() => setCloser(true)}
+                  className="w-full rounded-lg border border-border bg-panel/70 px-2.5 py-1 text-left text-[0.68rem] font-semibold text-primary"
+                >
+                  Closer look
+                  <span className="ml-2 font-normal text-dim">chart · pictures · outlook</span>
+                </button>
+              )}
+            </div>
             <ActiveRegionDesk
               regions={activeRegions}
               observed={activeRegions[0]?.observed ?? null}
             />
-          </div>
-
-          <details className="rounded-xl border border-border bg-panel/80">
-            <summary className="cursor-pointer list-none px-3 py-2.5 text-[0.75rem] font-semibold text-primary">
-              Closer look
-              <span className="ml-2 font-normal text-dim">
-                X-ray chart · pictures · 3-day outlook · solar cycle
-              </span>
-            </summary>
-            <div className="grid items-start gap-3 border-t border-border/70 p-3 lg:grid-cols-12">
+            {closer && (
+              <div className="space-y-2 lg:col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setCloser(false)}
+                  className="text-[0.68rem] font-semibold text-primary"
+                >
+                  Close closer look
+                </button>
+                <div className="grid items-start gap-3 rounded-xl border border-border bg-panel/80 p-3 lg:grid-cols-12">
               <div className="space-y-3 lg:col-span-7">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <AttentionSparkline showLabel height={22} className="min-w-0" />
@@ -390,7 +403,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
                 <EclipseWatch />
               </div>
             </div>
-          </details>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
