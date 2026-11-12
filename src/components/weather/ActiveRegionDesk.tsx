@@ -15,16 +15,15 @@ function tone(r: ActiveRegion): string {
   return "text-muted";
 }
 
-function fill(r: ActiveRegion): string {
-  if (haleRank(r.hale) >= 4) return "#fb7185";
-  if (haleRank(r.hale) >= 3) return "#fbbf24";
-  if (haleRank(r.hale) >= 2) return "#22d3ee";
-  return "#e2e8f0";
-}
-
 const CX = 100;
 const CY = 100;
 const R = 94;
+
+const MARK = ["#fb7185", "#22d3ee", "#fbbf24", "#a3e635", "#c084fc", "#fb923c", "#38bdf8", "#f472b6"];
+
+function markColor(i: number): string {
+  return MARK[i % MARK.length]!;
+}
 
 function place(r: ActiveRegion): { x: number; y: number } | null {
   if (r.lon > 90 || r.lon < -90) return null;
@@ -35,14 +34,55 @@ function place(r: ActiveRegion): { x: number; y: number } | null {
   return { x, y };
 }
 
-function SunDisk({ regions }: { regions: ActiveRegion[] }) {
+function badgeSpot(
+  marks: { p: { x: number; y: number } }[],
+): { x: number; y: number }[] {
+  const out = marks.map(({ p }) => {
+    const dx = p.x - CX;
+    const dy = p.y - CY;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: p.x + (dx / len) * 11, y: p.y + (dy / len) * 11 };
+  });
+  for (let n = 0; n < 6; n++) {
+    for (let i = 0; i < out.length; i++) {
+      for (let j = 0; j < i; j++) {
+        const a = out[i]!;
+        const b = out[j]!;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.hypot(dx, dy) || 0.01;
+        if (dist >= 15) continue;
+        const push = (15 - dist) / 2;
+        a.x += (dx / dist) * push;
+        a.y += (dy / dist) * push;
+        b.x -= (dx / dist) * push;
+        b.y -= (dy / dist) * push;
+      }
+      const s = out[i]!;
+      s.x = Math.max(8, Math.min(192, s.x));
+      s.y = Math.max(8, Math.min(192, s.y));
+    }
+  }
+  return out;
+}
+
+function SunDisk({
+  regions,
+  active,
+  onHover,
+}: {
+  regions: ActiveRegion[];
+  active: number | null;
+  onHover: (id: number | null) => void;
+}) {
   const [photo, setPhoto] = useState(true);
   const marks = regions
-    .map((r) => ({ r, p: place(r) }))
-    .filter((m): m is { r: ActiveRegion; p: { x: number; y: number } } => m.p != null);
+    .map((r, i) => ({ r, i, p: place(r) }))
+    .filter((m): m is { r: ActiveRegion; i: number; p: { x: number; y: number } } => m.p != null);
+  const badges = badgeSpot(marks);
 
   return (
-    <div className="mx-auto w-full max-w-[11rem]">
+    <div className="mx-auto w-full max-w-[13rem]">
       <div className="relative aspect-square">
         {photo ? (
           <img
@@ -56,23 +96,29 @@ function SunDisk({ regions }: { regions: ActiveRegion[] }) {
         )}
         <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full" role="img" aria-label="Active regions on the Sun">
           <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeDasharray="2 2" />
-          {marks.map(({ r, p }) => {
-            const rank = haleRank(r.hale);
+          {marks.map(({ r, i, p }, n) => {
+            const on = active == null || active === r.region;
+            const color = markColor(i);
+            const b = badges[n]!;
             return (
-              <circle
+              <g
                 key={r.region}
-                cx={p.x}
-                cy={p.y}
-                r={rank >= 4 ? 5.2 : rank >= 2 ? 3.6 : 2.6}
-                fill={fill(r)}
-                stroke="#0b0b0f"
-                strokeWidth="1.1"
-              />
+                opacity={on ? 1 : 0.28}
+                className="cursor-pointer"
+                onMouseEnter={() => onHover(r.region)}
+                onMouseLeave={() => onHover(null)}
+              >
+                <circle cx={p.x} cy={p.y} r={active === r.region ? 5.4 : 3.4} fill={color} stroke="#0b0b0f" strokeWidth="1.1" />
+                <circle cx={b.x} cy={b.y} r="7" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="1.2" />
+                <text x={b.x} y={b.y + 3.2} textAnchor="middle" fill={color} fontSize="9" fontWeight="700">
+                  {i + 1}
+                </text>
+              </g>
             );
           })}
         </svg>
       </div>
-      <p className="mt-1 text-center text-[0.58rem] text-dim">SDO visible light · center faces Earth</p>
+      <p className="mt-1 text-center text-[0.58rem] text-dim">Numbers match the list · center faces Earth</p>
     </div>
   );
 }
@@ -82,6 +128,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
     .filter((r) => r.lon <= 90 && r.lon >= -90 && (haleRank(r.hale) > 0 || r.cProb > 0 || r.mProb > 0 || r.xProb > 0))
     .sort((a, b) => b.xProb - a.xProb || b.mProb - a.mProb || b.cProb - a.cProb || haleRank(b.hale) - haleRank(a.hale));
   const lead = listed[0];
+  const [hot, setHot] = useState<number | null>(null);
 
   return (
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
@@ -91,8 +138,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
         </h2>
         <span className="text-[0.58rem] uppercase tracking-wide text-dim">NOAA chance, next day</span>
       </div>
-      <div className="grid items-start gap-3 md:grid-cols-[11rem_1fr]">
-        <SunDisk regions={listed} />
+      <div className="grid items-start gap-3 md:grid-cols-[13rem_1fr]">
+        <SunDisk regions={listed.slice(0, 8)} active={hot} onHover={setHot} />
         <div className="min-w-0">
           {lead?.reachedDelta && (
             <p className="mb-1.5 text-[0.72rem] text-danger">AR{lead.region} just reached delta.</p>
@@ -100,9 +147,17 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
           {listed.length === 0 ? (
             <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
           ) : (
-            <ul className="space-y-1">
-              {listed.slice(0, 8).map((r) => (
-                <li key={r.region} className="grid grid-cols-[4.4rem_1fr] items-baseline gap-x-2 text-[0.72rem] leading-snug sm:grid-cols-[4.4rem_1fr_auto]">
+            <ul className="space-y-0.5">
+              {listed.slice(0, 8).map((r, i) => (
+                <li
+                  key={r.region}
+                  className={`grid cursor-pointer grid-cols-[1.1rem_4.2rem_1fr] items-baseline gap-x-1.5 rounded px-1 py-0.5 text-[0.72rem] leading-snug sm:grid-cols-[1.1rem_4.2rem_1fr_auto] ${hot === r.region ? "bg-elevated/80" : ""}`}
+                  onMouseEnter={() => setHot(r.region)}
+                  onMouseLeave={() => setHot(null)}
+                >
+                  <span className="font-mono font-bold tabular-nums" style={{ color: markColor(i) }}>
+                    {i + 1}
+                  </span>
                   <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
                   <span className="truncate text-muted">
                     {r.haleLabel} · {r.phaseLabel}
@@ -120,7 +175,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             </ul>
           )}
           <p className="mt-2 text-[0.58rem] text-dim">
-            Dots match the list. Percentages are NOAA’s own C, M, and X odds, not a new forecast.
+            The number on the Sun is the same number in the list. Hover a row to pick its spot out.
             {observed ? ` Report ${observed}.` : ""}
           </p>
         </div>
