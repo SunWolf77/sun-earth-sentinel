@@ -3,7 +3,7 @@
  * East is left, west is right, center faces Earth. SWPC positions, not a flare forecast.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
@@ -35,16 +35,26 @@ function place(r: ActiveRegion): { x: number; y: number } | null {
   return { x, y };
 }
 
+function clampDisk(x: number, y: number, limit: number): { x: number; y: number } {
+  const dx = x - CX;
+  const dy = y - CY;
+  const len = Math.hypot(dx, dy);
+  if (len <= limit || len === 0) return { x, y };
+  return { x: CX + (dx / len) * limit, y: CY + (dy / len) * limit };
+}
+
 function badgeSpot(
   marks: { p: { x: number; y: number } }[],
 ): { x: number; y: number }[] {
+  const keep = R - 8;
   const out = marks.map(({ p }) => {
     const dx = p.x - CX;
     const dy = p.y - CY;
     const len = Math.hypot(dx, dy) || 1;
-    return { x: p.x + (dx / len) * 11, y: p.y + (dy / len) * 11 };
+    const dir = len > R - 22 ? -1 : 1;
+    return clampDisk(p.x + (dx / len) * 13 * dir, p.y + (dy / len) * 13 * dir, keep);
   });
-  for (let n = 0; n < 6; n++) {
+  for (let n = 0; n < 8; n++) {
     for (let i = 0; i < out.length; i++) {
       for (let j = 0; j < i; j++) {
         const a = out[i]!;
@@ -52,16 +62,19 @@ function badgeSpot(
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         const dist = Math.hypot(dx, dy) || 0.01;
-        if (dist >= 15) continue;
-        const push = (15 - dist) / 2;
-        a.x += (dx / dist) * push;
-        a.y += (dy / dist) * push;
-        b.x -= (dx / dist) * push;
-        b.y -= (dy / dist) * push;
+        if (dist >= 16) continue;
+        const push = (16 - dist) / 2;
+        const ax = a.x + (dx / dist) * push;
+        const ay = a.y + (dy / dist) * push;
+        const bx = b.x - (dx / dist) * push;
+        const by = b.y - (dy / dist) * push;
+        const ca = clampDisk(ax, ay, keep);
+        const cb = clampDisk(bx, by, keep);
+        a.x = ca.x;
+        a.y = ca.y;
+        b.x = cb.x;
+        b.y = cb.y;
       }
-      const s = out[i]!;
-      s.x = Math.max(8, Math.min(192, s.x));
-      s.y = Math.max(8, Math.min(192, s.y));
     }
   }
   return out;
@@ -115,6 +128,7 @@ function SunDisk({
                 onClick={() => onPick(r.region)}
               >
                 <circle cx={p.x} cy={p.y} r={active === r.region ? 5.4 : 3.4} fill={color} stroke="#0b0b0f" strokeWidth="1.1" />
+                <circle cx={b.x} cy={b.y} r="12" fill="transparent" />
                 <circle cx={b.x} cy={b.y} r="7" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="1.2" />
                 <text
                   x={b.x}
@@ -196,8 +210,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
       </section>
       {full &&
         createPortal(
-          <div className="fixed inset-0 z-[6000] overflow-y-auto overscroll-contain bg-[#070b14]/95">
-            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-[#070b14]/95 px-3 py-2 backdrop-blur sm:px-6">
+          <div className="fixed inset-0 z-[6000] flex flex-col overflow-hidden bg-[#070b14]">
+            <div className="flex shrink-0 items-center justify-between gap-3 px-3 py-2 sm:px-6">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
               <button
                 type="button"
@@ -207,12 +221,14 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                 Exit full
               </button>
             </div>
-            <div className="mx-auto grid w-full max-w-6xl items-start gap-4 px-3 pb-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-              <div className="sticky top-12 z-10 self-start justify-self-center">
+            <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-rows-[minmax(11rem,42vh)_minmax(0,1fr)] gap-3 px-3 pb-3 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1">
+              <div className="flex min-h-0 items-center justify-center">
                 <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
               </div>
-              <div className="min-w-0 space-y-3">
-                <RegionDossier region={focus} />
+              <div className="flex min-h-0 flex-col gap-3">
+                <div className="shrink-0">
+                  <RegionDossier region={focus} />
+                </div>
                 <RegionList
                   regions={listed.slice(0, 12)}
                   hot={picked ?? hot}
@@ -220,6 +236,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                   onPick={setPicked}
                   leadNote={null}
                   foot="Click a number to pin that region. Escape leaves full screen."
+                  follow
                 />
               </div>
             </div>
@@ -237,6 +254,7 @@ function RegionList({
   onPick,
   leadNote,
   foot,
+  follow = false,
 }: {
   regions: ActiveRegion[];
   hot: number | null;
@@ -244,16 +262,29 @@ function RegionList({
   onPick: (id: number) => void;
   leadNote: string | null;
   foot: string;
+  follow?: boolean;
 }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!follow || hot == null) return;
+    const box = scroller.current;
+    if (!box) return;
+    const row = box.querySelector(`[data-region="${hot}"]`);
+    if (!(row instanceof HTMLElement)) return;
+    const top = row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    const bottom = top + row.offsetHeight;
+    if (top < box.scrollTop) box.scrollTop = Math.max(0, top - 4);
+    else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight + 4;
+  }, [hot, follow, regions]);
   return (
-    <div className="min-w-0">
+    <div ref={follow ? scroller : undefined} className={follow ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" : "min-w-0"}>
       {leadNote && <p className="mb-1.5 text-[0.72rem] text-danger">{leadNote}</p>}
       {regions.length === 0 ? (
         <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
       ) : (
         <ul className="space-y-0.5">
           {regions.map((r, i) => (
-            <li key={r.region}>
+            <li key={r.region} data-region={r.region}>
               <button
                 type="button"
                 className={`flex w-full items-start gap-1 rounded px-0.5 py-1 text-left ${hot === r.region ? "bg-elevated/80" : ""}`}
