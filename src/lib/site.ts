@@ -69,8 +69,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.1: Phone layout keeps the Sun beside the region list, and the header no longer covers the clock.
  * 1.39.2: Great Sitkin’s board opens the live AVO page. A Watch that is still erupting says so.
  * 1.39.3: Full-screen sunspot list scrolls on its own. The disk stays on screen.
+ * 1.39.4: The Sun sticks to the top while the region list scrolls.
  */
-export const APP_VERSION = "1.39.3";
+export const APP_VERSION = "1.39.4";
 
 
 

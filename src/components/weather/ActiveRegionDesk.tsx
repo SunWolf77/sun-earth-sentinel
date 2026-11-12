@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
 import { sdoStill } from "@/lib/feeds/solarMedia";
@@ -152,8 +153,13 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFull(false);
     };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [full]);
 
   const focus = listed.find((r) => r.region === (picked ?? hot)) ?? null;
@@ -175,7 +181,9 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
           </button>
         </div>
         <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2 sm:grid-cols-[8.5rem_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:gap-3">
-          <SunDisk regions={shown} active={hot ?? picked} onHover={setHot} onPick={setPicked} />
+          <div className="sticky top-1 z-10 self-start">
+            <SunDisk regions={shown} active={hot ?? picked} onHover={setHot} onPick={setPicked} />
+          </div>
           <RegionList
             regions={shown}
             hot={hot ?? picked}
@@ -186,27 +194,25 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
           />
         </div>
       </section>
-      {full && (
-        <div className="fixed inset-0 z-[6000] flex flex-col overflow-hidden bg-[#070b14]/95">
-          <div className="flex shrink-0 items-center justify-between gap-3 px-3 py-2 sm:px-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
-            <button
-              type="button"
-              onClick={() => setFull(false)}
-              className="rounded-md border border-border bg-panel px-3 py-1 text-xs font-semibold text-fg"
-            >
-              Exit full
-            </button>
-          </div>
-          <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-rows-[minmax(11rem,46vh)_minmax(0,1fr)] gap-3 px-3 pb-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1 sm:px-6">
-            <div className="flex min-h-0 items-center justify-center">
-              <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
+      {full &&
+        createPortal(
+          <div className="fixed inset-0 z-[6000] overflow-y-auto overscroll-contain bg-[#070b14]/95">
+            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 bg-[#070b14]/95 px-3 py-2 backdrop-blur sm:px-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
+              <button
+                type="button"
+                onClick={() => setFull(false)}
+                className="rounded-md border border-border bg-panel px-3 py-1 text-xs font-semibold text-fg"
+              >
+                Exit full
+              </button>
             </div>
-            <div className="flex min-h-0 flex-col gap-3">
-              <div className="shrink-0">
-                <RegionDossier region={focus} />
+            <div className="mx-auto grid w-full max-w-6xl items-start gap-4 px-3 pb-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+              <div className="sticky top-12 z-10 self-start justify-self-center">
+                <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+              <div className="min-w-0 space-y-3">
+                <RegionDossier region={focus} />
                 <RegionList
                   regions={listed.slice(0, 12)}
                   hot={picked ?? hot}
@@ -217,9 +223,9 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                 />
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
