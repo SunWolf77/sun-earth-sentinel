@@ -67,8 +67,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.38.0: Sunspot desk opens full screen. Closer look sits under the flare chance so the desk fits.
  * 1.39.0: Each flare this week is mapped on the X-ray chart, with a harmonic read and a DONKI source when one exists.
  * 1.39.1: Phone layout keeps the Sun beside the region list, and the header no longer covers the clock.
+ * 1.39.2: Great Sitkin’s board opens the live AVO page. A Watch that is still erupting says so.
  */
-export const APP_VERSION = "1.39.1";
+export const APP_VERSION = "1.39.2";
 
 
 

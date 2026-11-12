@@ -390,6 +390,9 @@ export function NodeFocusBanner() {
             </>
           )}
         </div>
+        {isVolc && focus.eruptionNote && (
+          <p className="mt-0.5 line-clamp-2 text-[0.65rem] leading-snug text-fg">{focus.eruptionNote}</p>
+        )}
       </div>
       {boardUrl && (
         <a
@@ -398,9 +401,11 @@ export function NodeFocusBanner() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 rounded-md border border-gold/40 bg-gold/10 px-2 py-1 text-[0.68rem] font-semibold text-gold hover:bg-gold/20"
           title={
-            pub
-              ? `Open SES ${pub.name} swarm board · data: ${pub.authority}`
-              : "Open full swarm board"
+            isVolc
+              ? `Open the observatory page for ${focus.name}`
+              : pub
+                ? `Open SES ${pub.name} swarm board · data: ${pub.authority}`
+                : "Open full swarm board"
           }
         >
           Full board

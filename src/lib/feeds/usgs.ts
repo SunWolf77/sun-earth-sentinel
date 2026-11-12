@@ -446,6 +446,8 @@ export type DragonNode = {
   gvpUrl?: string;
   agencyUrl?: string;
   watchPriority?: boolean;
+  /** One line from the official notice when an eruption is still going. */
+  eruptionNote?: string;
 };
 
 function volcanoAsDragon(v: (typeof VOLCANO_WATCHES)[number]): DragonNode {

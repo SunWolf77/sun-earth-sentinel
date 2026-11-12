@@ -47,6 +47,8 @@ export type UsgsVolcanoAlert = {
   /** Reuse SES/app node id — avoids second map pin */
   preferNodeId?: string;
   restless?: boolean;
+  /** Official one-liner when the notice says an eruption is ongoing. */
+  eruptionNote?: string | null;
 };
 
 export type VolcWatchTransition = {
@@ -153,13 +155,14 @@ export function alertToWatchNode(v: UsgsVolcanoAlert): DragonNode | null {
     bounds: boundsAround(v.lat, v.lon, v.preferNodeId ? 0.2 : 0.75),
     center: [v.lat, v.lon],
     aviationCode: av,
-    monitorUrl: v.volcanoUrl || v.noticeUrl || undefined,
+    monitorUrl: repairAvoUrl(v.name, v.volcanoUrl || null) || v.noticeUrl || undefined,
     agencyUrl: v.noticeUrl || undefined,
     gvpUrl: v.vnum
       ? `https://volcano.si.edu/volcano.cfm?vn=${v.vnum}`
       : undefined,
     watchPriority: true,
     publishedFocus: !!v.preferNodeId,
+    eruptionNote: v.eruptionNote || undefined,
     focusNote: `Live ${src} alert (${v.alertLevel} / ${v.colorCode}${native}). ${
       v.region || ""
     } · ${v.obsName}. Updates with official feeds. Not a forecast.`,
@@ -241,6 +244,52 @@ function shortObs(full: string, abbr?: string | null): string {
   return full.replace(/[^A-Za-z]/g, "").slice(0, 4).toUpperCase() || "USGS";
 }
 
+function avoSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** AVO retired activity/*.php. The live page is /volcano/{slug}. */
+function repairAvoUrl(name: string, url: string | null, html?: string | null): string | null {
+  const fromHtml = html?.match(/https?:\/\/avo\.alaska\.edu\/volcano\/[a-z0-9-]+/i)?.[0] ?? null;
+  if (fromHtml) return fromHtml;
+  if (!url) return null;
+  if (/avo\.alaska\.edu\/volcano\/[a-z0-9-]+/i.test(url) && !/www\.avo/i.test(url)) return url;
+  if (/avo\.alaska\.edu/i.test(url)) {
+    const slug = avoSlug(name);
+    return slug ? `https://avo.alaska.edu/volcano/${slug}` : url;
+  }
+  return url;
+}
+
+function synopsisOf(html: string): string | null {
+  const m = html.match(/name=["']synopsis["'][^>]*>([\s\S]*?)<\/span>/i);
+  if (!m) return null;
+  const text = m[1]!.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").replace(/^Summary:\s*/i, "").trim();
+  if (!text || !/erupt|lava/i.test(text)) return null;
+  return text.length > 180 ? `${text.slice(0, 177)}…` : text;
+}
+
+async function noticeBrief(v: UsgsVolcanoAlert): Promise<{ note: string | null; page: string | null }> {
+  const id = v.noticeId || (v.noticeUrl?.split("/notice/").pop() ?? "");
+  if (!id) return { note: null, page: null };
+  try {
+    const r = await fetch(`${HANS}/notice/getNotice/${encodeURIComponent(id)}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!r.ok) return { note: null, page: null };
+    const d = (await r.json()) as { notice_html?: string };
+    const html = d.notice_html ?? "";
+    const page = html.match(/https?:\/\/avo\.alaska\.edu\/volcano\/[a-z0-9-]+/i)?.[0] ?? null;
+    return { note: synopsisOf(html), page };
+  } catch {
+    return { note: null, page: null };
+  }
+}
+
 function pick(r: Record<string, unknown>, ...keys: string[]): unknown {
   for (const k of keys) {
     if (r[k] != null && r[k] !== "") return r[k];
@@ -302,6 +351,7 @@ export function parseHansVolcanoDetail(
   const name = str(d, "volcano_name", "volcanoName", "name");
   const region = str(d, "region");
   const url = str(d, "volcano_url", "volcanoUrl");
+  const boilerplate = str(d, "boilerplate");
   const obsName = str(d, "obs_fullname", "obsFullname", "observatory");
   const obsAbbr = str(d, "obs_abbr", "obsAbbr");
   return {
@@ -310,7 +360,7 @@ export function parseHansVolcanoDetail(
     lon: lon ?? v.lon,
     elevationM: elev ?? v.elevationM,
     region: region ?? v.region,
-    volcanoUrl: url ?? v.volcanoUrl,
+    volcanoUrl: repairAvoUrl(name ?? v.name, url ?? v.volcanoUrl, boilerplate),
     name: name ?? v.name,
     obsName: obsName ?? v.obsName,
     obsAbbr: obsAbbr ? obsAbbr.toUpperCase() : v.obsAbbr,
@@ -337,7 +387,17 @@ export async function fetchUsgsElevatedVolcanoes(): Promise<UsgsVolcanoAlert[]> 
           });
           if (!r.ok) return v;
           const d = (await r.json()) as Record<string, unknown>;
-          return parseHansVolcanoDetail(v, d);
+          let next = parseHansVolcanoDetail(v, d);
+          const hot = rankAlert(next.alertLevel) >= 3 || rankColor(next.colorCode) >= 3;
+          if (hot) {
+            const brief = await noticeBrief(next);
+            next = {
+              ...next,
+              volcanoUrl: brief.page || next.volcanoUrl,
+              eruptionNote: brief.note,
+            };
+          }
+          return next;
         } catch {
           return v;
         }
