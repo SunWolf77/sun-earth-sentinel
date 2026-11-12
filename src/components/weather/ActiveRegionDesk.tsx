@@ -86,7 +86,7 @@ function SunDisk({
   const badges = badgeSpot(marks);
 
   return (
-    <div className={large ? "mx-auto w-full max-w-[16rem] sm:max-w-[28rem]" : "w-full"}>
+    <div className={large ? "mx-auto aspect-square w-[min(100%,46vh)] lg:w-[min(100%,calc(100dvh-6.5rem))]" : "w-full"}>
       <div className="relative aspect-square">
         {photo ? (
           <img
@@ -187,8 +187,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
         </div>
       </section>
       {full && (
-        <div className="fixed inset-0 z-[6000] overflow-auto bg-[#070b14]/95 p-3 sm:p-6">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <div className="fixed inset-0 z-[6000] flex flex-col overflow-hidden bg-[#070b14]/95">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-3 py-2 sm:px-6">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
             <button
               type="button"
@@ -198,18 +198,24 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
               Exit full
             </button>
           </div>
-          <div className="mx-auto mt-3 grid max-w-6xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
-            <div className="space-y-3">
-              <RegionDossier region={focus} />
-              <RegionList
-                regions={listed.slice(0, 12)}
-                hot={picked ?? hot}
-                onHover={setHot}
-                onPick={setPicked}
-                leadNote={null}
-                foot="Click a number to pin that region. Escape leaves full screen."
-              />
+          <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-rows-[minmax(11rem,46vh)_minmax(0,1fr)] gap-3 px-3 pb-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1 sm:px-6">
+            <div className="flex min-h-0 items-center justify-center">
+              <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
+            </div>
+            <div className="flex min-h-0 flex-col gap-3">
+              <div className="shrink-0">
+                <RegionDossier region={focus} />
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                <RegionList
+                  regions={listed.slice(0, 12)}
+                  hot={picked ?? hot}
+                  onHover={setHot}
+                  onPick={setPicked}
+                  leadNote={null}
+                  foot="Click a number to pin that region. Escape leaves full screen."
+                />
+              </div>
             </div>
           </div>
         </div>
