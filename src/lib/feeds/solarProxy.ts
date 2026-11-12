@@ -35,6 +35,7 @@ import { buildSolarCycleBundle, type SolarCycleBundle } from "@/lib/feeds/solarC
 import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
 import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
 import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
+import { buildFlareAtlas, type FlareAtlas } from "@/lib/solar/flareAtlas";
 import { getFlareDecade } from "@/lib/solar/flareHistory";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
@@ -288,6 +289,39 @@ export const fetchFlareOutlookFn = createServerFn({ method: "GET" }).handler(
       decade,
     );
     flareOutlookCache = { at: Date.now(), value };
+    return value;
+  },
+);
+
+/** Each C/M/X flare this week, placed on the GOES chart with a harmonic read. */
+let flareAtlasCache: { at: number; value: FlareAtlas } | null = null;
+
+export const fetchFlareAtlasFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<FlareAtlas> => {
+    if (flareAtlasCache && Date.now() - flareAtlasCache.at < 5 * 60_000) {
+      return flareAtlasCache.value;
+    }
+    const load = (path: string) =>
+      fetch(`https://services.swpc.noaa.gov${path}`, { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => []);
+    const [xrays, flares, decade, cycle] = await Promise.all([
+      load("/json/goes/primary/xrays-7-day.json"),
+      load("/json/goes/primary/xray-flares-7-day.json"),
+      getFlareDecade().catch(() => null),
+      buildSolarCycleBundle().catch(() => null),
+    ]);
+    const ssn = cycle?.latestObserved?.ssn;
+    const phaseLine = cycle
+      ? `Solar cycle 25 is ${cycle.phase}${ssn != null ? `, sunspot number ${Math.round(ssn)}` : ""}.`
+      : null;
+    const value = buildFlareAtlas(
+      Array.isArray(xrays) ? (xrays as XrayPoint[]) : [],
+      Array.isArray(flares) ? flares : [],
+      decade?.medianRiseMin ?? null,
+      phaseLine,
+    );
+    flareAtlasCache = { at: Date.now(), value };
     return value;
   },
 );

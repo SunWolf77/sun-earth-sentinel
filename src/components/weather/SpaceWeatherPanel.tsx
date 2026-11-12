@@ -40,6 +40,7 @@ import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
 import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
+import { FlareAtlasDesk } from "@/components/weather/FlareAtlasDesk";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
 import { upcomingKpForecast } from "@/lib/feeds/swpc";
@@ -307,6 +308,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           <div className="grid items-start gap-3 lg:grid-cols-2">
             <div className="space-y-2">
               <FlareOutlookDesk />
+              <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
               {!closer && (
                 <button
                   type="button"
@@ -409,7 +411,12 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      {solarView === "xray" && <GoesXrayDesk />}
+      {solarView === "xray" && (
+        <div className="space-y-3">
+          <FlareAtlasDesk />
+          <GoesXrayDesk />
+        </div>
+      )}
 
       {solarView === "images" && showImages && (
         <div className="space-y-3">

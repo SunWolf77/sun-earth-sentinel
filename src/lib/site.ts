@@ -65,8 +65,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.37.3: Sunspots are dots on the disk. The list shows each region and NOAA’s C, M, and X chance.
  * 1.37.4: Each sunspot and its list row share a number, so the disk can be read.
  * 1.38.0: Sunspot desk opens full screen. Closer look sits under the flare chance so the desk fits.
+ * 1.39.0: Each flare this week is mapped on the X-ray chart, with a harmonic read and a DONKI source when one exists.
  */
-export const APP_VERSION = "1.38.0";
+export const APP_VERSION = "1.39.0";
 
 
 
