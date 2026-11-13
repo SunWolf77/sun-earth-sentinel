@@ -3020,9 +3020,14 @@
   min-height: 0;
   gap: 0.75rem;
   padding: 0 0.75rem 0.75rem;
-  grid-template-rows: minmax(8.5rem, 36cqb) minmax(0, 1fr);
+  grid-template:
+    "disk" minmax(8.5rem, 32cqb)
+    "detail" auto
+    "list" minmax(0, 1fr)
+    / minmax(0, 1fr);
 }
 .ww-ar-disk-cell {
+  grid-area: disk;
   display: grid;
   place-items: center;
   min-width: 0;
@@ -3035,17 +3040,23 @@
   max-width: 100%;
   max-height: 100%;
 }
-.ww-ar-side {
-  display: flex;
+.ww-ar-detail {
+  grid-area: detail;
+  min-width: 0;
+}
+.ww-ar-list {
+  grid-area: list;
   min-width: 0;
   min-height: 0;
-  flex-direction: column;
-  gap: 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 @container (min-width: 48rem) {
   .ww-ar-stage {
-    grid-template-columns: minmax(0, 1fr) minmax(17rem, 24rem);
-    grid-template-rows: minmax(0, 1fr);
+    grid-template:
+      "disk detail" auto
+      "disk list" minmax(0, 1fr)
+      / minmax(12rem, 1.15fr) minmax(17rem, 24rem);
   }
   .ww-ar-full__bar,
   .ww-ar-stage {
@@ -3057,13 +3068,39 @@
   .ww-ar-stats {
     display: none;
   }
+}
+@container (max-width: 47.99rem) and (max-height: 40rem) {
   .ww-ar-stage {
-    grid-template-rows: minmax(7rem, 42cqb) minmax(0, 1fr);
+    grid-template-rows: minmax(7rem, 28cqb) auto minmax(0, 1fr);
   }
 }
-@container (min-width: 48rem) and (max-height: 40rem) {
-  .ww-ar-stage {
-    grid-template-rows: minmax(0, 1fr);
+
+/* Solar now: one named grid. The chain spans. Flare and sunspots sit side by side when there is room. */
+.ww-solar-now {
+  container-type: inline-size;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-areas:
+    "intro"
+    "chain"
+    "flare"
+    "spots"
+    "closer";
+}
+.ww-solar-now__intro { grid-area: intro; }
+.ww-solar-now__chain { grid-area: chain; }
+.ww-solar-now__flare { grid-area: flare; min-width: 0; }
+.ww-solar-now__spots { grid-area: spots; min-width: 0; }
+.ww-solar-now__closer { grid-area: closer; min-width: 0; }
+@container (min-width: 52rem) {
+  .ww-solar-now {
+    grid-template-areas:
+      "intro intro"
+      "chain chain"
+      "flare spots"
+      "closer closer";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: start;
   }
 }
 

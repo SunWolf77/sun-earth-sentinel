@@ -227,20 +227,18 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                   <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
                 </div>
               </div>
-              <div className="ww-ar-side">
-                <div className="shrink-0">
-                  <RegionDossier region={focus} />
-                </div>
-                <RegionList
-                  regions={listed.slice(0, 12)}
-                  hot={picked ?? hot}
-                  onHover={setHot}
-                  onPick={setPicked}
-                  leadNote={null}
-                  foot="Click a number to pin that region. Escape leaves full screen."
-                  follow
-                />
+              <div className="ww-ar-detail">
+                <RegionDossier region={focus} />
               </div>
+              <RegionList
+                regions={listed.slice(0, 12)}
+                hot={picked ?? hot}
+                onHover={setHot}
+                onPick={setPicked}
+                leadNote={null}
+                foot="Click a number to pin that region. Escape leaves full screen."
+                follow
+              />
             </div>
           </div>,
           document.body,
@@ -279,7 +277,7 @@ function RegionList({
     else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight + 4;
   }, [hot, follow, regions]);
   return (
-    <div ref={follow ? scroller : undefined} className={follow ? "min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1" : "min-w-0"}>
+    <div ref={follow ? scroller : undefined} className={follow ? "ww-ar-list" : "min-w-0"}>
       {leadNote && <p className="mb-1.5 text-[0.72rem] text-danger">{leadNote}</p>}
       {regions.length === 0 ? (
         <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>

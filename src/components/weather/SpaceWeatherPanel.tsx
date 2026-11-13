@@ -286,12 +286,13 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
       </header>
 
       {solarView === "now" && (
-        <div className="space-y-3">
-          <p className="text-[0.95rem] leading-snug text-fg">
+        <div className="ww-solar-now">
+          <p className="ww-solar-now__intro text-[0.95rem] leading-snug text-fg">
             <span className="font-semibold">{impact.title}.</span>{" "}
             <span className="text-muted">{impact.summary}</span>
           </p>
 
+          <div className="ww-solar-now__chain">
           <NowBoard
             kpVal={kpVal}
             kpTime={latestKp?.time_tag ?? null}
@@ -304,9 +305,9 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             flux={flux10cm?.flux ?? null}
             onOpenXray={() => selectSolarView("xray")}
           />
+          </div>
 
-          <div className="grid items-start gap-3 lg:grid-cols-2">
-            <div className="space-y-2">
+          <div className="ww-solar-now__flare space-y-2">
               <FlareOutlookDesk />
               <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
               {!closer && (
@@ -320,12 +321,14 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
                 </button>
               )}
             </div>
+            <div className="ww-solar-now__spots">
             <ActiveRegionDesk
               regions={activeRegions}
               observed={activeRegions[0]?.observed ?? null}
             />
+            </div>
             {closer && (
-              <div className="space-y-2 lg:col-span-2">
+              <div className="ww-solar-now__closer space-y-2">
                 <button
                   type="button"
                   onClick={() => setCloser(false)}
@@ -407,7 +410,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             </div>
               </div>
             )}
-          </div>
         </div>
       )}
 
