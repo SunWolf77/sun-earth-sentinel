@@ -158,7 +158,7 @@ function SunDisk({
         </svg>
       </div>
       <p className={`mt-1 text-center text-[0.58rem] leading-tight text-dim ${large ? "hidden" : "hidden sm:block"}`}>
-        Numbers run left to right
+        1 is next off the west limb
       </p>
     </div>
   );
@@ -167,12 +167,7 @@ function SunDisk({
 export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[]; observed?: string | null }) {
   const listed = regions
     .filter((r) => r.lon <= 90 && r.lon >= -90 && (haleRank(r.hale) > 0 || r.cProb > 0 || r.mProb > 0 || r.xProb > 0))
-    .sort((a, b) => {
-      const pa = place(a);
-      const pb = place(b);
-      if (!pa || !pb) return 0;
-      return pa.x - pb.x || pa.y - pb.y;
-    });
+    .sort((a, b) => a.lon - b.lon || b.lat - a.lat);
   const shown = listed.slice(0, 12);
   const delta = shown.find((r) => r.reachedDelta);
   const [hot, setHot] = useState<number | null>(null);
@@ -221,7 +216,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             onHover={setHot}
             onPick={setPicked}
             leadNote={delta ? `AR${delta.region} just reached delta.` : null}
-            foot={`Numbers run left to right, east to west.${observed ? ` Report ${observed}.` : ""}`}
+            foot={`1 is next off the west limb. Numbers increase toward the east.${observed ? ` Report ${observed}.` : ""}`}
           />
         </div>
       </section>
@@ -254,7 +249,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                   onHover={setHot}
                   onPick={setPicked}
                   leadNote={null}
-                  foot="Numbers run left to right. Click one to pin it. Escape leaves full screen."
+                  foot="1 is next off the west limb. Click one to pin it. Escape leaves full screen."
                   follow
                 />
               </div>
