@@ -43,18 +43,11 @@ function clampDisk(x: number, y: number, limit: number): { x: number; y: number 
   return { x: CX + (dx / len) * limit, y: CY + (dy / len) * limit };
 }
 
-function badgeSpot(
-  marks: { p: { x: number; y: number } }[],
-): { x: number; y: number }[] {
-  const keep = R - 8;
-  const out = marks.map(({ p }) => {
-    const dx = p.x - CX;
-    const dy = p.y - CY;
-    const len = Math.hypot(dx, dy) || 1;
-    const dir = len > R - 22 ? -1 : 1;
-    return clampDisk(p.x + (dx / len) * 13 * dir, p.y + (dy / len) * 13 * dir, keep);
-  });
-  for (let n = 0; n < 8; n++) {
+function labelSpot(marks: { p: { x: number; y: number } }[]): { x: number; y: number }[] {
+  const home = marks.map((m) => m.p);
+  const out = home.map((p) => ({ x: p.x, y: p.y }));
+  const gap = 15;
+  for (let n = 0; n < 12; n++) {
     for (let i = 0; i < out.length; i++) {
       for (let j = 0; j < i; j++) {
         const a = out[i]!;
@@ -62,19 +55,35 @@ function badgeSpot(
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         const dist = Math.hypot(dx, dy) || 0.01;
-        if (dist >= 16) continue;
-        const push = (16 - dist) / 2;
-        const ax = a.x + (dx / dist) * push;
-        const ay = a.y + (dy / dist) * push;
-        const bx = b.x - (dx / dist) * push;
-        const by = b.y - (dy / dist) * push;
-        const ca = clampDisk(ax, ay, keep);
-        const cb = clampDisk(bx, by, keep);
-        a.x = ca.x;
-        a.y = ca.y;
-        b.x = cb.x;
-        b.y = cb.y;
+        if (dist >= gap) continue;
+        const push = (gap - dist) / 2;
+        a.x += (dx / dist) * push;
+        a.y += (dy / dist) * push;
+        b.x -= (dx / dist) * push;
+        b.y -= (dy / dist) * push;
       }
+    }
+    for (let i = 0; i < out.length; i++) {
+      let x = out[i]!.x;
+      let y = out[i]!.y;
+      const h = home[i]!;
+      for (let j = 0; j < home.length; j++) {
+        if (j === i) continue;
+        const o = home[j]!;
+        const nx = h.x - o.x;
+        const ny = h.y - o.y;
+        const mx = (h.x + o.x) / 2;
+        const my = (h.y + o.y) / 2;
+        const len2 = nx * nx + ny * ny || 1;
+        const dot = (x - mx) * nx + (y - my) * ny;
+        if (dot < 6) {
+          const need = (6 - dot) / len2;
+          x += nx * need;
+          y += ny * need;
+        }
+      }
+      const kept = clampDisk(x, y, R - 6);
+      out[i] = kept;
     }
   }
   return out;
@@ -97,7 +106,7 @@ function SunDisk({
   const marks = regions
     .map((r, i) => ({ r, i, p: place(r) }))
     .filter((m): m is { r: ActiveRegion; i: number; p: { x: number; y: number } } => m.p != null);
-  const badges = badgeSpot(marks);
+  const badges = labelSpot(marks);
 
   return (
     <div className={large ? "h-full w-full" : "w-full"}>
@@ -127,7 +136,10 @@ function SunDisk({
                 onMouseLeave={() => onHover(null)}
                 onClick={() => onPick(r.region)}
               >
-                <circle cx={p.x} cy={p.y} r={active === r.region ? 5.4 : 3.4} fill={color} stroke="#0b0b0f" strokeWidth="1.1" />
+                <circle cx={p.x} cy={p.y} r={active === r.region ? 4.2 : 2.6} fill={color} stroke="#0b0b0f" strokeWidth="0.8" />
+                {Math.hypot(b.x - p.x, b.y - p.y) > 4 && (
+                  <line x1={p.x} y1={p.y} x2={b.x} y2={b.y} stroke={color} strokeWidth="0.7" />
+                )}
                 <circle cx={b.x} cy={b.y} r="12" fill="transparent" />
                 <circle cx={b.x} cy={b.y} r="7" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="1.2" />
                 <text
@@ -146,7 +158,7 @@ function SunDisk({
         </svg>
       </div>
       <p className={`mt-1 text-center text-[0.58rem] leading-tight text-dim ${large ? "hidden" : "hidden sm:block"}`}>
-        Numbers match the list
+        Numbers run left to right
       </p>
     </div>
   );
@@ -155,9 +167,14 @@ function SunDisk({
 export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[]; observed?: string | null }) {
   const listed = regions
     .filter((r) => r.lon <= 90 && r.lon >= -90 && (haleRank(r.hale) > 0 || r.cProb > 0 || r.mProb > 0 || r.xProb > 0))
-    .sort((a, b) => b.xProb - a.xProb || b.mProb - a.mProb || b.cProb - a.cProb || haleRank(b.hale) - haleRank(a.hale));
-  const shown = listed.slice(0, 8);
-  const lead = shown[0];
+    .sort((a, b) => {
+      const pa = place(a);
+      const pb = place(b);
+      if (!pa || !pb) return 0;
+      return pa.x - pb.x || pa.y - pb.y;
+    });
+  const shown = listed.slice(0, 12);
+  const delta = shown.find((r) => r.reachedDelta);
   const [hot, setHot] = useState<number | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
   const [full, setFull] = useState(false);
@@ -203,8 +220,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             hot={hot ?? picked}
             onHover={setHot}
             onPick={setPicked}
-            leadNote={lead?.reachedDelta ? `AR${lead.region} just reached delta.` : null}
-            foot={`The number on the Sun is the same number in the list.${observed ? ` Report ${observed}.` : ""}`}
+            leadNote={delta ? `AR${delta.region} just reached delta.` : null}
+            foot={`Numbers run left to right, east to west.${observed ? ` Report ${observed}.` : ""}`}
           />
         </div>
       </section>
@@ -224,7 +241,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             <div className="ww-ar-stage">
               <div className="ww-ar-disk-cell">
                 <div className="ww-ar-disk">
-                  <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
+                <SunDisk regions={shown} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
                 </div>
               </div>
               <div className="ww-ar-side">
@@ -232,12 +249,12 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                   <RegionDossier region={focus} />
                 </div>
                 <RegionList
-                  regions={listed.slice(0, 12)}
+                  regions={shown}
                   hot={picked ?? hot}
                   onHover={setHot}
                   onPick={setPicked}
                   leadNote={null}
-                  foot="Click a number to pin that region. Escape leaves full screen."
+                  foot="Numbers run left to right. Click one to pin it. Escape leaves full screen."
                   follow
                 />
               </div>

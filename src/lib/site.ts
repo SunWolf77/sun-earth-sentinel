@@ -78,8 +78,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.10: The region card shows spots, area, flares already seen, and class change. It no longer repeats the list line.
  * 1.39.11: Full screen nesting is finished. The Sun is the outer track. Detail and the list are a grid inside the side track.
  * 1.39.12: Container queries are named. The solar page is measured by the shell around it, so the two-column layout can actually run.
+ * 1.39.13: Region numbers run left to right across the Sun, and each number stays on its own spot.
  */
-export const APP_VERSION = "1.39.12";
+export const APP_VERSION = "1.39.13";
 
 
 
