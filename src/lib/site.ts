@@ -73,8 +73,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.5: Limb numbers stay on the disk. Hovering one no longer jumps the page.
  * 1.39.6: The sunspot desk sizes itself to the space it is in, on a phone or a wide screen.
  * 1.39.7: Full screen is a named grid. The disk, the detail, and the region list each have their own area.
+ * 1.39.8: Region rows and the closer-look columns use subgrid, so they share the parent tracks.
  */
-export const APP_VERSION = "1.39.7";
+export const APP_VERSION = "1.39.8";
 
 
 

@@ -282,34 +282,32 @@ function RegionList({
       {regions.length === 0 ? (
         <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
       ) : (
-        <ul className="space-y-0.5">
+        <ul className="ww-ar-rows">
           {regions.map((r, i) => (
             <li key={r.region} data-region={r.region}>
               <button
                 type="button"
-                className={`ww-ar-row flex w-full items-start gap-1 rounded px-0.5 py-1 text-left ${hot === r.region ? "bg-elevated/80" : ""}`}
+                className={`ww-ar-row ${hot === r.region ? "bg-elevated/80" : ""}`}
                 onMouseEnter={() => onHover(r.region)}
                 onMouseLeave={() => onHover(null)}
                 onClick={() => onPick(r.region)}
               >
-                <span className="w-4 shrink-0 pt-0.5 font-mono text-[0.72rem] font-bold tabular-nums" style={{ color: markColor(i) }}>
+                <span className="font-mono text-[0.72rem] font-bold tabular-nums" style={{ color: markColor(i) }}>
                   {i + 1}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
-                    <span className="shrink-0 font-mono text-[0.62rem] tabular-nums">
-                      <span className="text-dim">C </span>
-                      {Math.round(r.cProb)}
-                      <span className="text-dim"> M </span>
-                      <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
-                      <span className="text-dim"> X </span>
-                      <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
-                    </span>
-                  </span>
+                <span className="min-w-0">
+                  <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
                   <span className="block truncate text-[0.62rem] text-muted">
                     {r.haleLabel} · {r.phaseLabel}
                   </span>
+                </span>
+                <span className="font-mono text-[0.62rem] tabular-nums">
+                  <span className="text-dim">C </span>
+                  {Math.round(r.cProb)}
+                  <span className="text-dim"> M </span>
+                  <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
+                  <span className="text-dim"> X </span>
+                  <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
                 </span>
               </button>
             </li>

@@ -336,8 +336,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
                 >
                   Close closer look
                 </button>
-                <div className="grid items-start gap-3 rounded-xl border border-border bg-panel/80 p-3 lg:grid-cols-12">
-              <div className="space-y-3 lg:col-span-7">
+                <div className="ww-solar-sub rounded-xl border border-border bg-panel/80 p-3">
+              <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <AttentionSparkline showLabel height={22} className="min-w-0" />
                   {kpUpcoming.length > 0 && (
@@ -382,7 +382,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
                 </p>
                 <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
               </div>
-              <div className="space-y-3 lg:col-span-5">
+              <div className="min-w-0 space-y-3">
                 {showImages && (
                   <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
                 )}
