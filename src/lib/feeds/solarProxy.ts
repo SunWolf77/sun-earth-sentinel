@@ -404,7 +404,9 @@ export const fetchSolarContinuityFn = createServerFn({ method: "GET" }).handler(
       windReturns: parseWindReturns(outlook).slice(0, 6),
       rotation: frame.rotation,
       central: frame.central,
+      east: frame.east,
       marks: frame.marks,
+      due: frame.due,
     };
     continuityCache.set("c", value);
     return value;

@@ -13,39 +13,62 @@ function hemi(lat: number): string {
   return lat >= 0 ? "north" : "south";
 }
 
+function band(start: number, deg: number): { left: number; width: number }[] {
+  const left = (start / 360) * 100;
+  const width = (deg / 360) * 100;
+  if (left + width <= 100) return [{ left, width }];
+  return [
+    { left, width: 100 - left },
+    { left: 0, width: left + width - 100 },
+  ];
+}
+
 function CarringtonStrip({ data }: { data: SolarContinuity }) {
   const c = data.central;
-  if (c == null) return null;
-  const left = (c - 90 + 360) % 360;
-  const facing = left + 180 <= 360
-    ? [{ left: (left / 360) * 100, width: 50 }]
-    : [
-        { left: (left / 360) * 100, width: ((360 - left) / 360) * 100 },
-        { left: 0, width: (((left + 180) % 360) / 360) * 100 },
-      ];
+  const east = data.east;
+  if (c == null || east == null) return null;
+  const facingStart = (c - 90 + 360) % 360;
+  const returnStart = (east - 40 + 360) % 360;
   return (
     <div className="mt-2">
       <p className="text-[0.62rem] text-dim">
-        Carrington rotation {data.rotation}. Central meridian {c}°. The bright band faces Earth. The rest is the far side.
+        Carrington rotation {data.rotation}. The pale band faces Earth. The gold band reaches the east limb in the next 3 days.
       </p>
       <div className="relative mt-1 h-7 overflow-hidden rounded bg-[#070b12]">
-        {facing.map((b, i) => (
-          <div
-            key={i}
-            className="absolute inset-y-0 bg-primary/15"
-            style={{ left: `${b.left}%`, width: `${b.width}%` }}
-          />
+        {band(facingStart, 180).map((b, i) => (
+          <div key={`f${i}`} className="absolute inset-y-0 bg-primary/15" style={{ left: `${b.left}%`, width: `${b.width}%` }} />
+        ))}
+        {band(returnStart, 40).map((b, i) => (
+          <div key={`r${i}`} className="absolute inset-y-0 bg-warn/40" style={{ left: `${b.left}%`, width: `${b.width}%` }} />
         ))}
         <div className="absolute inset-y-0 w-px bg-primary" style={{ left: `${(c / 360) * 100}%` }} />
+        <div className="absolute inset-y-0 w-px bg-warn" style={{ left: `${(east / 360) * 100}%` }} />
         {data.marks.map((m) => (
           <span
             key={m.id}
-            title={`AR${m.id} · ${m.car}°`}
+            title={`AR${m.id} · ${Math.round(m.car)}°`}
             className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg"
             style={{ left: `${(m.car / 360) * 100}%` }}
           />
         ))}
       </div>
+      {data.due.length > 0 ? (
+        <ul className="mt-1 space-y-0.5">
+          {data.due.map((d) => (
+            <li key={d.id} className="text-[0.72rem] text-fg">
+              <span className="font-semibold">AR{d.id}</span>
+              <span className="text-muted">
+                {" "}
+                at {d.car}° reaches the east limb in {d.days} day{d.days === 1 ? "" : "s"}.
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-[0.72rem] text-muted">
+          Nothing still in the file is due on the east limb this week. The gold band is that slice anyway. NOAA has already dropped older places.
+        </p>
+      )}
     </div>
   );
 }

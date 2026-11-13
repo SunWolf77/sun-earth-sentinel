@@ -23,6 +23,13 @@ export type CarringtonMark = {
   car: number;
 };
 
+export type DuePlace = {
+  id: number;
+  lat: number;
+  car: number;
+  days: number;
+};
+
 export type SolarContinuity = {
   chains: RegionChain[];
   holeText: string | null;
@@ -31,7 +38,11 @@ export type SolarContinuity = {
   rotation: number | null;
   /** Carrington longitude of the central meridian that day. */
   central: number | null;
+  /** Carrington longitude of the east limb. New places arrive here. */
+  east: number | null;
   marks: CarringtonMark[];
+  /** Places in the file that are off the disk and reach the east limb within 7 days. */
+  due: DuePlace[];
 };
 
 type Row = {
@@ -139,27 +150,59 @@ export function linkRegionChains(raw: unknown): RegionChain[] {
   return chains.sort((a, b) => b.area - a.area || b.days - a.days);
 }
 
+const ROTATION_DAYS = 27.2753;
+const DEG_PER_DAY = 360 / ROTATION_DAYS;
+/** Epoch that lands within about 2° of the SWPC synoptic sheet. */
+const CARRINGTON_EPOCH = 2398140;
+
+function wrap(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
 export function carringtonFrame(raw: unknown): {
   rotation: number | null;
   central: number | null;
+  east: number | null;
   marks: CarringtonMark[];
+  due: DuePlace[];
 } {
-  if (!Array.isArray(raw)) return { rotation: null, central: null, marks: [] };
+  const empty = { rotation: null, central: null, east: null, marks: [] as CarringtonMark[], due: [] as DuePlace[] };
+  if (!Array.isArray(raw)) return empty;
   const rows = raw.filter((r): r is Row => !!r && typeof r === "object" && r.observed_date != null);
   const latest = rows.map((r) => String(r.observed_date)).sort().at(-1);
-  if (!latest) return { rotation: null, central: null, marks: [] };
+  if (!latest) return empty;
   const jd = new Date(`${latest}T12:00:00Z`).getTime() / 86_400_000 + 2440587.5;
-  const cr = (jd - 2398140.227) / 27.2752316;
+  const cr = (jd - CARRINGTON_EPOCH) / ROTATION_DAYS;
   const frac = cr - Math.floor(cr);
+  const central = Math.round(wrap((1 - frac) * 360));
+  const east = Math.round(wrap(central - 90));
   const today = rows.filter((r) => String(r.observed_date) === latest && r.region != null && r.carrington_longitude != null);
+  const onDisk = new Set(today.map((r) => r.region));
+  const lastById = new Map<number, Row>();
+  for (const r of rows) {
+    if (r.region == null || r.carrington_longitude == null) continue;
+    const prev = lastById.get(r.region);
+    if (!prev || String(r.observed_date) > String(prev.observed_date)) lastById.set(r.region, r);
+  }
+  const due: DuePlace[] = [];
+  for (const [id, r] of lastById) {
+    if (onDisk.has(id)) continue;
+    const car = wrap(r.carrington_longitude ?? 0);
+    const days = Math.round((wrap(east - car) / DEG_PER_DAY) * 10) / 10;
+    if (days <= 0.2 || days > 7) continue;
+    due.push({ id, lat: r.latitude ?? 0, car: Math.round(car), days });
+  }
+  due.sort((a, b) => a.days - b.days);
   return {
     rotation: Math.floor(cr),
-    central: Math.round((1 - frac) * 360) % 360,
+    central,
+    east,
     marks: today.map((r) => ({
       id: r.region!,
       lat: r.latitude ?? 0,
-      car: ((r.carrington_longitude ?? 0) % 360 + 360) % 360,
+      car: wrap(r.carrington_longitude ?? 0),
     })),
+    due: due.slice(0, 6),
   };
 }
 
