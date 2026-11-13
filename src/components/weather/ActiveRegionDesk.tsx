@@ -1,6 +1,8 @@
 /**
- * Live visible-light Sun with each active region labeled.
- * East is left, west is right, center faces Earth. SWPC positions, not a flare forecast.
+ * HMI continuum (visible light). Dark spots are the sunspots.
+ * UV would mark the bright plage around them, which is not the spot.
+ * Positions are the NOAA active-region locations projected onto that disk.
+ * East is left, west is right. The chip sits on the spot unless it would cover another AR.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -27,6 +29,7 @@ function spotColor(r: ActiveRegion): string {
   return "#94a3b8";
 }
 
+/** NOAA lat/lon onto the HMI frame. The disk nearly fills the square, so no extra zoom. */
 function place(r: ActiveRegion): { x: number; y: number } | null {
   if (r.lon > 90 || r.lon < -90) return null;
   const lon = (r.lon * Math.PI) / 180;
@@ -36,6 +39,7 @@ function place(r: ActiveRegion): { x: number; y: number } | null {
   return { x, y };
 }
 
+/** Chip starts on its spot. It slides only far enough to clear another chip. */
 function labelSpot(
   marks: { p: { x: number; y: number } }[],
   chip: { w: number; h: number },
@@ -43,14 +47,7 @@ function labelSpot(
   const home = marks.map((m) => m.p);
   const hw = chip.w / 2;
   const hh = chip.h / 2;
-  const out = home.map((p) => {
-    const dx = p.x - CX;
-    const dy = p.y - CY;
-    const len = Math.hypot(dx, dy) || 1;
-    const outward = len > R - chip.h - 8 ? -1 : 1;
-    const step = hh + 5;
-    return clampLabel(p.x + (dx / len) * step * outward, p.y + (dy / len) * step * outward, hw, hh);
-  });
+  const out = home.map((p) => clampLabel(p.x, p.y, hw, hh));
   for (let n = 0; n < 14; n++) {
     for (let i = 0; i < out.length; i++) {
       for (let j = 0; j < i; j++) {
@@ -147,7 +144,7 @@ function SunDisk({
           <img
             src={sdoStill("HMIIC", 512)}
             alt="The Sun in visible light, SDO HMI"
-            className="h-full w-full scale-[1.08] rounded-full object-cover"
+            className="h-full w-full rounded-full object-cover"
             onError={() => setPhoto(false)}
           />
         ) : (
