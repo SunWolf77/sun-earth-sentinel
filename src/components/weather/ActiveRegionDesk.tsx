@@ -100,7 +100,7 @@ function SunDisk({
   const badges = badgeSpot(marks);
 
   return (
-    <div className={large ? "mx-auto aspect-square w-[min(100%,46vh)] lg:w-[min(100%,calc(100dvh-6.5rem))]" : "w-full"}>
+    <div className={large ? "h-full w-full" : "w-full"}>
       <div className="relative aspect-square">
         {photo ? (
           <img
@@ -145,7 +145,7 @@ function SunDisk({
           })}
         </svg>
       </div>
-      <p className="mt-1 hidden text-center text-[0.58rem] leading-tight text-dim sm:block">
+      <p className={`mt-1 text-center text-[0.58rem] leading-tight text-dim ${large ? "hidden" : "hidden sm:block"}`}>
         Numbers match the list
       </p>
     </div>
@@ -180,7 +180,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
 
   return (
     <>
-      <section className="rounded-xl border border-border bg-panel px-3 py-3">
+      <section className="ww-ar-card rounded-xl border border-border bg-panel px-3 py-3">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
             Sunspots aimed at Earth
@@ -194,8 +194,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             Full
           </button>
         </div>
-        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2 sm:grid-cols-[8.5rem_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:gap-3">
-          <div className="sticky top-1 z-10 self-start">
+        <div className="ww-ar-card-grid">
+          <div className="ww-ar-card-disk">
             <SunDisk regions={shown} active={hot ?? picked} onHover={setHot} onPick={setPicked} />
           </div>
           <RegionList
@@ -210,8 +210,8 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
       </section>
       {full &&
         createPortal(
-          <div className="fixed inset-0 z-[6000] flex flex-col overflow-hidden bg-[#070b14]">
-            <div className="flex shrink-0 items-center justify-between gap-3 px-3 py-2 sm:px-6">
+          <div className="ww-ar-full">
+            <div className="ww-ar-full__bar">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
               <button
                 type="button"
@@ -221,11 +221,13 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                 Exit full
               </button>
             </div>
-            <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-rows-[minmax(11rem,42vh)_minmax(0,1fr)] gap-3 px-3 pb-3 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-1">
-              <div className="flex min-h-0 items-center justify-center">
-                <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
+            <div className="ww-ar-stage">
+              <div className="ww-ar-disk-cell">
+                <div className="ww-ar-disk">
+                  <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
+                </div>
               </div>
-              <div className="flex min-h-0 flex-col gap-3">
+              <div className="ww-ar-side">
                 <div className="shrink-0">
                   <RegionDossier region={focus} />
                 </div>
@@ -287,7 +289,7 @@ function RegionList({
             <li key={r.region} data-region={r.region}>
               <button
                 type="button"
-                className={`flex w-full items-start gap-1 rounded px-0.5 py-1 text-left ${hot === r.region ? "bg-elevated/80" : ""}`}
+                className={`ww-ar-row flex w-full items-start gap-1 rounded px-0.5 py-1 text-left ${hot === r.region ? "bg-elevated/80" : ""}`}
                 onMouseEnter={() => onHover(r.region)}
                 onMouseLeave={() => onHover(null)}
                 onClick={() => onPick(r.region)}
@@ -332,7 +334,7 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
   return (
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
       <p className={`text-[0.95rem] font-semibold leading-snug ${tone(region)}`}>{region.sentence}</p>
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
+      <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
         <Stat k="Place" v={region.location} />
         <Stat k="Phase" v={region.phaseLabel} />
         <Stat k="Class" v={region.haleLabel} />

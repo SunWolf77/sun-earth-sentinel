@@ -2959,3 +2959,111 @@
   }
 }
 
+/* Sunspot desk: size to the card, not the window. */
+.ww-ar-card {
+  container-type: inline-size;
+}
+.ww-ar-card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+.ww-ar-card-disk {
+  width: min(100%, 9rem);
+  margin-inline: auto;
+}
+@container (min-width: 22rem) {
+  .ww-ar-card-grid {
+    grid-template-columns: clamp(5.25rem, 30cqi, 13rem) minmax(0, 1fr);
+  }
+  .ww-ar-card-disk {
+    width: 100%;
+    margin-inline: 0;
+    position: sticky;
+    top: 0.25rem;
+  }
+}
+@container (max-width: 28rem) {
+  .ww-ar-row {
+    min-height: 2.75rem;
+    padding-block: 0.35rem;
+  }
+}
+
+/* Full screen: container queries on both axes. */
+.ww-ar-full {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #070b14;
+  container-type: size;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+.ww-ar-full__bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+}
+.ww-ar-stage {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  gap: 0.75rem;
+  padding: 0 0.75rem 0.75rem;
+  grid-template-rows: minmax(8.5rem, 36cqb) minmax(0, 1fr);
+}
+.ww-ar-disk-cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+.ww-ar-disk {
+  aspect-ratio: 1;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}
+.ww-ar-side {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+@container (min-width: 48rem) {
+  .ww-ar-stage {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 24rem);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .ww-ar-full__bar,
+  .ww-ar-stage {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+@container (max-height: 40rem) {
+  .ww-ar-stats {
+    display: none;
+  }
+  .ww-ar-stage {
+    grid-template-rows: minmax(7rem, 42cqb) minmax(0, 1fr);
+  }
+}
+@container (min-width: 48rem) and (max-height: 40rem) {
+  .ww-ar-stage {
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+

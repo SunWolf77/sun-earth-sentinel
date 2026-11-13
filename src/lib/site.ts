@@ -71,8 +71,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.3: Full-screen sunspot list scrolls on its own. The disk stays on screen.
  * 1.39.4: The Sun sticks to the top while the region list scrolls.
  * 1.39.5: Limb numbers stay on the disk. Hovering one no longer jumps the page.
+ * 1.39.6: The sunspot desk sizes itself to the space it is in, on a phone or a wide screen.
  */
-export const APP_VERSION = "1.39.5";
+export const APP_VERSION = "1.39.6";
 
 
 
