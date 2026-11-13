@@ -37,6 +37,7 @@ import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
 import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
 import { buildFlareAtlas, type FlareAtlas } from "@/lib/solar/flareAtlas";
 import { buildFarSideWatch, type FarSideWatch } from "@/lib/solar/farSideWatch";
+import { readHmiPolarity, type HmiPolarity } from "@/lib/solar/hmiPolarity";
 import {
   linkRegionChains,
   parseHoleNote,
@@ -406,6 +407,27 @@ export const fetchSolarContinuityFn = createServerFn({ method: "GET" }).handler(
       marks: frame.marks,
     };
     continuityCache.set("c", value);
+    return value;
+  },
+);
+
+const hmiCache = new LastGood<HmiPolarity>(20 * 60_000);
+
+/** Field direction at each NOAA point on the latest HMI magnetogram. */
+export const fetchHmiPolarityFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<HmiPolarity> => {
+    const fresh = hmiCache.getFresh("hmi");
+    if (fresh) return fresh;
+    const [img, regions] = await Promise.all([
+      fetchWithRetry("https://sdo.gsfc.nasa.gov/assets/img/latest/latest_512_HMIB.jpg", { timeoutMs: 12_000 }),
+      fetch("https://services.swpc.noaa.gov/json/solar_regions.json", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => []),
+    ]);
+    if (!img.ok) return hmiCache.get("hmi") ?? { points: [] };
+    const jpeg = new Uint8Array(await img.arrayBuffer());
+    const value = readHmiPolarity(jpeg, regions);
+    hmiCache.set("hmi", value);
     return value;
   },
 );

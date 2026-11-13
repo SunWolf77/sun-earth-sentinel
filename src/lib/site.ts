@@ -86,8 +86,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.18: Far-side flare watch. Says which cameras see past the limb, and that the returning side is currently unseen.
  * 1.39.19: A returning region keeps its Carrington place when NOAA renumbers it. Coronal-hole recurrence is the 27-day wind, not a surviving number.
  * 1.39.20: Carrington strip shows which longitudes face Earth. Hinode is not the full-disk polarity map; HMI is.
+ * 1.39.21: HMI magnetogram reads toward, away, or mixed at each NOAA point.
  */
-export const APP_VERSION = "1.39.20";
+export const APP_VERSION = "1.39.21";
 
 
 

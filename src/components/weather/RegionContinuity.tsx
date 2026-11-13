@@ -4,8 +4,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { fetchSolarContinuityFn } from "@/lib/feeds/solarProxy";
+import { fetchHmiPolarityFn, fetchSolarContinuityFn } from "@/lib/feeds/solarProxy";
 import { sdoStill } from "@/lib/feeds/solarMedia";
+import type { HmiPoint } from "@/lib/solar/hmiPolarity";
 import type { SolarContinuity } from "@/lib/solar/regionIdentity";
 
 function hemi(lat: number): string {
@@ -45,6 +46,63 @@ function CarringtonStrip({ data }: { data: SolarContinuity }) {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function signWord(sign: HmiPoint["sign"]): string {
+  if (sign === "toward") return "toward Earth";
+  if (sign === "away") return "away";
+  if (sign === "mixed") return "mixed";
+  if (sign === "limb") return "too near the limb";
+  return "quiet";
+}
+
+function HmiDisk() {
+  const [points, setPoints] = useState<HmiPoint[] | null>(null);
+  useEffect(() => {
+    let dead = false;
+    void fetchHmiPolarityFn()
+      .then((d) => {
+        if (!dead) setPoints(d.points);
+      })
+      .catch(() => {
+        if (!dead) setPoints([]);
+      });
+    return () => {
+      dead = true;
+    };
+  }, []);
+  return (
+    <div className="mt-2">
+      <div className="relative mx-auto aspect-square w-full max-w-[16rem]">
+        <img
+          src={sdoStill("HMIB", 512)}
+          alt="SDO HMI magnetogram. White is magnetic field toward Earth, black is away."
+          className="h-full w-full rounded-full object-cover"
+        />
+        {(points ?? []).map((p) => (
+          <span
+            key={p.id}
+            title={`AR${p.id}: ${signWord(p.sign)}`}
+            className="absolute -translate-x-1/2 -translate-y-1/2 rounded bg-black/80 px-0.5 font-mono text-[9px] font-bold leading-none text-fg"
+            style={{ left: `${(p.x / 200) * 100}%`, top: `${(p.y / 200) * 100}%` }}
+          >
+            {p.id}
+          </span>
+        ))}
+      </div>
+      <ul className="mt-1.5 space-y-0.5">
+        {(points ?? []).map((p) => (
+          <li key={p.id} className="text-[0.72rem] text-fg">
+            <span className="font-semibold">AR{p.id}</span>
+            <span className="text-muted"> · {signWord(p.sign)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-[0.62rem] leading-snug text-dim">
+        White on the magnetogram is field toward Earth. Black is away. The word is the field at the NOAA point today, not the sign the region kept on the far side. Hinode only points at one region, so it is not this map.
+      </p>
     </div>
   );
 }
@@ -91,23 +149,10 @@ export function RegionContinuityDesk() {
         </ul>
       )}
       <p className="mt-1.5 text-[0.62rem] leading-snug text-dim">
-        NOAA renumbers a region when it is facing Earth again. The link is the Carrington place on the strip. The file has no polarity sign, so this is not a new reading of the field.
+        NOAA renumbers a region when it is facing Earth again. The link is the Carrington place on the strip. The NOAA file still has no polarity sign.
       </p>
       {data && <CarringtonStrip data={data} />}
-      <div className="mt-2 flex items-start gap-2">
-        <img
-          src={sdoStill("HMIB", 256)}
-          alt="SDO HMI line-of-sight magnetogram, full disk"
-          className="h-14 w-14 shrink-0 rounded-md bg-[#070b12] object-cover"
-        />
-        <p className="text-[0.68rem] leading-snug text-muted">
-          Polarity of the whole disk is this HMI magnetogram. Hinode does not take that picture. Its spectro-polarimeter points at one region at a time, and the public files are not a live full-Sun feed.{" "}
-          <a href="https://hinode.nao.ac.jp/" className="text-primary" target="_blank" rel="noreferrer">
-            Hinode
-          </a>
-          .
-        </p>
-      </div>
+      <HmiDisk />
       <h3 className="mt-2 text-[0.68rem] font-semibold uppercase tracking-wider text-primary">Coronal holes</h3>
       <p className="mt-1 text-[0.75rem] leading-snug text-muted">
         {data?.holeText ??
