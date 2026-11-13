@@ -274,7 +274,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[90rem] space-y-3">
+    <div className="ww-solar-shell mx-auto w-full max-w-[90rem] space-y-3">
       <header>
         <CollapsibleTabs
           label="Solar"

@@ -2959,9 +2959,10 @@
   }
 }
 
-/* Sunspot desk: size to the card, not the window. */
+/* Each query is named. A container cannot measure itself, so the
+   solar page is measured by the shell around it. */
 .ww-ar-card {
-  container-type: inline-size;
+  container: arcard / inline-size;
 }
 .ww-ar-card-grid {
   display: grid;
@@ -2973,7 +2974,7 @@
   width: min(100%, 9rem);
   margin-inline: auto;
 }
-@container (min-width: 22rem) {
+@container arcard (min-width: 22rem) {
   .ww-ar-card-grid {
     grid-template-columns: clamp(5.25rem, 30cqi, 13rem) minmax(0, 1fr);
   }
@@ -3015,7 +3016,7 @@
   flex-direction: column;
   overflow: hidden;
   background: #070b14;
-  container-type: size;
+  container: arfull / size;
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
@@ -3080,7 +3081,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-@container (min-width: 48rem) {
+@container arfull (min-width: 48rem) {
   .ww-ar-stage {
     grid-template:
       "disk side" minmax(0, 1fr)
@@ -3092,19 +3093,18 @@
     padding-right: 1.5rem;
   }
 }
-@container (max-width: 47.99rem) and (max-height: 40rem) {
+@container arfull (max-width: 47.99rem) and (max-height: 40rem) {
   .ww-ar-stage {
     grid-template-rows: minmax(7rem, 28cqb) minmax(0, 1fr);
   }
 }
 
-/* Nested grid: the chain sizes to its own cell, not the window. */
+/* The chain is measured by its cell, not by the page. */
 .ww-chain {
-  container-type: inline-size;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
-@container (min-width: 42rem) {
+@container chain (min-width: 42rem) {
   .ww-chain {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr) auto minmax(0, 1fr);
   }
@@ -3114,8 +3114,10 @@
 }
 
 /* Solar now: one named grid. The chain spans. Flare and sunspots sit side by side when there is room. */
+.ww-solar-shell {
+  container: solar / inline-size;
+}
 .ww-solar-now {
-  container-type: inline-size;
   display: grid;
   gap: 0.75rem;
   grid-template-areas:
@@ -3126,7 +3128,10 @@
     "closer";
 }
 .ww-solar-now__intro { grid-area: intro; }
-.ww-solar-now__chain { grid-area: chain; }
+.ww-solar-now__chain {
+  grid-area: chain;
+  container: chain / inline-size;
+}
 .ww-solar-now__flare { grid-area: flare; min-width: 0; }
 .ww-solar-now__spots { grid-area: spots; min-width: 0; }
 .ww-solar-now__closer {
@@ -3144,7 +3149,7 @@
   gap: 0.75rem;
   min-width: 0;
 }
-@container (min-width: 52rem) {
+@container solar (min-width: 52rem) {
   .ww-solar-now {
     grid-template-areas:
       "intro intro"
