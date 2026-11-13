@@ -84,8 +84,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.16: AR chips stay readable. On a small Sun only the selected number is drawn; the full disk shows every AR.
  * 1.39.17: The AR chip sits on the NOAA spot. The Sun image is no longer zoomed out from under it.
  * 1.39.18: Far-side flare watch. Says which cameras see past the limb, and that the returning side is currently unseen.
+ * 1.39.19: A returning region keeps its Carrington place when NOAA renumbers it. Coronal-hole recurrence is the 27-day wind, not a surviving number.
  */
-export const APP_VERSION = "1.39.18";
+export const APP_VERSION = "1.39.19";
 
 
 

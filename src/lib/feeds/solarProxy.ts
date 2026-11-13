@@ -37,6 +37,12 @@ import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
 import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
 import { buildFlareAtlas, type FlareAtlas } from "@/lib/solar/flareAtlas";
 import { buildFarSideWatch, type FarSideWatch } from "@/lib/solar/farSideWatch";
+import {
+  linkRegionChains,
+  parseHoleNote,
+  parseWindReturns,
+  type SolarContinuity,
+} from "@/lib/solar/regionIdentity";
 import { getFlareDecade } from "@/lib/solar/flareHistory";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
@@ -367,5 +373,34 @@ export const fetchFarSideWatchFn = createServerFn({ method: "GET" }).handler(
     } catch {
       return hit ?? buildFarSideWatch({});
     }
+  },
+);
+
+const continuityCache = new LastGood<SolarContinuity>(30 * 60_000);
+
+/** Regions that came back under a new NOAA number, and the wind dates the 27-day outlook repeats. */
+export const fetchSolarContinuityFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SolarContinuity> => {
+    const fresh = continuityCache.getFresh("c");
+    if (fresh) return fresh;
+    const load = async (url: string) => {
+      const res = await fetchWithRetry(url, { timeoutMs: 12_000 });
+      if (!res.ok) return "";
+      return res.text();
+    };
+    const [regionsRaw, discussion, outlook] = await Promise.all([
+      fetch("https://services.swpc.noaa.gov/json/solar_regions.json", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => []),
+      load("https://services.swpc.noaa.gov/text/discussion.txt"),
+      load("https://services.swpc.noaa.gov/text/27-day-outlook.txt"),
+    ]);
+    const value: SolarContinuity = {
+      chains: linkRegionChains(regionsRaw).slice(0, 6),
+      holeText: parseHoleNote(discussion),
+      windReturns: parseWindReturns(outlook).slice(0, 6),
+    };
+    continuityCache.set("c", value);
+    return value;
   },
 );
