@@ -36,6 +36,7 @@ import { fetchWithRetry, LastGood } from "@/lib/feeds/resilientFetch";
 import { fetchSolarRegions, type ActiveRegion } from "@/lib/feeds/solarRegions";
 import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
 import { buildFlareAtlas, type FlareAtlas } from "@/lib/solar/flareAtlas";
+import { buildFarSideWatch, type FarSideWatch } from "@/lib/solar/farSideWatch";
 import { getFlareDecade } from "@/lib/solar/flareHistory";
 
 const DONKI = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get";
@@ -330,5 +331,41 @@ export const fetchFlareAtlasFn = createServerFn({ method: "GET" }).handler(
 export const fetchSolarCycleFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SolarCycleBundle> => {
     return buildSolarCycleBundle();
+  },
+);
+
+const farSideCache = new LastGood<FarSideWatch>(6 * 60 * 60_000);
+
+/** STEREO and Solar Orbiter longitudes from the SSC “where” table. */
+export const fetchFarSideWatchFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<FarSideWatch> => {
+    const fresh = farSideCache.getFresh("where");
+    if (fresh) return fresh;
+    const hit = farSideCache.get("where");
+    try {
+      const res = await fetchWithRetry("https://stereo-ssc.nascom.nasa.gov/where.shtml", {
+        timeoutMs: 12_000,
+      });
+      if (!res.ok) return hit ?? buildFarSideWatch({});
+      const html = await res.text();
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\s+/g, " ");
+      const m = text.match(
+        /Heliographic \(HEEQ\) longitude\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)/,
+      );
+      const asOf = text.match(/Positions of STEREO A and B for ([0-9]{1,2}-[A-Za-z]{3}-[0-9]{4})/)?.[1] ?? null;
+      const watch = buildFarSideWatch({
+        asOf,
+        stereoA: m ? Number(m[3]) : null,
+        solo: m ? Number(m[5]) : null,
+      });
+      if (m) farSideCache.set("where", watch);
+      return m ? watch : (hit ?? watch);
+    } catch {
+      return hit ?? buildFarSideWatch({});
+    }
   },
 );

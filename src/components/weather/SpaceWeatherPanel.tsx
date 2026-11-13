@@ -39,6 +39,7 @@ import {
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
+import { FarSideWatchDesk } from "@/components/weather/FarSideWatch";
 import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
 import { FlareAtlasDesk } from "@/components/weather/FlareAtlasDesk";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
@@ -309,6 +310,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <div className="ww-solar-now__flare space-y-2">
               <FlareOutlookDesk />
+              <FarSideWatchDesk />
               <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
               {!closer && (
                 <button
