@@ -127,8 +127,14 @@ export function PulseTape() {
 
 const TAPE_FALLBACK: TapeToggles = { quake: true, solar: true, volcano: true };
 
-function TapeMark({ item }: { item: { id: string; kind: TapeKind } }) {
-  if (item.kind === "quake") return <FractureIcon />;
+function TapeMark({ item }: { item: { id: string; kind: TapeKind; mark?: string } }) {
+  if (item.kind === "quake") {
+    return (
+      <span className="shrink-0 rounded bg-danger/15 px-1 py-0.5 font-mono text-[0.62rem] font-bold leading-none tracking-tight text-danger">
+        {item.mark ?? "EQ"}
+      </span>
+    );
+  }
   if (item.kind === "volcano") {
     return (
       <span className="text-[0.85rem] leading-none" aria-hidden>
@@ -138,19 +144,4 @@ function TapeMark({ item }: { item: { id: string; kind: TapeKind } }) {
   }
   if (item.id === "wind") return <Wind className="h-3.5 w-3.5 shrink-0" aria-hidden />;
   return <Sun className="h-3.5 w-3.5 shrink-0" aria-hidden />;
-}
-
-function FractureIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" aria-hidden>
-      <path
-        d="M2 2.5 6.2 7.2 4.4 8.2 8.6 14M6.2 7.2 10.4 5.6 8.2 10.4M10.4 5.6 14 3.2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
 }

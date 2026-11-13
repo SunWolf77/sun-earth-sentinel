@@ -13,6 +13,8 @@ export type TapeItem = {
   id: string;
   kind: TapeKind;
   text: string;
+  /** Leading chip, e.g. EQ-M4.6. The line itself stays the place. */
+  mark?: string;
   major: boolean;
   lat?: number;
   lon?: number;
@@ -109,7 +111,8 @@ export function buildPulseTape(input: {
     out.push({
       id: `q-${f.id ?? f.properties.time}`,
       kind: "quake",
-      text: `${node ? `${node} · ` : ""}M${mag.toFixed(1)} · ${place}`,
+      text: `${node ? `${node} · ` : ""}${place}`,
+      mark: `EQ-M${mag.toFixed(1)}`,
       major,
       lat,
       lon,
