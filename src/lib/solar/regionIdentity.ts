@@ -17,10 +17,21 @@ export type WindReturn = {
   kp: number;
 };
 
+export type CarringtonMark = {
+  id: number;
+  lat: number;
+  car: number;
+};
+
 export type SolarContinuity = {
   chains: RegionChain[];
   holeText: string | null;
   windReturns: WindReturn[];
+  /** Carrington rotation number for the latest region report. */
+  rotation: number | null;
+  /** Carrington longitude of the central meridian that day. */
+  central: number | null;
+  marks: CarringtonMark[];
 };
 
 type Row = {
@@ -126,6 +137,30 @@ export function linkRegionChains(raw: unknown): RegionChain[] {
     });
   }
   return chains.sort((a, b) => b.area - a.area || b.days - a.days);
+}
+
+export function carringtonFrame(raw: unknown): {
+  rotation: number | null;
+  central: number | null;
+  marks: CarringtonMark[];
+} {
+  if (!Array.isArray(raw)) return { rotation: null, central: null, marks: [] };
+  const rows = raw.filter((r): r is Row => !!r && typeof r === "object" && r.observed_date != null);
+  const latest = rows.map((r) => String(r.observed_date)).sort().at(-1);
+  if (!latest) return { rotation: null, central: null, marks: [] };
+  const jd = new Date(`${latest}T12:00:00Z`).getTime() / 86_400_000 + 2440587.5;
+  const cr = (jd - 2398140.227) / 27.2752316;
+  const frac = cr - Math.floor(cr);
+  const today = rows.filter((r) => String(r.observed_date) === latest && r.region != null && r.carrington_longitude != null);
+  return {
+    rotation: Math.floor(cr),
+    central: Math.round((1 - frac) * 360) % 360,
+    marks: today.map((r) => ({
+      id: r.region!,
+      lat: r.latitude ?? 0,
+      car: ((r.carrington_longitude ?? 0) % 360 + 360) % 360,
+    })),
+  };
 }
 
 export function parseHoleNote(discussion: string): string | null {

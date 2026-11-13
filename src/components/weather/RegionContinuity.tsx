@@ -5,10 +5,48 @@
 
 import { useEffect, useState } from "react";
 import { fetchSolarContinuityFn } from "@/lib/feeds/solarProxy";
+import { sdoStill } from "@/lib/feeds/solarMedia";
 import type { SolarContinuity } from "@/lib/solar/regionIdentity";
 
 function hemi(lat: number): string {
   return lat >= 0 ? "north" : "south";
+}
+
+function CarringtonStrip({ data }: { data: SolarContinuity }) {
+  const c = data.central;
+  if (c == null) return null;
+  const left = (c - 90 + 360) % 360;
+  const facing = left + 180 <= 360
+    ? [{ left: (left / 360) * 100, width: 50 }]
+    : [
+        { left: (left / 360) * 100, width: ((360 - left) / 360) * 100 },
+        { left: 0, width: (((left + 180) % 360) / 360) * 100 },
+      ];
+  return (
+    <div className="mt-2">
+      <p className="text-[0.62rem] text-dim">
+        Carrington rotation {data.rotation}. Central meridian {c}°. The bright band faces Earth. The rest is the far side.
+      </p>
+      <div className="relative mt-1 h-7 overflow-hidden rounded bg-[#070b12]">
+        {facing.map((b, i) => (
+          <div
+            key={i}
+            className="absolute inset-y-0 bg-primary/15"
+            style={{ left: `${b.left}%`, width: `${b.width}%` }}
+          />
+        ))}
+        <div className="absolute inset-y-0 w-px bg-primary" style={{ left: `${(c / 360) * 100}%` }} />
+        {data.marks.map((m) => (
+          <span
+            key={m.id}
+            title={`AR${m.id} · ${m.car}°`}
+            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg"
+            style={{ left: `${(m.car / 360) * 100}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function RegionContinuityDesk() {
@@ -53,8 +91,23 @@ export function RegionContinuityDesk() {
         </ul>
       )}
       <p className="mt-1.5 text-[0.62rem] leading-snug text-dim">
-        NOAA renumbers a region when it is facing Earth again. The link is the place. The file has no polarity sign, so this is not a new reading of the field.
+        NOAA renumbers a region when it is facing Earth again. The link is the Carrington place on the strip. The file has no polarity sign, so this is not a new reading of the field.
       </p>
+      {data && <CarringtonStrip data={data} />}
+      <div className="mt-2 flex items-start gap-2">
+        <img
+          src={sdoStill("HMIB", 256)}
+          alt="SDO HMI line-of-sight magnetogram, full disk"
+          className="h-14 w-14 shrink-0 rounded-md bg-[#070b12] object-cover"
+        />
+        <p className="text-[0.68rem] leading-snug text-muted">
+          Polarity of the whole disk is this HMI magnetogram. Hinode does not take that picture. Its spectro-polarimeter points at one region at a time, and the public files are not a live full-Sun feed.{" "}
+          <a href="https://hinode.nao.ac.jp/" className="text-primary" target="_blank" rel="noreferrer">
+            Hinode
+          </a>
+          .
+        </p>
+      </div>
       <h3 className="mt-2 text-[0.68rem] font-semibold uppercase tracking-wider text-primary">Coronal holes</h3>
       <p className="mt-1 text-[0.75rem] leading-snug text-muted">
         {data?.holeText ??

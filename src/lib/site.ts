@@ -85,8 +85,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.17: The AR chip sits on the NOAA spot. The Sun image is no longer zoomed out from under it.
  * 1.39.18: Far-side flare watch. Says which cameras see past the limb, and that the returning side is currently unseen.
  * 1.39.19: A returning region keeps its Carrington place when NOAA renumbers it. Coronal-hole recurrence is the 27-day wind, not a surviving number.
+ * 1.39.20: Carrington strip shows which longitudes face Earth. Hinode is not the full-disk polarity map; HMI is.
  */
-export const APP_VERSION = "1.39.19";
+export const APP_VERSION = "1.39.20";
 
 
 

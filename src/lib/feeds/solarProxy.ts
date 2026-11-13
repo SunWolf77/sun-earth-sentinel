@@ -41,6 +41,7 @@ import {
   linkRegionChains,
   parseHoleNote,
   parseWindReturns,
+  carringtonFrame,
   type SolarContinuity,
 } from "@/lib/solar/regionIdentity";
 import { getFlareDecade } from "@/lib/solar/flareHistory";
@@ -395,10 +396,14 @@ export const fetchSolarContinuityFn = createServerFn({ method: "GET" }).handler(
       load("https://services.swpc.noaa.gov/text/discussion.txt"),
       load("https://services.swpc.noaa.gov/text/27-day-outlook.txt"),
     ]);
+    const frame = carringtonFrame(regionsRaw);
     const value: SolarContinuity = {
       chains: linkRegionChains(regionsRaw).slice(0, 6),
       holeText: parseHoleNote(discussion),
       windReturns: parseWindReturns(outlook).slice(0, 6),
+      rotation: frame.rotation,
+      central: frame.central,
+      marks: frame.marks,
     };
     continuityCache.set("c", value);
     return value;
