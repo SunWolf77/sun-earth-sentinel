@@ -76,8 +76,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.8: Region rows and the closer-look columns use subgrid, so they share the parent tracks.
  * 1.39.9: The side column is a nested grid, and the status chain sizes to its own cell.
  * 1.39.10: The region card shows spots, area, flares already seen, and class change. It no longer repeats the list line.
+ * 1.39.11: Full screen nesting is finished. The Sun is the outer track. Detail and the list are a grid inside the side track.
  */
-export const APP_VERSION = "1.39.10";
+export const APP_VERSION = "1.39.11";
 
 
 

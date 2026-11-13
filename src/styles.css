@@ -3035,6 +3035,7 @@
   min-height: 0;
   gap: 0.75rem;
   padding: 0 0.75rem 0.75rem;
+  overflow: hidden;
   grid-template:
     "disk" minmax(8.5rem, 32cqb)
     "side" minmax(0, 1fr)
@@ -3046,6 +3047,7 @@
   place-items: center;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 .ww-ar-disk {
   aspect-ratio: 1;
@@ -3054,18 +3056,25 @@
   max-width: 100%;
   max-height: 100%;
 }
+/* Nested grid. The outer track is the Sun. This one is the detail, then the list. */
 .ww-ar-side {
   grid-area: side;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.75rem;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  gap: 0.75rem;
+  grid-template:
+    "detail" auto
+    "list" minmax(0, 1fr)
+    / minmax(0, 1fr);
 }
 .ww-ar-detail {
+  grid-area: detail;
   min-width: 0;
 }
 .ww-ar-list {
+  grid-area: list;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
