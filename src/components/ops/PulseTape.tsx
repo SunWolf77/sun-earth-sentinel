@@ -130,9 +130,12 @@ const TAPE_FALLBACK: TapeToggles = { quake: true, solar: true, volcano: true };
 function TapeMark({ item }: { item: { id: string; kind: TapeKind; mark?: string } }) {
   if (item.kind === "quake") {
     return (
-      <span className="shrink-0 rounded bg-danger/15 px-1 py-0.5 font-mono text-[0.62rem] font-bold leading-none tracking-tight text-danger">
-        {item.mark ?? "EQ"}
-      </span>
+      <>
+        <SeismographIcon />
+        <span className="shrink-0 rounded bg-danger/15 px-1 py-0.5 font-mono text-[0.62rem] font-bold leading-none tracking-tight text-danger">
+          {item.mark ?? "EQ"}
+        </span>
+      </>
     );
   }
   if (item.kind === "volcano") {
@@ -144,4 +147,19 @@ function TapeMark({ item }: { item: { id: string; kind: TapeKind; mark?: string 
   }
   if (item.id === "wind") return <Wind className="h-3.5 w-3.5 shrink-0" aria-hidden />;
   return <Sun className="h-3.5 w-3.5 shrink-0" aria-hidden />;
+}
+
+function SeismographIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" aria-hidden>
+      <path
+        d="M1 8.2h2.6L4.4 5l1.2 6.4L6.8 3.2l1.3 9.2 1.2-6.4.8 2.2H15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }

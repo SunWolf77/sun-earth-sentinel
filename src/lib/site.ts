@@ -90,8 +90,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.22: Carrington track marks the next 3 days onto the east limb, and any place in the file that is due there.
  * 1.39.23: Solar extras sit beside each other under the regions, not stacked on the right. The map opens on the world, not Antarctica.
  * 1.39.24: Pulse quakes lead with EQ-M4.6 instead of a fracture mark.
+ * 1.39.25: Pulse quakes use a seismograph trace in front of the magnitude.
  */
-export const APP_VERSION = "1.39.24";
+export const APP_VERSION = "1.39.25";
 
 
 
