@@ -3037,8 +3037,7 @@
   padding: 0 0.75rem 0.75rem;
   grid-template:
     "disk" minmax(8.5rem, 32cqb)
-    "detail" auto
-    "list" minmax(0, 1fr)
+    "side" minmax(0, 1fr)
     / minmax(0, 1fr);
 }
 .ww-ar-disk-cell {
@@ -3055,12 +3054,18 @@
   max-width: 100%;
   max-height: 100%;
 }
+.ww-ar-side {
+  grid-area: side;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 0;
+}
 .ww-ar-detail {
-  grid-area: detail;
   min-width: 0;
 }
 .ww-ar-list {
-  grid-area: list;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
@@ -3069,8 +3074,7 @@
 @container (min-width: 48rem) {
   .ww-ar-stage {
     grid-template:
-      "disk detail" auto
-      "disk list" minmax(0, 1fr)
+      "disk side" minmax(0, 1fr)
       / minmax(12rem, 1.15fr) minmax(17rem, 24rem);
   }
   .ww-ar-full__bar,
@@ -3079,14 +3083,24 @@
     padding-right: 1.5rem;
   }
 }
-@container (max-height: 40rem) {
-  .ww-ar-stats {
-    display: none;
-  }
-}
 @container (max-width: 47.99rem) and (max-height: 40rem) {
   .ww-ar-stage {
-    grid-template-rows: minmax(7rem, 28cqb) auto minmax(0, 1fr);
+    grid-template-rows: minmax(7rem, 28cqb) minmax(0, 1fr);
+  }
+}
+
+/* Nested grid: the chain sizes to its own cell, not the window. */
+.ww-chain {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+@container (min-width: 42rem) {
+  .ww-chain {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .ww-chain > * {
+    border-top-width: 0;
   }
 }
 

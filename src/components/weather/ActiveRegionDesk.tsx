@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
-import { haleRank } from "@/lib/feeds/solarRegions";
+import { haleLabel, haleRank } from "@/lib/feeds/solarRegions";
 import { sdoStill } from "@/lib/feeds/solarMedia";
 
 function tone(r: ActiveRegion): string {
@@ -227,18 +227,20 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                   <SunDisk regions={listed.slice(0, 12)} active={picked ?? hot} onHover={setHot} onPick={setPicked} large />
                 </div>
               </div>
-              <div className="ww-ar-detail">
-                <RegionDossier region={focus} />
+              <div className="ww-ar-side">
+                <div className="ww-ar-detail">
+                  <RegionDossier region={focus} />
+                </div>
+                <RegionList
+                  regions={listed.slice(0, 12)}
+                  hot={picked ?? hot}
+                  onHover={setHot}
+                  onPick={setPicked}
+                  leadNote={null}
+                  foot="Click a number to pin that region. Escape leaves full screen."
+                  follow
+                />
               </div>
-              <RegionList
-                regions={listed.slice(0, 12)}
-                hot={picked ?? hot}
-                onHover={setHot}
-                onPick={setPicked}
-                leadNote={null}
-                foot="Click a number to pin that region. Escape leaves full screen."
-                follow
-              />
             </div>
           </div>,
           document.body,
@@ -327,19 +329,29 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
       </p>
     );
   }
+  const path = region.haleTrail
+    .map((h) => haleLabel(h))
+    .filter((s, i, all) => s !== "unclassified" && s !== all[i - 1]);
+  const change = region.reachedDelta
+    ? "Just reached delta"
+    : region.growing
+      ? "Class is getting more complex"
+      : "Class unchanged";
   return (
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
-      <p className={`text-[0.95rem] font-semibold leading-snug ${tone(region)}`}>{region.sentence}</p>
+      <p className={`text-[0.95rem] font-semibold leading-snug ${tone(region)}`}>
+        AR{region.region}
+        <span className="ml-2 font-mono text-[0.8rem] font-normal text-fg">{region.location}</span>
+      </p>
       <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
-        <Stat k="Place" v={region.location} />
-        <Stat k="Phase" v={region.phaseLabel} />
-        <Stat k="Class" v={region.haleLabel} />
         <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "—"} />
-        <Stat k="Area" v={region.area != null ? String(region.area) : "—"} />
-        <Stat k="C / M / X" v={`${Math.round(region.cProb)} / ${Math.round(region.mProb)} / ${Math.round(region.xProb)}`} />
+        <Stat k="Area" v={region.area != null ? `${region.area} millionths` : "—"} />
         <Stat k="Flares seen" v={`C${region.cEvents} M${region.mEvents} X${region.xEvents}`} />
-        <Stat k="Change" v={region.reachedDelta ? "Reached delta" : region.growing ? "Complexity growing" : "Steady"} />
+        <Stat k="Since yesterday" v={change} />
       </dl>
+      {path.length > 1 && (
+        <p className="mt-1.5 text-[0.68rem] text-muted">Class ran {path.join(" → ")}</p>
+      )}
     </section>
   );
 }

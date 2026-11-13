@@ -532,7 +532,7 @@ function NowBoard({
   return (
     <section id="ses-solar-geo" className="scroll-mt-20 space-y-2">
       <div className="overflow-hidden rounded-xl border border-border bg-panel">
-        <div className="grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-[1fr_auto_1fr_1fr_auto_1fr] lg:divide-y-0">
+        <div className="ww-chain divide-x divide-y divide-border/80">
           <ChainCell
             label="X-ray"
             value={xClass}

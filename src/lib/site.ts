@@ -74,8 +74,10 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.6: The sunspot desk sizes itself to the space it is in, on a phone or a wide screen.
  * 1.39.7: Full screen is a named grid. The disk, the detail, and the region list each have their own area.
  * 1.39.8: Region rows and the closer-look columns use subgrid, so they share the parent tracks.
+ * 1.39.9: The side column is a nested grid, and the status chain sizes to its own cell.
+ * 1.39.10: The region card shows spots, area, flares already seen, and class change. It no longer repeats the list line.
  */
-export const APP_VERSION = "1.39.8";
+export const APP_VERSION = "1.39.10";
 
 
 
