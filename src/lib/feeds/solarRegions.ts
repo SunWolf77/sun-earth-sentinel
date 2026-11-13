@@ -30,6 +30,10 @@ export type ActiveRegion = {
   cEvents: number;
   mEvents: number;
   xEvents: number;
+  /** Sum of NOAA's daily counts for this number. A new number starts again. */
+  cLife: number;
+  mLife: number;
+  xLife: number;
   cProb: number;
   mProb: number;
   xProb: number;
@@ -149,6 +153,9 @@ export function parseSolarRegions(raw: unknown): ActiveRegion[] {
     const prev = haleTrail.length >= 2 ? haleTrail[haleTrail.length - 2]! : "";
     const phase = earthPhase(lon);
     const location = String(r.location ?? "").trim() || `${lat}°, ${lon}°`;
+    const cLife = hist.reduce((n, h) => n + (num(h.c_xray_events) ?? 0), 0);
+    const mLife = hist.reduce((n, h) => n + (num(h.m_xray_events) ?? 0), 0);
+    const xLife = hist.reduce((n, h) => n + (num(h.x_xray_events) ?? 0), 0);
     out.push({
       region: id,
       lat,
@@ -162,6 +169,9 @@ export function parseSolarRegions(raw: unknown): ActiveRegion[] {
       cEvents: num(r.c_xray_events) ?? 0,
       mEvents: num(r.m_xray_events) ?? 0,
       xEvents: num(r.x_xray_events) ?? 0,
+      cLife,
+      mLife,
+      xLife,
       cProb: num(r.c_flare_probability) ?? 0,
       mProb: num(r.m_flare_probability) ?? 0,
       xProb: num(r.x_flare_probability) ?? 0,

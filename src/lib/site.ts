@@ -91,8 +91,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.23: Solar extras sit beside each other under the regions, not stacked on the right. The map opens on the world, not Antarctica.
  * 1.39.24: Pulse quakes lead with EQ-M4.6 instead of a fracture mark.
  * 1.39.25: Pulse quakes use a seismograph trace in front of the magnitude.
+ * 1.39.26: An AR's flare total is every NOAA day under that number, not today's zero.
  */
-export const APP_VERSION = "1.39.25";
+export const APP_VERSION = "1.39.26";
 
 
 

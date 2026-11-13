@@ -406,12 +406,15 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
       <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
         <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "—"} />
         <Stat k="Area" v={region.area != null ? `${region.area} millionths` : "—"} />
-        <Stat k="Flares seen" v={`C${region.cEvents} M${region.mEvents} X${region.xEvents}`} />
-        <Stat k="Since yesterday" v={change} />
+        <Stat k="This number" v={`C${region.cLife} M${region.mLife} X${region.xLife}`} />
+        <Stat k="Today" v={`C${region.cEvents} M${region.mEvents} X${region.xEvents}`} />
       </dl>
       {path.length > 1 && (
-        <p className="mt-1.5 text-[0.68rem] text-muted">Class ran {path.join(" → ")}</p>
+        <p className="mt-1.5 text-[0.68rem] text-muted">Class ran {path.join(" → ")}. {change}.</p>
       )}
+      <p className="mt-1 text-[0.58rem] leading-snug text-dim">
+        NOAA counts flares per day for this number, from the day they assigned it. A return under a new number starts the count again.
+      </p>
     </section>
   );
 }
