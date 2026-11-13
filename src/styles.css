@@ -2987,7 +2987,7 @@
 }
 .ww-ar-rows {
   display: grid;
-  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   row-gap: 0.125rem;
 }
 .ww-ar-rows > li {

@@ -20,10 +20,11 @@ const CX = 100;
 const CY = 100;
 const R = 94;
 
-const MARK = ["#fb7185", "#22d3ee", "#fbbf24", "#a3e635", "#c084fc", "#fb923c", "#38bdf8", "#f472b6"];
-
-function markColor(i: number): string {
-  return MARK[i % MARK.length]!;
+function spotColor(r: ActiveRegion): string {
+  if (haleRank(r.hale) >= 4) return "#fb7185";
+  if (haleRank(r.hale) >= 3) return "#fbbf24";
+  if (haleRank(r.hale) >= 2) return "#22d3ee";
+  return "#94a3b8";
 }
 
 function place(r: ActiveRegion): { x: number; y: number } | null {
@@ -46,7 +47,7 @@ function clampDisk(x: number, y: number, limit: number): { x: number; y: number 
 function labelSpot(marks: { p: { x: number; y: number } }[]): { x: number; y: number }[] {
   const home = marks.map((m) => m.p);
   const out = home.map((p) => ({ x: p.x, y: p.y }));
-  const gap = 15;
+  const gap = 26;
   for (let n = 0; n < 12; n++) {
     for (let i = 0; i < out.length; i++) {
       for (let j = 0; j < i; j++) {
@@ -104,8 +105,8 @@ function SunDisk({
 }) {
   const [photo, setPhoto] = useState(true);
   const marks = regions
-    .map((r, i) => ({ r, i, p: place(r) }))
-    .filter((m): m is { r: ActiveRegion; i: number; p: { x: number; y: number } } => m.p != null);
+    .map((r) => ({ r, p: place(r) }))
+    .filter((m): m is { r: ActiveRegion; p: { x: number; y: number } } => m.p != null);
   const badges = labelSpot(marks);
 
   return (
@@ -123,9 +124,9 @@ function SunDisk({
         )}
         <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full" role="img" aria-label="Active regions on the Sun">
           <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeDasharray="2 2" />
-          {marks.map(({ r, i, p }, n) => {
+          {marks.map(({ r, p }, n) => {
             const on = active == null || active === r.region;
-            const color = markColor(i);
+            const color = spotColor(r);
             const b = badges[n]!;
             return (
               <g
@@ -140,17 +141,17 @@ function SunDisk({
                 {Math.hypot(b.x - p.x, b.y - p.y) > 4 && (
                   <line x1={p.x} y1={p.y} x2={b.x} y2={b.y} stroke={color} strokeWidth="0.7" />
                 )}
-                <circle cx={b.x} cy={b.y} r="12" fill="transparent" />
-                <circle cx={b.x} cy={b.y} r="7" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="1.2" />
+                <rect x={b.x - 13} y={b.y - 5.5} width="26" height="11" rx="2.5" fill="transparent" />
+                <rect x={b.x - 12} y={b.y - 4.6} width="24" height="9.2" rx="2" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="0.8" />
                 <text
                   x={b.x}
-                  y={b.y + (large ? 4 : 3.2)}
+                  y={b.y + (large ? 2.4 : 2.1)}
                   textAnchor="middle"
                   fill={color}
-                  fontSize={large ? "11" : "9"}
+                  fontSize={large ? "6.4" : "5.6"}
                   fontWeight="700"
                 >
-                  {i + 1}
+                  {r.region}
                 </text>
               </g>
             );
@@ -158,7 +159,7 @@ function SunDisk({
         </svg>
       </div>
       <p className={`mt-1 text-center text-[0.58rem] leading-tight text-dim ${large ? "hidden" : "hidden sm:block"}`}>
-        1 is next off the west limb
+        NOAA AR numbers
       </p>
     </div>
   );
@@ -167,7 +168,7 @@ function SunDisk({
 export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[]; observed?: string | null }) {
   const listed = regions
     .filter((r) => r.lon <= 90 && r.lon >= -90 && (haleRank(r.hale) > 0 || r.cProb > 0 || r.mProb > 0 || r.xProb > 0))
-    .sort((a, b) => a.lon - b.lon || b.lat - a.lat);
+    .sort((a, b) => a.region - b.region);
   const shown = listed.slice(0, 12);
   const delta = shown.find((r) => r.reachedDelta);
   const [hot, setHot] = useState<number | null>(null);
@@ -216,7 +217,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             onHover={setHot}
             onPick={setPicked}
             leadNote={delta ? `AR${delta.region} just reached delta.` : null}
-            foot={`1 is next off the west limb. Numbers increase toward the east.${observed ? ` Report ${observed}.` : ""}`}
+            foot={observed ? `Report ${observed}.` : "Click an AR for its spots, area, and flares."}
           />
         </div>
       </section>
@@ -249,7 +250,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
                   onHover={setHot}
                   onPick={setPicked}
                   leadNote={null}
-                  foot="1 is next off the west limb. Click one to pin it. Escape leaves full screen."
+                  foot="Click an AR to pin it. Escape leaves full screen."
                   follow
                 />
               </div>
@@ -297,7 +298,7 @@ function RegionList({
         <p className="text-[0.85rem] text-muted">No classified sunspot on the latest SWPC report.</p>
       ) : (
         <ul className="ww-ar-rows">
-          {regions.map((r, i) => (
+          {regions.map((r) => (
             <li key={r.region} data-region={r.region}>
               <button
                 type="button"
@@ -306,9 +307,6 @@ function RegionList({
                 onMouseLeave={() => onHover(null)}
                 onClick={() => onPick(r.region)}
               >
-                <span className="font-mono text-[0.72rem] font-bold tabular-nums" style={{ color: markColor(i) }}>
-                  {i + 1}
-                </span>
                 <span className="min-w-0">
                   <span className={`font-semibold ${tone(r)}`}>AR{r.region}</span>
                   <span className="block truncate text-[0.62rem] text-muted">
@@ -337,7 +335,7 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
   if (!region) {
     return (
       <p className="rounded-xl border border-border bg-panel px-3 py-3 text-[0.75rem] text-muted">
-        Click a number. The region’s class, place, and flare odds open here.
+        Click an AR. Its spots, area, and flares open here.
       </p>
     );
   }
