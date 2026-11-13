@@ -311,7 +311,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <div className="ww-solar-now__flare space-y-2">
               <FlareOutlookDesk />
-              <FarSideWatchDesk />
               <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
               {!closer && (
                 <button
@@ -329,7 +328,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
               regions={activeRegions}
               observed={activeRegions[0]?.observed ?? null}
             />
-            <RegionContinuityDesk />
+            </div>
+            <div className="ww-solar-now__extra">
+              <FarSideWatchDesk />
+              <RegionContinuityDesk />
             </div>
             {closer && (
               <div className="ww-solar-now__closer space-y-2">

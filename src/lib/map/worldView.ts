@@ -26,11 +26,11 @@ export const WORLD_MAX_BOUNDS = L.latLngBounds(
 );
 
 /**
- * Default center sits a little south of the equator so South Sandwich,
- * the Drake Passage, and the Scotia Arc (SES node #6, about 56–64°S)
- * stay in the home frame. Pacific longitude is unchanged.
+ * Default center is a little north of the equator so a wide map
+ * shows the world, not a frame dominated by Antarctica.
+ * Pacific longitude is unchanged.
  */
-export const WORLD_CENTER: [number, number] = [-6, 180];
+export const WORLD_CENTER: [number, number] = [18, 180];
 
 /**
  * Home framing: Pacific-weighted setView, not a clipped corridor.
@@ -54,18 +54,18 @@ export function fitWorldView(
   try {
     map.setMaxBounds(WORLD_MAX_BOUNDS);
     // Wide enough for global context; Pacific remains the home focus
-    const targetZoom = 1.82;
+    const targetZoom = 2;
     map.setMinZoom(1.4);
     map.setView(WORLD_CENTER, targetZoom, { animate });
   } catch {
     map.setMinZoom(1.4);
-    map.setView(WORLD_CENTER, 1.82, { animate });
+    map.setView(WORLD_CENTER, 2, { animate });
   }
 }
 
 export const WORLD_MAP_INIT = {
   center: WORLD_CENTER as [number, number],
-  zoom: 1.82,
+  zoom: 2,
   minZoom: 1.4,
   maxZoom: 18,
 } as const;

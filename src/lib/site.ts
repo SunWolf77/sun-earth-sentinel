@@ -88,8 +88,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.20: Carrington strip shows which longitudes face Earth. Hinode is not the full-disk polarity map; HMI is.
  * 1.39.21: HMI magnetogram reads toward, away, or mixed at each NOAA point.
  * 1.39.22: Carrington track marks the next 3 days onto the east limb, and any place in the file that is due there.
+ * 1.39.23: Solar extras sit beside each other under the regions, not stacked on the right. The map opens on the world, not Antarctica.
  */
-export const APP_VERSION = "1.39.22";
+export const APP_VERSION = "1.39.23";
 
 
 

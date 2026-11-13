@@ -3125,6 +3125,7 @@
     "chain"
     "flare"
     "spots"
+    "extra"
     "closer";
 }
 .ww-solar-now__intro { grid-area: intro; }
@@ -3134,6 +3135,12 @@
 }
 .ww-solar-now__flare { grid-area: flare; min-width: 0; }
 .ww-solar-now__spots { grid-area: spots; min-width: 0; }
+.ww-solar-now__extra {
+  grid-area: extra;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
 .ww-solar-now__closer {
   grid-area: closer;
   display: grid;
@@ -3155,8 +3162,13 @@
       "intro intro"
       "chain chain"
       "flare spots"
+      "extra extra"
       "closer closer";
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
+  .ww-solar-now__extra {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
     align-items: start;
   }
 }
