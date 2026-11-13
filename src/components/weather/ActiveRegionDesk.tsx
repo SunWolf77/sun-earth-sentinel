@@ -36,32 +36,42 @@ function place(r: ActiveRegion): { x: number; y: number } | null {
   return { x, y };
 }
 
-function clampDisk(x: number, y: number, limit: number): { x: number; y: number } {
-  const dx = x - CX;
-  const dy = y - CY;
-  const len = Math.hypot(dx, dy);
-  if (len <= limit || len === 0) return { x, y };
-  return { x: CX + (dx / len) * limit, y: CY + (dy / len) * limit };
-}
-
-function labelSpot(marks: { p: { x: number; y: number } }[]): { x: number; y: number }[] {
+function labelSpot(
+  marks: { p: { x: number; y: number } }[],
+  chip: { w: number; h: number },
+): { x: number; y: number }[] {
   const home = marks.map((m) => m.p);
-  const out = home.map((p) => ({ x: p.x, y: p.y }));
-  const gap = 26;
-  for (let n = 0; n < 12; n++) {
+  const hw = chip.w / 2;
+  const hh = chip.h / 2;
+  const out = home.map((p) => {
+    const dx = p.x - CX;
+    const dy = p.y - CY;
+    const len = Math.hypot(dx, dy) || 1;
+    const outward = len > R - chip.h - 8 ? -1 : 1;
+    const step = hh + 5;
+    return clampLabel(p.x + (dx / len) * step * outward, p.y + (dy / len) * step * outward, hw, hh);
+  });
+  for (let n = 0; n < 14; n++) {
     for (let i = 0; i < out.length; i++) {
       for (let j = 0; j < i; j++) {
         const a = out[i]!;
         const b = out[j]!;
         const dx = a.x - b.x;
         const dy = a.y - b.y;
-        const dist = Math.hypot(dx, dy) || 0.01;
-        if (dist >= gap) continue;
-        const push = (gap - dist) / 2;
-        a.x += (dx / dist) * push;
-        a.y += (dy / dist) * push;
-        b.x -= (dx / dist) * push;
-        b.y -= (dy / dist) * push;
+        const overlapX = chip.w - Math.abs(dx);
+        const overlapY = chip.h - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        if (overlapX < overlapY) {
+          const push = overlapX / 2 + 0.5;
+          const sign = dx === 0 ? (i % 2 === 0 ? 1 : -1) : Math.sign(dx);
+          a.x += sign * push;
+          b.x -= sign * push;
+        } else {
+          const push = overlapY / 2 + 0.5;
+          const sign = dy === 0 ? 1 : Math.sign(dy);
+          a.y += sign * push;
+          b.y -= sign * push;
+        }
       }
     }
     for (let i = 0; i < out.length; i++) {
@@ -77,17 +87,23 @@ function labelSpot(marks: { p: { x: number; y: number } }[]): { x: number; y: nu
         const my = (h.y + o.y) / 2;
         const len2 = nx * nx + ny * ny || 1;
         const dot = (x - mx) * nx + (y - my) * ny;
-        if (dot < 6) {
-          const need = (6 - dot) / len2;
+        if (dot < 4) {
+          const need = (4 - dot) / len2;
           x += nx * need;
           y += ny * need;
         }
       }
-      const kept = clampDisk(x, y, R - 6);
-      out[i] = kept;
+      out[i] = clampLabel(x, y, hw, hh);
     }
   }
   return out;
+}
+
+function clampLabel(x: number, y: number, hw: number, hh: number): { x: number; y: number } {
+  return {
+    x: Math.max(hw + 1, Math.min(199 - hw, x)),
+    y: Math.max(hh + 1, Math.min(199 - hh, y)),
+  };
 }
 
 function SunDisk({
@@ -104,14 +120,29 @@ function SunDisk({
   large?: boolean;
 }) {
   const [photo, setPhoto] = useState(true);
+  const frame = useRef<HTMLDivElement>(null);
+  const [px, setPx] = useState(0);
+  useEffect(() => {
+    const el = frame.current;
+    if (!el) return;
+    const read = () => setPx(el.clientWidth);
+    read();
+    const watch = new ResizeObserver(read);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
   const marks = regions
     .map((r) => ({ r, p: place(r) }))
     .filter((m): m is { r: ActiveRegion; p: { x: number; y: number } } => m.p != null);
-  const badges = labelSpot(marks);
+  const chipPx = large ? 48 : 42;
+  const chipHpx = large ? 18 : 16;
+  const unit = px > 0 ? 200 / px : 0.8;
+  const badges = labelSpot(marks, { w: chipPx * unit, h: chipHpx * unit });
+  const showAll = large || px >= 260;
 
   return (
     <div className={large ? "h-full w-full" : "w-full"}>
-      <div className="relative aspect-square">
+      <div ref={frame} className="relative aspect-square">
         {photo ? (
           <img
             src={sdoStill("HMIIC", 512)}
@@ -122,41 +153,63 @@ function SunDisk({
         ) : (
           <div className="h-full w-full rounded-full bg-[radial-gradient(circle_at_50%_46%,#fde68a,#f59e0b_62%,#9a3412_100%)]" />
         )}
-        <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full" role="img" aria-label="Active regions on the Sun">
+        <svg viewBox="0 0 200 200" className="pointer-events-none absolute inset-0 h-full w-full" role="img" aria-label="Active regions on the Sun">
           <line x1={CX} y1={CY - R} x2={CX} y2={CY + R} stroke="rgba(255,255,255,0.55)" strokeWidth="0.6" strokeDasharray="2 2" />
           {marks.map(({ r, p }, n) => {
             const on = active == null || active === r.region;
             const color = spotColor(r);
             const b = badges[n]!;
+            const show = showAll || active === r.region;
             return (
-              <g
-                key={r.region}
-                opacity={on ? 1 : 0.28}
-                className="cursor-pointer"
-                onMouseEnter={() => onHover(r.region)}
-                onMouseLeave={() => onHover(null)}
-                onClick={() => onPick(r.region)}
-              >
-                <circle cx={p.x} cy={p.y} r={active === r.region ? 4.2 : 2.6} fill={color} stroke="#0b0b0f" strokeWidth="0.8" />
-                {Math.hypot(b.x - p.x, b.y - p.y) > 4 && (
+              <g key={r.region} opacity={on ? 1 : 0.35}>
+                <circle cx={p.x} cy={p.y} r={active === r.region ? 4.2 : 2.8} fill={color} stroke="#0b0b0f" strokeWidth="0.8" />
+                {show && Math.hypot(b.x - p.x, b.y - p.y) > 5 && (
                   <line x1={p.x} y1={p.y} x2={b.x} y2={b.y} stroke={color} strokeWidth="0.7" />
                 )}
-                <rect x={b.x - 13} y={b.y - 5.5} width="26" height="11" rx="2.5" fill="transparent" />
-                <rect x={b.x - 12} y={b.y - 4.6} width="24" height="9.2" rx="2" fill="rgba(8,8,12,0.92)" stroke={color} strokeWidth="0.8" />
-                <text
-                  x={b.x}
-                  y={b.y + (large ? 2.4 : 2.1)}
-                  textAnchor="middle"
-                  fill={color}
-                  fontSize={large ? "6.4" : "5.6"}
-                  fontWeight="700"
-                >
-                  {r.region}
-                </text>
               </g>
             );
           })}
         </svg>
+        {marks.map(({ r, p }, n) => {
+          const show = showAll || active === r.region;
+          if (!show) return null;
+          const b = badges[n]!;
+          const color = spotColor(r);
+          const on = active == null || active === r.region;
+          return (
+            <button
+              key={r.region}
+              type="button"
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded px-1 py-0.5 font-mono font-bold leading-none"
+              style={{
+                left: `${(b.x / 200) * 100}%`,
+                top: `${(b.y / 200) * 100}%`,
+                color,
+                background: "rgba(8,8,12,0.92)",
+                border: `1px solid ${color}`,
+                fontSize: large ? 13 : 11,
+                opacity: on ? 1 : 0.72,
+              }}
+              onMouseEnter={() => onHover(r.region)}
+              onMouseLeave={() => onHover(null)}
+              onClick={() => onPick(r.region)}
+            >
+              {r.region}
+            </button>
+          );
+        })}
+        {marks.map(({ r, p }) => (
+          <button
+            key={`spot-${r.region}`}
+            type="button"
+            aria-label={`AR${r.region}`}
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: `${(p.x / 200) * 100}%`, top: `${(p.y / 200) * 100}%`, width: 16, height: 16 }}
+            onMouseEnter={() => onHover(r.region)}
+            onMouseLeave={() => onHover(null)}
+            onClick={() => onPick(r.region)}
+          />
+        ))}
       </div>
       <p className={`mt-1 text-center text-[0.58rem] leading-tight text-dim ${large ? "hidden" : "hidden sm:block"}`}>
         NOAA AR numbers

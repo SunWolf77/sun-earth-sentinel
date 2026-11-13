@@ -81,8 +81,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.13: Region numbers run left to right across the Sun, and each number stays on its own spot.
  * 1.39.14: Number 1 is the region about to leave the western limb. Numbers increase back toward the east.
  * 1.39.15: Spots use their NOAA AR number. The side panel still opens that region’s detail.
+ * 1.39.16: AR chips stay readable. On a small Sun only the selected number is drawn; the full disk shows every AR.
  */
-export const APP_VERSION = "1.39.15";
+export const APP_VERSION = "1.39.16";
 
 
 
