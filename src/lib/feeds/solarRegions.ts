@@ -6,6 +6,7 @@
  */
 
 const URL = "https://services.swpc.noaa.gov/json/solar_regions.json";
+const EVENTS = "https://services.swpc.noaa.gov/json/edited_events.json";
 
 export type HaleCode = "A" | "B" | "BG" | "BD" | "BGD" | "";
 
@@ -34,6 +35,8 @@ export type ActiveRegion = {
   cLife: number;
   mLife: number;
   xLife: number;
+  /** Strongest recent X-ray flare NOAA has assigned to this number. */
+  lastFlare: { klass: string; at: string } | null;
   cProb: number;
   mProb: number;
   xProb: number;
@@ -172,6 +175,7 @@ export function parseSolarRegions(raw: unknown): ActiveRegion[] {
       cLife,
       mLife,
       xLife,
+      lastFlare: null,
       cProb: num(r.c_flare_probability) ?? 0,
       mProb: num(r.m_flare_probability) ?? 0,
       xProb: num(r.x_flare_probability) ?? 0,
@@ -194,8 +198,45 @@ export function interest(r: ActiveRegion): number {
   return haleRank(r.hale) * 10 + earth + (r.growing ? 2 : 0);
 }
 
+export function tallyAssignedFlares(raw: unknown): Map<number, { c: number; m: number; x: number; lastFlare: { klass: string; at: string } | null }> {
+  const out = new Map<number, { c: number; m: number; x: number; lastFlare: { klass: string; at: string } | null }>();
+  if (!Array.isArray(raw)) return out;
+  const seen = new Set<string>();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const e = row as Record<string, unknown>;
+    if (e.type !== "XRA") continue;
+    const region = num(e.region);
+    if (region == null || region <= 0) continue;
+    const klass = String(e.particulars1 ?? "").trim().toUpperCase();
+    const letter = klass[0];
+    if (letter !== "C" && letter !== "M" && letter !== "X") continue;
+    const at = String(e.max_datetime ?? e.begin_datetime ?? "");
+    const key = `${region}|${at.slice(0, 16)}|${klass}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const bucket = out.get(region) ?? { c: 0, m: 0, x: 0, lastFlare: null };
+    if (letter === "C") bucket.c += 1;
+    else if (letter === "M") bucket.m += 1;
+    else bucket.x += 1;
+    if (!bucket.lastFlare || at > bucket.lastFlare.at) bucket.lastFlare = { klass, at };
+    out.set(region, bucket);
+  }
+  return out;
+}
+
 export async function fetchSolarRegions(): Promise<ActiveRegion[]> {
-  const res = await fetch(URL, { headers: { Accept: "application/json" } });
-  if (!res.ok) return [];
-  return parseSolarRegions(await res.json());
+  const [regRes, evRes] = await Promise.all([
+    fetch(URL, { headers: { Accept: "application/json" } }),
+    fetch(EVENTS, { headers: { Accept: "application/json" } }).catch(() => null),
+  ]);
+  if (!regRes.ok) return [];
+  const regions = parseSolarRegions(await regRes.json());
+  if (!evRes?.ok) return regions;
+  const tally = tallyAssignedFlares(await evRes.json());
+  return regions.map((r) => {
+    const hit = tally.get(r.region);
+    if (!hit) return r;
+    return { ...r, cLife: hit.c, mLife: hit.m, xLife: hit.x, lastFlare: hit.lastFlare };
+  });
 }

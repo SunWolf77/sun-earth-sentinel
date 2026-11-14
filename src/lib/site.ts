@@ -92,8 +92,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.24: Pulse quakes lead with EQ-M4.6 instead of a fracture mark.
  * 1.39.25: Pulse quakes use a seismograph trace in front of the magnitude.
  * 1.39.26: An AR's flare total is every NOAA day under that number, not today's zero.
+ * 1.39.27: Flare log uses the event file, where the region is assigned after the class is known.
  */
-export const APP_VERSION = "1.39.26";
+export const APP_VERSION = "1.39.27";
 
 
 

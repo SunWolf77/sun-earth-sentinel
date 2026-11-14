@@ -267,7 +267,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             onHover={setHot}
             onPick={setPicked}
             leadNote={delta ? `AR${delta.region} just reached delta.` : null}
-            foot={observed ? `Report ${observed}.` : "Click an AR for its spots, area, and flares."}
+            foot={observed ? `Report ${observed}. C M X on the right are today's odds, not flares logged.` : "Click an AR for its spots, area, and flares."}
           />
         </div>
       </section>
@@ -406,17 +406,24 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
       <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
         <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "—"} />
         <Stat k="Area" v={region.area != null ? `${region.area} millionths` : "—"} />
-        <Stat k="This number" v={`C${region.cLife} M${region.mLife} X${region.xLife}`} />
-        <Stat k="Today" v={`C${region.cEvents} M${region.mEvents} X${region.xEvents}`} />
+        <Stat k="Logged" v={`C${region.cLife} M${region.mLife} X${region.xLife}`} />
+        <Stat k="Latest" v={region.lastFlare ? `${region.lastFlare.klass} · ${flareStamp(region.lastFlare.at)}` : "None assigned yet"} />
       </dl>
       {path.length > 1 && (
         <p className="mt-1.5 text-[0.68rem] text-muted">Class ran {path.join(" → ")}. {change}.</p>
       )}
       <p className="mt-1 text-[0.58rem] leading-snug text-dim">
-        NOAA counts flares per day for this number, from the day they assigned it. A return under a new number starts the count again.
+        The class is known within minutes. Which region did it is added later, often the next day. Logged is that assignment, not the morning sheet.
       </p>
     </section>
   );
+}
+
+function flareStamp(at: string): string {
+  const m = at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return at;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${Number(m[3])} ${months[Number(m[2]) - 1]} ${m[4]}:${m[5]}Z`;
 }
 
 function Stat({ k, v }: { k: string; v: string }) {
