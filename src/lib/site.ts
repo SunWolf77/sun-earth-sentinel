@@ -93,8 +93,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.25: Pulse quakes use a seismograph trace in front of the magnitude.
  * 1.39.26: An AR's flare total is every NOAA day under that number, not today's zero.
  * 1.39.27: Flare log uses the event file, where the region is assigned after the class is known.
+ * 1.39.28: On a phone, full-screen sunspots keep the disk. Region detail opens only when asked.
  */
-export const APP_VERSION = "1.39.27";
+export const APP_VERSION = "1.39.28";
 
 
 

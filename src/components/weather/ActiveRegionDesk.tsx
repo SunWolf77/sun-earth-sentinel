@@ -224,6 +224,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
   const [hot, setHot] = useState<number | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
   const [full, setFull] = useState(false);
+  const [info, setInfo] = useState(false);
 
   useEffect(() => {
     if (!full) return;
@@ -273,16 +274,25 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
       </section>
       {full &&
         createPortal(
-          <div className="ww-ar-full">
+          <div className={`ww-ar-full ${info ? "ww-ar-full--info" : ""}`}>
             <div className="ww-ar-full__bar">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-primary">Sunspots aimed at Earth</h2>
-              <button
-                type="button"
-                onClick={() => setFull(false)}
-                className="rounded-md border border-border bg-panel px-3 py-1 text-xs font-semibold text-fg"
-              >
-                Exit full
-              </button>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setInfo((v) => !v)}
+                  className="ww-ar-info-toggle rounded-md border border-border bg-panel px-3 py-1 text-xs font-semibold text-fg"
+                >
+                  {info ? "Disk" : "Region"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFull(false)}
+                  className="rounded-md border border-border bg-panel px-3 py-1 text-xs font-semibold text-fg"
+                >
+                  Exit full
+                </button>
+              </div>
             </div>
             <div className="ww-ar-stage">
               <div className="ww-ar-disk-cell">

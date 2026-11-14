@@ -3048,14 +3048,13 @@
   place-items: center;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
+  container-type: size;
 }
 .ww-ar-disk {
-  aspect-ratio: 1;
-  width: auto;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
+  width: min(100cqw, 100cqh);
+  height: min(100cqw, 100cqh);
 }
 /* Nested grid. The outer track is the Sun. This one is the detail, then the list. */
 .ww-ar-side {
@@ -3093,9 +3092,41 @@
     padding-right: 1.5rem;
   }
 }
-@container arfull (max-width: 47.99rem) and (max-height: 40rem) {
+.ww-ar-info-toggle {
+  display: none;
+}
+@container arfull (max-width: 47.99rem) {
+  .ww-ar-info-toggle {
+    display: inline-flex;
+  }
   .ww-ar-stage {
-    grid-template-rows: minmax(7rem, 28cqb) minmax(0, 1fr);
+    grid-template:
+      "disk" minmax(0, 1fr)
+      "side" auto
+      / minmax(0, 1fr);
+  }
+  .ww-ar-detail {
+    display: none;
+  }
+  .ww-ar-side {
+    grid-template:
+      "list" minmax(0, 7.5rem)
+      / minmax(0, 1fr);
+    max-height: 7.5rem;
+  }
+  .ww-ar-full--info .ww-ar-detail {
+    display: block;
+  }
+  .ww-ar-full--info .ww-ar-stage {
+    grid-template-rows: minmax(9.5rem, 46cqb) minmax(0, 1fr);
+  }
+  .ww-ar-full--info .ww-ar-side {
+    max-height: none;
+    height: 100%;
+    grid-template:
+      "detail" auto
+      "list" minmax(0, 1fr)
+      / minmax(0, 1fr);
   }
 }
 
