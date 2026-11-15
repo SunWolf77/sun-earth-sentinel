@@ -42,6 +42,7 @@ import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
 import { FarSideWatchDesk } from "@/components/weather/FarSideWatch";
 import { RegionContinuityDesk } from "@/components/weather/RegionContinuity";
 import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
+import { FluxPhaseCard } from "@/components/weather/FluxPhaseCard";
 import { FlareAtlasDesk } from "@/components/weather/FlareAtlasDesk";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
@@ -311,6 +312,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <div className="ww-solar-now__flare space-y-2">
               <FlareOutlookDesk />
+              <FluxPhaseCard />
               <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
               {!closer && (
                 <button
@@ -421,6 +423,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "xray" && (
         <div className="space-y-3">
+          <FluxPhaseCard />
           <FlareAtlasDesk />
           <GoesXrayDesk />
         </div>
