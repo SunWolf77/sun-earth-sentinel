@@ -6,6 +6,7 @@ import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc
 import { fluxToClass } from "@/lib/feeds/swpc";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
+import { readLiveFlare } from "@/lib/solar/liveFlare";
 
 export type TapeKind = "quake" | "solar" | "volcano";
 
@@ -130,6 +131,11 @@ export function buildPulseTape(input: {
     }
   }
 
+  const live = readLiveFlare(input.xray, input.regions ?? []);
+  if (live && show("solar", true, input.toggles)) {
+    out.push({ id: live.id, kind: "solar", text: live.line, major: true });
+  }
+
   const wind = input.solarWind;
   if (wind && (wind.speed != null || wind.bz != null)) {
     const speed = wind.speed != null ? Math.round(wind.speed) : null;
@@ -148,6 +154,13 @@ export function buildPulseTape(input: {
     }
   }
 
+  if (wind?.sheet && show("solar", true, input.toggles)) {
+    out.push({ id: "l1-sheet", kind: "solar", text: wind.sheet, major: true });
+  }
+  if (wind?.electrons && show("solar", true, input.toggles)) {
+    out.push({ id: "l1-electrons", kind: "solar", text: wind.electrons, major: true });
+  }
+
   if (input.scales) {
     const r = scaleN(input.scales.R);
     const s = scaleN(input.scales.S);
@@ -164,7 +177,7 @@ export function buildPulseTape(input: {
   }
 
   const xr = input.xray.length ? input.xray[input.xray.length - 1] : null;
-  if (xr && Number.isFinite(xr.flux)) {
+  if (!live && xr && Number.isFinite(xr.flux)) {
     const klass = fluxToClass(xr.flux);
     const major = klass.startsWith("X");
     const notable = klass.startsWith("M") || major;

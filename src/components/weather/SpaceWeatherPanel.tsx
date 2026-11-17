@@ -41,8 +41,8 @@ import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
 import { FarSideWatchDesk } from "@/components/weather/FarSideWatch";
 import { RegionContinuityDesk } from "@/components/weather/RegionContinuity";
+import { readLiveFlare } from "@/lib/solar/liveFlare";
 import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
-import { FluxPhaseCard } from "@/components/weather/FluxPhaseCard";
 import { FlareAtlasDesk } from "@/components/weather/FlareAtlasDesk";
 import { MagnetoPanel } from "@/components/magneto/MagnetoPanel";
 import { EcdoTestDesk } from "@/components/magneto/EcdoTestDesk";
@@ -180,6 +180,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const highKp = kpVal !== null && kpVal >= 5;
   const highX = xClass.startsWith("M") || xClass.startsWith("X");
   const southBz = solarWind?.bz != null && solarWind.bz <= -5;
+  const flareLine = useMemo(() => readLiveFlare(xray, activeRegions)?.line ?? null, [xray, activeRegions]);
   const cfg = MODES[mode];
   const showImages = cfg.loadImage && !compact;
   const bust = lastUpdate ?? 0;
@@ -306,13 +307,13 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             southBz={southBz}
             scales={scales}
             flux={flux10cm?.flux ?? null}
+            flareLine={flareLine}
             onOpenXray={() => selectSolarView("xray")}
           />
           </div>
 
           <div className="ww-solar-now__flare space-y-2">
               <FlareOutlookDesk />
-              <FluxPhaseCard />
               <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
               {!closer && (
                 <button
@@ -423,7 +424,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "xray" && (
         <div className="space-y-3">
-          <FluxPhaseCard />
           <FlareAtlasDesk />
           <GoesXrayDesk />
         </div>
@@ -511,6 +511,7 @@ function NowBoard({
   southBz,
   scales,
   flux,
+  flareLine,
   onOpenXray,
 }: {
   kpVal: number | null;
@@ -522,6 +523,7 @@ function NowBoard({
   southBz: boolean;
   scales: NoaaScales | null;
   flux: number | null;
+  flareLine: string | null;
   onOpenXray: () => void;
 }) {
   const [windOpen, setWindOpen] = useState(false);
@@ -579,6 +581,9 @@ function NowBoard({
             onClick={openWind}
           />
         </div>
+        {flareLine && (
+          <p className="border-t border-border/70 px-3 py-1.5 text-[0.72rem] leading-snug text-warn">{flareLine}</p>
+        )}
         <p className="border-t border-border/70 px-3 py-1.5 text-[0.65rem] leading-snug text-dim">
           X-ray is the flare, seen in about 8 minutes. Wind and Bz are the same stream, already at Earth. A southward Bz is what lifts Kp.
         </p>

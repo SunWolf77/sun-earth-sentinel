@@ -31,6 +31,10 @@ export type SolarWind = {
   source: string | null;
   /** True when the numbers are the 1-minute RTSW head, not the coarse summary. */
   rtsw: boolean;
+  /** L1 azimuth flip that held, with a field dip. Null when none. */
+  sheet: string | null;
+  /** Fresh suprathermal electron rise at L1. Null when quiet or the feed is stale. */
+  electrons: string | null;
 };
 
 export type NoaaScales = {
@@ -142,17 +146,17 @@ function finite(v: unknown): number | null {
  * RTSW files are newest-first and multi-megabyte. The head is enough for
  * the live desk — do not download the day.
  */
-async function readRtswHead(path: string): Promise<Record<string, unknown>[]> {
+async function readRtswHead(path: string, maxBytes = 24575): Promise<Record<string, unknown>[]> {
   try {
     const res = await fetch(`${SWPC}${path}`, {
-      headers: { Range: "bytes=0-24575" },
+      headers: { Range: `bytes=0-${maxBytes}` },
       signal: AbortSignal.timeout(8_000),
     });
     if (res.status !== 206 && res.status !== 200) return [];
     const len = Number(res.headers.get("content-length") || 0);
-    if (res.status === 200 && len > 80_000) return [];
+    if (res.status === 200 && len > maxBytes + 8_000) return [];
     const text = await res.text();
-    if (text.length > 80_000) return [];
+    if (text.length > maxBytes + 8_000) return [];
     const cut = text.lastIndexOf("}");
     if (cut < 1) return [];
     let chunk = text.slice(0, cut + 1).trim().replace(/,\s*$/, "");
@@ -167,6 +171,87 @@ async function readRtswHead(path: string): Promise<Record<string, unknown>[]> {
 
 function latestActive(rows: Record<string, unknown>[]): Record<string, unknown> | null {
   return rows.find((r) => r.active === true) ?? rows[0] ?? null;
+}
+
+function circDelta(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return Math.min(d, 360 - d);
+}
+
+function circMean(degs: number[]): number | null {
+  if (!degs.length) return null;
+  let x = 0;
+  let y = 0;
+  for (const d of degs) {
+    const r = (d * Math.PI) / 180;
+    x += Math.cos(r);
+    y += Math.sin(r);
+  }
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/** A held azimuth flip with a weak field between the two directions. */
+function currentSheet(rows: Record<string, unknown>[]): string | null {
+  const pts = rows
+    .map((r) => ({
+      t: Date.parse(typeof r.time_tag === "string" ? (r.time_tag.endsWith("Z") ? r.time_tag : `${r.time_tag}Z`) : ""),
+      phi: finite(r.phi_gsm),
+      bt: finite(r.bt),
+    }))
+    .filter((p) => Number.isFinite(p.t) && p.phi != null && p.bt != null)
+    .sort((a, b) => b.t - a.t);
+  if (pts.length < 40) return null;
+  const newest = pts[0]!.t;
+  const a = pts.filter((p) => newest - p.t <= 20 * 60_000);
+  const b = pts.filter((p) => newest - p.t > 25 * 60_000 && newest - p.t <= 50 * 60_000);
+  if (a.length < 8 || b.length < 8) return null;
+  const ma = circMean(a.map((p) => p.phi!));
+  const mb = circMean(b.map((p) => p.phi!));
+  if (ma == null || mb == null || circDelta(ma, mb) < 130) return null;
+  const hold = (sample: typeof a, mean: number) =>
+    sample.filter((p) => circDelta(p.phi!, mean) < 35).length >= sample.length * 0.7;
+  if (!hold(a, ma) || !hold(b, mb)) return null;
+  const mid = pts.filter((p) => newest - p.t > 18 * 60_000 && newest - p.t < 28 * 60_000);
+  const shoulder = [...a, ...b].reduce((n, p) => n + p.bt!, 0) / (a.length + b.length);
+  const dip = mid.length ? Math.min(...mid.map((p) => p.bt!)) : shoulder;
+  if (dip > shoulder * 0.7) return null;
+  return "L1 current sheet: the field direction flipped and held, and the field weakened as it turned.";
+}
+
+async function readElectronTail(): Promise<string | null> {
+  const res = await fetch(`${SWPC}/json/ace/epam/ace_epam_5m.json`, {
+    headers: { Range: "bytes=-20000" },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (res.status !== 206 && res.status !== 200) return null;
+  const text = await res.text();
+  if (text.length > 80_000) return null;
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let chunk = text.slice(start).trim().replace(/,\s*$/, "");
+  if (!chunk.endsWith("]")) {
+    const cut = chunk.lastIndexOf("}");
+    if (cut < 1) return null;
+    chunk = `${chunk.slice(0, cut + 1)}]`;
+  }
+  if (!chunk.startsWith("[")) chunk = `[${chunk}`;
+  const rows = JSON.parse(chunk) as Record<string, unknown>[];
+  if (!Array.isArray(rows) || rows.length < 12) return null;
+  const pts = rows
+    .map((r) => ({
+      t: Date.parse(typeof r.time_tag === "string" ? (r.time_tag.endsWith("Z") ? r.time_tag : `${r.time_tag}Z`) : ""),
+      v: r.dsflag_de1 === 0 ? finite(r.de1) : null,
+    }))
+    .filter((p) => Number.isFinite(p.t) && p.v != null && p.v > 0) as { t: number; v: number }[];
+  if (pts.length < 12) return null;
+  const last = pts[pts.length - 1]!.t;
+  if (Date.now() - last > 6 * 3600_000) return null;
+  const recent = pts.slice(-4);
+  const base = pts.slice(0, -4).map((p) => p.v).sort((a, b) => a - b);
+  const med = base[Math.floor(base.length / 2)] ?? 0;
+  const avg = recent.reduce((n, p) => n + p.v, 0) / recent.length;
+  if (med <= 0 || avg < med * 3 || avg < 500) return null;
+  return `L1 suprathermal electrons are about ${Math.round(avg / med)}× the recent level.`;
 }
 
 export async function fetchSolarWind(): Promise<SolarWind> {
@@ -184,11 +269,14 @@ export async function fetchSolarWind(): Promise<SolarWind> {
     magTime: null,
     source: null,
     rtsw: false,
+    sheet: null,
+    electrons: null,
   };
   try {
-    const [magRows, windRows, spRes, magRes] = await Promise.all([
-      readRtswHead("/json/rtsw/rtsw_mag_1m.json"),
+    const [magRows, windRows, electrons, spRes, magRes] = await Promise.all([
+      readRtswHead("/json/rtsw/rtsw_mag_1m.json", 120_000),
       readRtswHead("/json/rtsw/rtsw_wind_1m.json"),
+      readElectronTail().catch(() => null),
       fetch(`${SWPC}/products/summary/solar-wind-speed.json`).catch(() => null),
       fetch(`${SWPC}/products/summary/solar-wind-mag-field.json`).catch(() => null),
     ]);
@@ -203,6 +291,7 @@ export async function fetchSolarWind(): Promise<SolarWind> {
       out.magTime = typeof mag.time_tag === "string" ? mag.time_tag : null;
       out.source = typeof mag.source === "string" ? mag.source : null;
       out.rtsw = out.bt != null || out.bz != null;
+      out.sheet = currentSheet(magRows);
     }
     if (wind) {
       out.speed = finite(wind.proton_speed);
@@ -212,6 +301,7 @@ export async function fetchSolarWind(): Promise<SolarWind> {
       if (!out.source && typeof wind.source === "string") out.source = wind.source;
       if (out.speed != null) out.rtsw = true;
     }
+    out.electrons = electrons;
     out.time = out.plasmaTime ?? out.magTime;
 
     if (spRes?.ok && out.speed == null) {

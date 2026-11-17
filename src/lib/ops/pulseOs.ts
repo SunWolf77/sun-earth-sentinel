@@ -50,6 +50,7 @@ function stepKey(item: TapeItem): string {
     const bb = b <= -15 ? -15 : b <= -10 ? -10 : b <= -5 ? -5 : 0;
     return `wind-${sb}-${bb}`;
   }
+  if (item.id === "l1-sheet" || item.id === "l1-electrons" || item.id.startsWith("flare-")) return item.id;
   if (item.id === "flare-chance") {
     const n = Number(item.text.match(/(\d+)/)?.[1] ?? 0);
     return n >= 70 ? "flare-70" : "flare-50";
