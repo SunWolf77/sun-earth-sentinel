@@ -30,6 +30,7 @@ import { SuptSolarAgent } from "@/components/weather/SuptSolarAgent";
 import { SuptContinuumStrip } from "@/components/supt/SuptContinuumStrip";
 import { RecommendationsPanel } from "@/components/ops/RecommendationsPanel";
 import { DaySheetCard } from "@/components/ops/DaySheetCard";
+import { ClusterWatchCard } from "@/components/weather/ClusterWatch";
 import {
   applyFocusScroll,
   peekPendingFocus,
@@ -320,6 +321,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             onOpenXray={() => selectSolarView("xray")}
           />
           </div>
+
+          <ClusterWatchCard />
 
           <DaySheetCard />
 

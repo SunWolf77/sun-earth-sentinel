@@ -12,10 +12,11 @@ export function SolarPulse() {
   const xray = useObservatory((s) => s.xray);
   const regions = useObservatory((s) => s.activeRegions);
   const xra = useObservatory((s) => s.xraFlares);
+  const fluxDays = useObservatory((s) => s.fluxDays);
   const flareChance = useObservatory((s) => s.flareChance);
 
   const items = useMemo(() => {
-    const rows = buildSolarPulse({ kp, solarWind, scales, xray, regions, xra, flareChance });
+    const rows = buildSolarPulse({ kp, solarWind, scales, xray, regions, xra, fluxDays, flareChance });
     const period = liveChartPeriod(xray).period;
     if (period != null) {
       rows.push({
@@ -27,7 +28,7 @@ export function SolarPulse() {
       });
     }
     return rows;
-  }, [kp, solarWind, scales, xray, regions, xra, flareChance]);
+  }, [kp, solarWind, scales, xray, regions, xra, fluxDays, flareChance]);
 
   const duration = `${Math.max(36, items.length * 9)}s`;
 

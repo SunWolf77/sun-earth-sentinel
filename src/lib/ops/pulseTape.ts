@@ -6,6 +6,7 @@ import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc
 import { fluxToClass, longChannelXrays } from "@/lib/feeds/swpc";
 import type { ActiveRegion, XraFlare } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
+import { clusterWatch, type FluxDay } from "@/lib/solar/clusterWatch";
 import { diskLaunches } from "@/lib/feeds/launchWatch";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
 
@@ -240,6 +241,7 @@ export function buildSolarPulse(input: {
   xray: XrayPoint[];
   regions?: ActiveRegion[];
   xra?: XraFlare[];
+  fluxDays?: FluxDay[];
   flareChance?: number | null;
   now?: number;
 }): TapeItem[] {
@@ -247,6 +249,16 @@ export function buildSolarPulse(input: {
   const out: TapeItem[] = [];
   const live = readLiveFlare(input.xray, input.regions ?? [], now);
   if (live) out.push({ id: live.id, kind: "solar", text: live.line, major: live.phase !== "subsided" });
+
+  const cluster = clusterWatch({
+    xra: input.xra,
+    regions: input.regions,
+    fluxDays: input.fluxDays,
+    now,
+  });
+  if (cluster.level === "cluster") {
+    out.push({ id: "cluster", kind: "solar", text: cluster.tape, mark: "Cluster", major: true });
+  }
 
   const launch = diskLaunches(input.xra, input.regions, now)[0];
   if (launch) {

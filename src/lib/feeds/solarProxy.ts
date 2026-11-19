@@ -37,6 +37,7 @@ import { fetchSolarRegionPack, fetchSolarRegions, type ActiveRegion, type XraFla
 import { buildFlareOutlook, type CatalogFlare, type FlareOutlook } from "@/lib/solar/flareOutlook";
 import { buildFlareAtlas, type FlareAtlas } from "@/lib/solar/flareAtlas";
 import { buildFarSideWatch, type FarSideWatch } from "@/lib/solar/farSideWatch";
+import { fetchFluxDays, type FluxDay } from "@/lib/solar/clusterWatch";
 import { readHmiPolarity, type HmiPolarity } from "@/lib/solar/hmiPolarity";
 import {
   linkRegionChains,
@@ -133,19 +134,21 @@ export type SolarNowBundle = {
   flux10cm: Flux10cm;
   regions: ActiveRegion[];
   xra: XraFlare[];
+  fluxDays: FluxDay[];
 };
 
 /** Kp, RTSW minute, NOAA scales, F10.7 — the part of Solar that should not wait on ENLIL. */
 export const fetchSolarNow = createServerFn({ method: "GET" }).handler(
   async (): Promise<SolarNowBundle> => {
-    const [kp, solarWind, scales, flux10cm, pack] = await Promise.all([
+    const [kp, solarWind, scales, flux10cm, pack, fluxDays] = await Promise.all([
       fetchKp().catch(() => [] as KpPoint[]),
       fetchSolarWind(),
       fetchNoaaScales(),
       fetch10cmFlux(),
       fetchSolarRegionPack().catch(() => ({ regions: [] as ActiveRegion[], xra: [] as XraFlare[] })),
+      fetchFluxDays(),
     ]);
-    return { kp, solarWind, scales, flux10cm, regions: pack.regions, xra: pack.xra };
+    return { kp, solarWind, scales, flux10cm, regions: pack.regions, xra: pack.xra, fluxDays };
   },
 );
 

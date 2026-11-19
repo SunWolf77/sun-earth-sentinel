@@ -60,6 +60,7 @@ import { fetchNeoToday, type NeoItem } from "@/lib/feeds/neows";
 import { pruneVolcTransitions } from "@/lib/ops/raisedTimeout";
 import { relayNewEruptions, type EruptionNotice } from "@/lib/ops/eruptionNotice";
 import type { ActiveRegion, XraFlare } from "@/lib/feeds/solarRegions";
+import type { FluxDay } from "@/lib/solar/clusterWatch";
 import { relayPulseOs } from "@/lib/ops/pulseOs";
 import type { TapeToggles } from "@/lib/ops/pulseTape";
 import {
@@ -364,6 +365,8 @@ type ObservatoryState = {
   activeRegions: ActiveRegion[];
   /** GOES X-ray flares with the region SWPC assigned. Newer than DONKI. */
   xraFlares: XraFlare[];
+  /** Daily GOES long-channel peaks for the activity cluster. */
+  fluxDays: FluxDay[];
   /** M-flare chance, 0–1. Pulse and the solar notice start at 0.5. */
   flareChance: number | null;
   protons: ProtonPoint[];
@@ -649,6 +652,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
   flux10cm: null,
   activeRegions: [],
   xraFlares: [],
+  fluxDays: [],
   flareChance: null,
   protons: [],
   forecast: null,
@@ -1498,6 +1502,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
                 flux10cm: d.flux10cm?.flux != null ? d.flux10cm : get().flux10cm,
                 activeRegions: d.regions?.length ? d.regions : get().activeRegions,
                 xraFlares: Array.isArray(d.xra) ? d.xra : get().xraFlares,
+                fluxDays: Array.isArray(d.fluxDays) ? d.fluxDays : get().fluxDays,
                 feedTimestamps: { ...get().feedTimestamps, solar: Date.now() },
               });
             })

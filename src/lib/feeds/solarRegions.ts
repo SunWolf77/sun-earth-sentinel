@@ -41,6 +41,8 @@ export type ActiveRegion = {
   mProb: number;
   xProb: number;
   observed: string;
+  /** First NOAA date for this number in the loaded file. */
+  firstSeen: string;
   /** Oldest → newest Hale codes, blanks dropped. */
   haleTrail: HaleCode[];
   growing: boolean;
@@ -184,6 +186,7 @@ export function parseSolarRegions(raw: unknown): ActiveRegion[] {
       mProb: num(r.m_flare_probability) ?? 0,
       xProb: num(r.x_flare_probability) ?? 0,
       observed: latest,
+      firstSeen: String(hist[0]?.observed_date ?? latest),
       haleTrail,
       growing: todayHale !== "" && haleRank(todayHale) > haleRank(prev),
       reachedDelta: todayHale !== "" && haleRank(todayHale) >= 4 && haleRank(prev) < 4,
