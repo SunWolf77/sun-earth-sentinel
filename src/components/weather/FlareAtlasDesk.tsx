@@ -90,7 +90,7 @@ export function FlareAtlasDesk({
         {atlas && (
           <span className="text-[0.58rem] text-dim">
             {atlas.mCount} M · {atlas.xCount} X
-            {atlas.liveHarmonicMin != null ? ` · live pulse ${atlas.liveHarmonicMin} min` : ""}
+            {atlas.liveHarmonicMin != null ? ` · chart period ${atlas.liveHarmonicMin} min` : ""}
           </span>
         )}
       </div>

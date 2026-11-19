@@ -109,11 +109,6 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
         </div>
       </div>
 
-      <p className="text-[0.65rem] leading-snug text-dim">
-        Tap a node for swarm corridors or volcano watches — map zooms, list filters. Published SES
-        boards open on Vercel without losing focus.
-      </p>
-
       {focus && (
         <div
           className={`rounded-lg border px-2.5 py-2 ${

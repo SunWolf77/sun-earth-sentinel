@@ -159,7 +159,7 @@ export function buildFlareAtlas(
     phaseLine,
     marks: [],
     honesty:
-      "Flares are placed on the GOES minute chart. A harmonic is kept only when one period stands clear of the others. Not a civil forecast.",
+      "GOES minute chart. A period is the strongest 4–20 min repeat in the hour before the peak, not a forecast.",
   };
   if (series.length < 60) return empty;
 
@@ -227,21 +227,19 @@ export function buildFlareAtlas(
           : `The chart reads ${d.klass}. That is ${d.excess.toFixed(2)} dex above the quiet level in the hours before.`;
     const harmBit =
       d.harmonicMin == null
-        ? "No period from 4 to 20 minutes stands clear of the noise in the 90 minutes before the peak."
-        : `A ${d.harmonicMin}-min pulse is ${d.harmonicRatio?.toFixed(1)} times stronger than the other periods in that hour. ${peers} other M or X flare${peers === 1 ? "" : "s"} this week had a pulse within 2 minutes of it.`;
+        ? "No 4–20 min period stands out in the 90 minutes before the peak."
+        : `Strongest chart period before the peak: ${d.harmonicMin} min (${d.harmonicRatio?.toFixed(1)}× the other periods tried). ${peers} other M or X this week were within 2 min of that period.`;
     const useBit = d.open
-      ? "The end is not in yet, so this rise may still be going. The 6-hour chance watches a rise that is still climbing, not a spike that has already finished."
-      : d.impulsive
-        ? "This spike has finished. An impulsive flare does not, by itself, raise the chance of the next hours."
-        : "This flare is already in the week the 6-hour chance was trained on. A finished flare is context. A flux that is still rising is what moves the number.";
+      ? "End time is not in yet."
+      : null;
 
     return {
       ...d,
       steps: [
         { title: "Clock", text: `${d.klass} peaked ${clock(Date.parse(d.peak))}. ${riseBit}${decadeBit}` },
         { title: "Chart", text: fluxBit },
-        { title: "Harmonic", text: harmBit },
-        { title: "Use", text: useBit },
+        { title: "Period", text: harmBit },
+        ...(useBit ? [{ title: "Status", text: useBit }] : []),
       ],
     };
   });

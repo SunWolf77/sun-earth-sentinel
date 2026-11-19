@@ -420,11 +420,8 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
         <Stat k="Latest" v={region.lastFlare ? `${region.lastFlare.klass} · ${flareStamp(region.lastFlare.at)}` : "None assigned yet"} />
       </dl>
       {path.length > 1 && (
-        <p className="mt-1.5 text-[0.68rem] text-muted">Class ran {path.join(" → ")}. {change}.</p>
+        <p className="mt-1.5 text-[0.68rem] text-muted">{path.join(" → ")}. {change}.</p>
       )}
-      <p className="mt-1 text-[0.58rem] leading-snug text-dim">
-        The class is known within minutes. Which region did it is added later, often the next day. Logged is that assignment, not the morning sheet.
-      </p>
     </section>
   );
 }
