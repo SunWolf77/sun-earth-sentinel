@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { buildDaySheet } from "@/lib/ops/daySheet";
-import { absoluteUrl } from "@/lib/site";
-import { shareOrCopy } from "@/lib/pwa/shareFocus";
+import { copyText } from "@/lib/pwa/shareFocus";
 
 export function DaySheetCard() {
   const features = useObservatory((s) => s.eq?.features);
@@ -13,7 +12,7 @@ export function DaySheetCard() {
   const scales = useObservatory((s) => s.scales);
   const volcanoes = useObservatory((s) => s.usgsVolcAlerts);
   const resonance = useObservatory((s) => s.resonance);
-  const [state, setState] = useState<"idle" | "ok">("idle");
+  const [state, setState] = useState<"idle" | "sent" | "copied">("idle");
 
   const sheet = useMemo(
     () =>
@@ -30,15 +29,25 @@ export function DaySheetCard() {
   );
 
   const share = async () => {
-    const url = absoluteUrl("/");
-    const result = await shareOrCopy(url, "Sun Earth Sentinel", {
-      text: `${sheet.shareText}\n${url}`,
-    });
-    if (result === "shared" || result === "copied") {
-      setState("ok");
+    const text = `${sheet.shareText}\nwolfwatch.site`;
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "Sun Earth Sentinel", text });
+        setState("sent");
+        window.setTimeout(() => setState("idle"), 1600);
+        return;
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      }
+    }
+    const ok = await copyText(text);
+    if (ok) {
+      setState("copied");
       window.setTimeout(() => setState("idle"), 1600);
     }
   };
+
+  const label = state === "sent" ? "Sent" : state === "copied" ? "Copied" : "Share";
 
   return (
     <section className="ww-solar-now__sheet rounded-lg border border-border bg-panel/80 px-3 py-2.5">
@@ -52,8 +61,8 @@ export function DaySheetCard() {
           onClick={() => void share()}
           className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-fg"
         >
-          {state === "ok" ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
-          {state === "ok" ? "Copied" : "Share"}
+          {state === "idle" ? <Share2 className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+          {label}
         </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">

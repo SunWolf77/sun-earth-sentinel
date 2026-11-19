@@ -96,8 +96,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.28: On a phone, full-screen sunspots keep the disk. Region detail opens only when asked.
  * 1.39.29: An M flare in progress, the region being watched, and an L1 current-sheet or electron rise.
  * 1.39.30: Solar page has a shareable day and week sheet. Counts are the loaded catalog, not a forecast.
+ * 1.39.31: Share sends the day and week text, not the site link. The text is that minute.
  */
-export const APP_VERSION = "1.39.30";
+export const APP_VERSION = "1.39.31";
 
 
 
