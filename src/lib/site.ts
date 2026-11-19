@@ -108,8 +108,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.40: Day and week share controls stack on a phone. Flare detail uses the same rows.
  * 1.39.41: Solar row is the highest catalogued flare in the window, and every AR that produced an M or X.
  * 1.39.42: Week solar says when Kp peaked, the G-scale, and how many 3-hour blocks reached storm.
+ * 1.39.43: The week stands alone: M6+ count, node counts, M and X totals, Earth-directed CMEs, and the full seven days of volcano shifts.
  */
-export const APP_VERSION = "1.39.42";
+export const APP_VERSION = "1.39.43";
 
 
 

@@ -16,7 +16,8 @@ import {
   type XrayPoint,
 } from "@/lib/feeds/swpc";
 import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
-import type { DonkiFlare } from "@/lib/feeds/donki";
+import type { DonkiCme, DonkiFlare } from "@/lib/feeds/donki";
+import { earthDirectedCmes } from "@/lib/feeds/donki";
 import { resonanceVerdict, type ResonanceScore } from "@/lib/supt/probe";
 
 const DAY = 24 * 3600_000;
@@ -91,6 +92,23 @@ function nodesValue(list: Quake[]): string {
   const names = [...new Set(list.map((q) => q.node).filter((n): n is string => !!n))];
   if (!names.length) return "None";
   return names.slice(0, 4).join(", ");
+}
+
+function nodesWeek(list: Quake[]): string {
+  const counts = new Map<string, number>();
+  for (const q of list) {
+    if (!q.node) continue;
+    counts.set(q.node, (counts.get(q.node) ?? 0) + 1);
+  }
+  const rows = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  if (!rows.length) return "None";
+  const shown = rows.slice(0, 4).map(([name, n]) => `${name} ${n}`);
+  const more = rows.length > 4 ? ` and ${rows.length - 4} more` : "";
+  return `${shown.join(", ")}${more}`;
+}
+
+function m6Count(list: Quake[]): number {
+  return list.filter((q) => q.mag >= 6).length;
 }
 
 function peakKp(kp: KpPoint[], start: number, end: number): number | null {
@@ -179,6 +197,33 @@ function flareBit(flares: DonkiFlare[] | undefined, start: number, end: number, 
   return [`Highest ${top.classType}`, ars].filter(Boolean).join(" · ");
 }
 
+function flaresIn(flares: DonkiFlare[] | undefined, start: number, end: number): DonkiFlare[] {
+  return (flares ?? []).filter((f) => {
+    const t = flareMs(f);
+    return t != null && t >= start && t < end && !!f.classType;
+  });
+}
+
+function flareWeek(flares: DonkiFlare[] | undefined, start: number, end: number): string | null {
+  const inWin = flaresIn(flares, start, end);
+  const m = inWin.filter((f) => (f.classType || "").toUpperCase().startsWith("M")).length;
+  const x = inWin.filter((f) => (f.classType || "").toUpperCase().startsWith("X")).length;
+  const counts = m + x > 0 ? `${m} M · ${x} X` : null;
+  const top = flareBit(flares, start, end, null);
+  if (!counts && !top) return null;
+  return [counts, top].filter(Boolean).join(" · ");
+}
+
+function cmeBit(cmes: DonkiCme[] | undefined, start: number, end: number): string | null {
+  const inWin = (cmes ?? []).filter((c) => {
+    const t = Date.parse(c.startTime || "");
+    return Number.isFinite(t) && t >= start && t < end;
+  });
+  const n = earthDirectedCmes(inWin).length;
+  if (!n) return null;
+  return n === 1 ? "1 Earth-directed CME" : `${n} Earth-directed CMEs`;
+}
+
 function xrayPeak(xray: XrayPoint[], start: number, end: number): string | null {
   let max = 0;
   for (const p of longChannelXrays(xray)) {
@@ -233,7 +278,7 @@ function volcanoBrief(
   const all = list ?? [];
   const label = (v: UsgsVolcanoAlert) => `${v.name} ${(v.colorCode || v.alertLevel || "").toLowerCase()}`;
   const dayShifts = all.filter((v) => inWindow(v, dayStart, dayEnd));
-  const weekShifts = all.filter((v) => inWindow(v, weekStart, dayStart));
+  const weekShifts = all.filter((v) => inWindow(v, weekStart, dayEnd));
   const up = dayShifts.filter((v) => rank(v) >= 2);
   const down = dayShifts.filter((v) => rank(v) === 0);
   const standing = all.filter((v) => rank(v) >= 2 && !up.some((u) => u.name === v.name));
@@ -250,8 +295,14 @@ function volcanoBrief(
   const weekUp = weekShifts.filter((v) => rank(v) >= 2);
   const weekDown = weekShifts.filter((v) => rank(v) === 0);
   const weekParts: string[] = [];
-  if (weekUp.length) weekParts.push(`Up: ${weekUp.slice(0, 4).map(label).join(", ")}`);
-  if (weekDown.length) weekParts.push(`Eased: ${weekDown.slice(0, 4).map(label).join(", ")}`);
+  if (weekUp.length) {
+    const more = weekUp.length > 4 ? ` and ${weekUp.length - 4} more` : "";
+    weekParts.push(`Up: ${weekUp.slice(0, 4).map(label).join(", ")}${more}`);
+  }
+  if (weekDown.length) {
+    const more = weekDown.length > 4 ? ` and ${weekDown.length - 4} more` : "";
+    weekParts.push(`Eased: ${weekDown.slice(0, 4).map(label).join(", ")}${more}`);
+  }
 
   return {
     day: dayParts.length ? dayParts.join(". ") : null,
@@ -287,6 +338,7 @@ export function buildDaySheet(input: {
   scales: NoaaScales | null;
   volcanoes?: UsgsVolcanoAlert[];
   flares?: DonkiFlare[];
+  cmes?: DonkiCme[];
   resonance: ResonanceScore | null;
   now?: number;
 }): DaySheet {
@@ -304,7 +356,8 @@ export function buildDaySheet(input: {
   const dayPeak = peakKp(input.kp, dayStart, now);
   const xPeak = xrayPeak(input.xray, dayStart, now);
   const dayFlare = flareBit(input.flares, dayStart, now, xPeak);
-  const weekFlare = flareBit(input.flares, weekStart, now, null);
+  const weekFlare = flareWeek(input.flares, weekStart, now);
+  const weekCme = cmeBit(input.cmes, weekStart, now);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windBit(input.wind);
   const volc = volcanoBrief(input.volcanoes, dayStart, now, weekStart);
@@ -316,7 +369,7 @@ export function buildDaySheet(input: {
   const daySolar = [dayFlare ?? "No catalogued flare", dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
     .filter(Boolean)
     .join(" · ");
-  const weekSolar = [weekFlare ?? "No catalogued flare", kpWeek(input.kp, weekStart, now)]
+  const weekSolar = [weekFlare ?? "No catalogued flare", weekCme, kpWeek(input.kp, weekStart, now)]
     .filter(Boolean)
     .join(" · ");
 
@@ -335,9 +388,9 @@ export function buildDaySheet(input: {
     label: "Week",
     window: weekWindow,
     rows: rowsOf([
-      ["Quakes", weekReady ? quakeValue(weekQ.length, 7) : "Catalog does not cover this week"],
+      ["Quakes", weekReady ? [quakeValue(weekQ.length, 7), m6Count(weekQ) ? `${m6Count(weekQ)} M6+` : null].filter(Boolean).join(" · ") : "Catalog does not cover this week"],
       ["Largest", largestValue(weekQ)],
-      ["Nodes", weekReady ? nodesValue(weekQ) : null],
+      ["Nodes", weekReady ? nodesWeek(weekQ) : null],
       ["Solar", weekSolar],
       ["Volcano", volc.week],
       ["Timing", `${timing.title}. Not a forecast`],
