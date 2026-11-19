@@ -119,8 +119,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.51: Each active region shows the flares NOAA has logged, not a zero next-day chance.
  * 1.39.52: Solar has its own Pulse. X-ray, wind, regions, and recent flares stay on it.
  * 1.39.53: AIA 171 coronal-loop frames sit on the solar desk and step with a flare.
+ * 1.39.54: NOAA active-region numbers sit on the AIA 171 disk.
  */
-export const APP_VERSION = "1.39.53";
+export const APP_VERSION = "1.39.54";
 
 
 

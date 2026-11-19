@@ -7,6 +7,30 @@ import { fetchAia171, type AiaFrame } from "@/lib/feeds/aia171";
 import { ccorLatest, sdoStill, suviLatest } from "@/lib/feeds/solarMedia";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
 import { liveChartPeriod } from "@/lib/solar/flareOutlook";
+import type { ActiveRegion } from "@/lib/feeds/solarRegions";
+import { haleRank } from "@/lib/feeds/solarRegions";
+
+/** AIA 171 browse frames are square. The bright limb is this far from center, in a 200-wide box. */
+const AIA_CX = 99.6;
+const AIA_CY = 99.2;
+const AIA_R = 80.9;
+
+function aiaSpot(r: ActiveRegion): { x: number; y: number } | null {
+  if (r.lon > 90 || r.lon < -90) return null;
+  const lon = (r.lon * Math.PI) / 180;
+  const lat = (r.lat * Math.PI) / 180;
+  return {
+    x: AIA_CX - Math.sin(lon) * Math.cos(lat) * AIA_R,
+    y: AIA_CY - Math.sin(lat) * AIA_R,
+  };
+}
+
+function aiaColor(r: ActiveRegion): string {
+  if (haleRank(r.hale) >= 4) return "#fb7185";
+  if (haleRank(r.hale) >= 3) return "#fbbf24";
+  if (haleRank(r.hale) >= 2) return "#67e8f9";
+  return "#e2e8f0";
+}
 
 function Film({
   title,
@@ -14,16 +38,19 @@ function Film({
   frames,
   fallback,
   play,
+  marks,
 }: {
   title: string;
   note: string;
   frames: { time: string; url: string }[];
   fallback: string;
   play: boolean;
+  marks?: { region: number; x: number; y: number; color: string }[];
 }) {
   const [i, setI] = useState(0);
   const [run, setRun] = useState(false);
   const [broken, setBroken] = useState(false);
+  const [labels, setLabels] = useState(true);
   const armed = useRef(false);
 
   useEffect(() => {
@@ -59,6 +86,7 @@ function Film({
             {stamp} · {note}
           </span>
         </span>
+        <span className="flex shrink-0 items-center gap-1">
         <button
           type="button"
           className="inline-flex min-h-8 items-center gap-1 rounded-md border border-border px-2 text-[0.62rem] text-muted hover:text-fg"
@@ -70,6 +98,16 @@ function Film({
           {run ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
           {run ? "Stop" : "Run"}
         </button>
+        {marks && marks.length > 0 && (
+          <button
+            type="button"
+            className={`inline-flex min-h-8 items-center rounded-md border px-2 text-[0.62rem] ${labels ? "border-primary text-primary" : "border-border text-muted"}`}
+            onClick={() => setLabels((v) => !v)}
+          >
+            ARs
+          </button>
+        )}
+        </span>
       </div>
       <div className="relative aspect-square w-full">
         {broken ? (
@@ -84,6 +122,25 @@ function Film({
             onError={() => setBroken(true)}
           />
         )}
+        {labels &&
+          marks?.map((m) => (
+            <span
+              key={m.region}
+              className="pointer-events-none absolute"
+              style={{ left: `${(m.x / 200) * 100}%`, top: `${(m.y / 200) * 100}%` }}
+            >
+              <span
+                className="absolute bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[0.72rem] font-bold leading-none"
+                style={{ color: m.color, textShadow: "0 0 3px #000, 0 0 6px #000" }}
+              >
+                {m.region}
+              </span>
+              <span
+                className="absolute left-0 top-0 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{ background: m.color, boxShadow: "0 0 4px #000" }}
+              />
+            </span>
+          ))}
       </div>
       {frames.length > 1 && (
         <input
@@ -141,6 +198,12 @@ export function LaunchWatch() {
   }, []);
 
   const lead = launches[0];
+  const aiaMarks = regions
+    .map((r) => {
+      const p = aiaSpot(r);
+      return p ? { region: r.region, x: p.x, y: p.y, color: aiaColor(r) } : null;
+    })
+    .filter((m): m is { region: number; x: number; y: number; color: string } => m != null);
 
   return (
     <section className="space-y-2 rounded-xl border border-border bg-panel p-2">
@@ -166,7 +229,7 @@ export function LaunchWatch() {
         )}
       </p>
       <div className="mx-auto w-full max-w-xl">
-        <Film title="AIA 171" note="coronal loops · ~10 min" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} />
+        <Film title="AIA 171" note="coronal loops · NOAA ARs" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} marks={aiaMarks} />
       </div>
       <div className="grid items-start gap-2 sm:grid-cols-2">
         <Film title="SUVI 131" note="hot plasma" frames={suvi} fallback={suviLatest("131")} play={flareOn} />
