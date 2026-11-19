@@ -109,8 +109,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.41: Solar row is the highest catalogued flare in the window, and every AR that produced an M or X.
  * 1.39.42: Week solar says when Kp peaked, the G-scale, and how many 3-hour blocks reached storm.
  * 1.39.43: The week stands alone: M6+ count, node counts, M and X totals, Earth-directed CMEs, and the full seven days of volcano shifts.
+ * 1.39.44: A missing script after a deploy reloads the page once. Asset errors are no longer cached for a year.
  */
-export const APP_VERSION = "1.39.43";
+export const APP_VERSION = "1.39.44";
 
 
 

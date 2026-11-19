@@ -117,6 +117,11 @@ function RootShell() {
           id="ww-critical"
           dangerouslySetInnerHTML={{ __html: CRITICAL_CSS }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function bad(e){var m=String((e&&(e.message||e.reason))||e||"");return /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(m)}function go(){try{if(sessionStorage.getItem("ww-chunk-reload"))return;sessionStorage.setItem("ww-chunk-reload","1")}catch(x){}var u=new URL(location.href);u.searchParams.set("v",String(Date.now()));location.replace(u.toString())}window.addEventListener("unhandledrejection",function(ev){if(bad(ev.reason)){ev.preventDefault();go()}});window.addEventListener("vite:preloadError",function(ev){ev.preventDefault();go()})})();`,
+          }}
+        />
         <HeadContent />
       </head>
       <body className="bg-bg text-fg antialiased">
