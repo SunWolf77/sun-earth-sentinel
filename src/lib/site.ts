@@ -124,8 +124,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.56: Active-region marks follow the Sun's rotation, so they sit on the spots in each frame.
  * 1.39.57: The solar Pulse says the X-ray repeat is the last 90 minutes, not a forecast.
  * 1.39.58: A blank NOAA spot count or area stays blank. It is not shown as zero.
+ * 1.39.59: Day and week briefs count M/X from the GOES flare list, not the slower edited-events file.
  */
-export const APP_VERSION = "1.39.58";
+export const APP_VERSION = "1.39.59";
 
 
 

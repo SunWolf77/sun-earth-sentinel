@@ -276,14 +276,74 @@ export function tallyAssignedFlares(raw: unknown): Map<number, { c: number; m: n
   return out;
 }
 
+/** GOES flare list. This file names an M within minutes. Edited events often do not. */
+async function fetchGoesMx(): Promise<XraFlare[]> {
+  const urls = [
+    "https://services.swpc.noaa.gov/json/goes/primary/xray-flares-7-day.json",
+    "https://services.swpc.noaa.gov/json/goes/secondary/xray-flares-7-day.json",
+  ];
+  const bodies = await Promise.all(
+    urls.map((url) =>
+      fetch(url, { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : []))
+        .catch(() => []),
+    ),
+  );
+  const byMin = new Map<number, XraFlare>();
+  for (const body of bodies) {
+    if (!Array.isArray(body)) continue;
+    for (const row of body) {
+      if (!row || typeof row !== "object") continue;
+      const e = row as Record<string, unknown>;
+      const klass = String(e.max_class ?? "")
+        .trim()
+        .toUpperCase();
+      if (!/^[MX]\d/.test(klass)) continue;
+      const at = String(e.max_time ?? "");
+      const t = Date.parse(at);
+      if (!Number.isFinite(t)) continue;
+      const minute = Math.floor(t / 60_000);
+      const prev = byMin.get(minute);
+      if (!prev || klassRank(klass) > klassRank(prev.klass)) {
+        byMin.set(minute, { klass, at, region: prev?.region ?? null });
+      }
+    }
+  }
+  return [...byMin.values()];
+}
+
+function mergeXra(edited: XraFlare[], goes: XraFlare[]): XraFlare[] {
+  const byMin = new Map<number, XraFlare>();
+  const put = (f: XraFlare) => {
+    const t = Date.parse(f.at);
+    if (!Number.isFinite(t)) return;
+    const minute = Math.floor(t / 60_000);
+    const prev = byMin.get(minute);
+    if (!prev) {
+      byMin.set(minute, f);
+      return;
+    }
+    const better = klassRank(f.klass) > klassRank(prev.klass);
+    byMin.set(minute, {
+      klass: better ? f.klass : prev.klass,
+      at: better ? f.at : prev.at,
+      region: prev.region ?? f.region,
+    });
+  };
+  for (const f of edited) put(f);
+  for (const f of goes) put(f);
+  return [...byMin.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+}
+
 export async function fetchSolarRegionPack(): Promise<{ regions: ActiveRegion[]; xra: XraFlare[] }> {
-  const [regRes, evRes] = await Promise.all([
+  const [regRes, evRes, goes] = await Promise.all([
     fetch(URL, { headers: { Accept: "application/json" } }),
     fetch(EVENTS, { headers: { Accept: "application/json" } }).catch(() => null),
+    fetchGoesMx(),
   ]);
-  if (!regRes.ok) return { regions: [], xra: [] };
+  if (!regRes.ok) return { regions: [], xra: goes };
   let regions = parseSolarRegions(await regRes.json());
-  if (!evRes?.ok) return { regions, xra: [] };
+  if (!evRes?.ok) return { regions, xra: goes };
   const raw = await evRes.json();
   const tally = tallyAssignedFlares(raw);
   regions = regions.map((r) => {
@@ -291,7 +351,7 @@ export async function fetchSolarRegionPack(): Promise<{ regions: ActiveRegion[];
     if (!hit) return r;
     return { ...r, cLife: hit.c, mLife: hit.m, xLife: hit.x, lastFlare: hit.lastFlare };
   });
-  return { regions, xra: listXraFlares(raw) };
+  return { regions, xra: mergeXra(listXraFlares(raw), goes) };
 }
 
 export async function fetchSolarRegions(): Promise<ActiveRegion[]> {

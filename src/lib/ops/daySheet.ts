@@ -210,28 +210,16 @@ function namedFlares(
   return [...byMin.values()];
 }
 
-function describeFlares(list: NamedFlare[], chart: string | null, withCounts: boolean): string | null {
-  const sorted = [...list].sort((a, b) => classRank(b.klass) - classRank(a.klass));
-  const top = sorted[0];
-  const topRank = top ? classRank(top.klass) : 0;
-  const chartRank = chart ? classRank(chart) : 0;
-  const eruptive = sorted.filter((f) => classRank(f.klass) >= classRank("M1.0"));
-  const pool = eruptive.length
-    ? eruptive
-    : sorted.filter((f) => classRank(f.klass) >= topRank && topRank >= classRank("C1.0"));
-  const names = [...new Set(pool.map((f) => f.region).filter((n): n is number => n != null))].map((n) => `AR${n}`);
-  if (pool.some((f) => f.region == null)) names.push("region not named yet");
-  const ars = names.length ? names.join(", ") : null;
+function describeFlares(list: NamedFlare[]): string | null {
+  const eruptive = list.filter((f) => classRank(f.klass) >= classRank("M1.0"));
+  if (!eruptive.length) return null;
+  const sorted = [...eruptive].sort((a, b) => classRank(b.klass) - classRank(a.klass) || b.at - a.at);
+  const top = sorted[0]!;
   const m = sorted.filter((f) => f.klass.startsWith("M")).length;
   const x = sorted.filter((f) => f.klass.startsWith("X")).length;
-  const counts = withCounts && m + x > 0 ? `${m} M · ${x} X` : null;
-  if (chart && chartRank >= classRank("M1.0") && chartRank > topRank) {
-    return [counts, `Chart ${chart}`, top ? `catalog ${top.klass}` : "catalog has not named it", ars]
-      .filter(Boolean)
-      .join(" · ");
-  }
-  if (!top) return counts;
-  return [counts, `Highest ${top.klass}`, ars].filter(Boolean).join(" · ");
+  const names = [...new Set(sorted.map((f) => f.region).filter((n): n is number => n != null))].map((n) => `AR${n}`);
+  if (sorted.some((f) => f.region == null)) names.push("region not named yet");
+  return [`${m} M · ${x} X`, `Highest ${top.klass} at ${clock(top.at)}`, names.join(", ")].filter(Boolean).join(" · ");
 }
 
 function cmeBit(cmes: DonkiCme[] | undefined, start: number, end: number): string | null {
@@ -244,15 +232,28 @@ function cmeBit(cmes: DonkiCme[] | undefined, start: number, end: number): strin
   return n === 1 ? "1 Earth-directed CME" : `${n} Earth-directed CMEs`;
 }
 
-function xrayPeak(xray: XrayPoint[], start: number, end: number): string | null {
+function xrayPeak(xray: XrayPoint[], start: number, end: number): { klass: string; at: number } | null {
   let max = 0;
+  let at = 0;
   for (const p of longChannelXrays(xray)) {
     const t = Date.parse(p.time_tag);
     const f = p.flux || p.observed_flux || 0;
     if (!Number.isFinite(t) || t < start || t >= end || f <= max) continue;
     max = f;
+    at = t;
   }
-  return max > 0 ? fluxToClass(max) : null;
+  if (max <= 0) return null;
+  const klass = fluxToClass(max);
+  return classRank(klass) >= classRank("M1.0") ? { klass, at } : null;
+}
+
+/** A flux peak the flare list has not closed yet still counts. Same event stays one flare. */
+function withFluxPeak(list: NamedFlare[], peak: { klass: string; at: number } | null): NamedFlare[] {
+  if (!peak) return list;
+  const near = list.find((f) => Math.abs(f.at - peak.at) <= 20 * 60_000);
+  if (!near) return [...list, { klass: peak.klass, at: peak.at, region: null }];
+  if (classRank(peak.klass) <= classRank(near.klass)) return list;
+  return list.map((f) => (f === near ? { ...f, klass: peak.klass, at: peak.at } : f));
 }
 
 function windBit(wind: SolarWind | null): string | null {
@@ -375,9 +376,10 @@ export function buildDaySheet(input: {
   const weekReady = oldest <= weekStart + 3 * 3600_000;
 
   const dayPeak = peakKp(input.kp, dayStart, now);
-  const xPeak = xrayPeak(input.xray, dayStart, now);
-  const dayFlare = describeFlares(namedFlares(input.flares, input.xra, dayStart, now), xPeak, false);
-  const weekFlare = describeFlares(namedFlares(input.flares, input.xra, weekStart, now), null, true);
+  const dayList = withFluxPeak(namedFlares(input.flares, input.xra, dayStart, now), xrayPeak(input.xray, dayStart, now));
+  const weekList = withFluxPeak(namedFlares(input.flares, input.xra, weekStart, now), xrayPeak(input.xray, weekStart, now));
+  const dayFlare = describeFlares(dayList);
+  const weekFlare = describeFlares(weekList);
   const weekCme = cmeBit(input.cmes, weekStart, now);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windBit(input.wind);
@@ -387,10 +389,10 @@ export function buildDaySheet(input: {
   const ended = clock(now);
   const dayWindow = `Past 24 hours · to ${ended}`;
   const weekWindow = `Past 7 days · to ${ended}`;
-  const daySolar = [dayFlare ?? "No catalogued flare", dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
+  const daySolar = [dayFlare ?? "No M/X", dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
     .filter(Boolean)
     .join(" · ");
-  const weekSolar = [weekFlare ?? "No catalogued flare", weekCme, kpWeek(input.kp, weekStart, now)]
+  const weekSolar = [weekFlare ?? "No M/X", weekCme, kpWeek(input.kp, weekStart, now)]
     .filter(Boolean)
     .join(" · ");
 
