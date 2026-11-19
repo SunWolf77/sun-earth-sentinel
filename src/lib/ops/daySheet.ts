@@ -16,6 +16,7 @@ import {
   type XrayPoint,
 } from "@/lib/feeds/swpc";
 import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
+import type { DonkiFlare } from "@/lib/feeds/donki";
 import { resonanceVerdict, type ResonanceScore } from "@/lib/supt/probe";
 
 const DAY = 24 * 3600_000;
@@ -101,6 +102,45 @@ function peakKp(kp: KpPoint[], start: number, end: number): number | null {
     if (peak == null || v > peak) peak = v;
   }
   return peak;
+}
+
+function classRank(klass: string): number {
+  const m = klass.trim().toUpperCase().match(/^([ABCMX])(\d+(?:\.\d+)?)/);
+  if (!m) return 0;
+  const letter = { A: 1, B: 2, C: 3, M: 4, X: 5 }[m[1] as "A" | "B" | "C" | "M" | "X"] ?? 0;
+  return letter * 100 + Number(m[2]);
+}
+
+function flareMs(f: DonkiFlare): number | null {
+  const t = Date.parse(f.peakTime || f.beginTime || "");
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Highest catalogued flare in the window, and every AR that produced one at M or above. */
+function flareBit(flares: DonkiFlare[] | undefined, start: number, end: number, chart: string | null): string | null {
+  const inWin = (flares ?? []).filter((f) => {
+    const t = flareMs(f);
+    return t != null && t >= start && t < end && !!f.classType;
+  });
+  inWin.sort((a, b) => classRank(b.classType || "") - classRank(a.classType || ""));
+  const top = inWin[0];
+  const topRank = top ? classRank(top.classType || "") : 0;
+  const chartRank = chart ? classRank(chart) : 0;
+  const eruptive = inWin.filter((f) => classRank(f.classType || "") >= classRank("M1.0"));
+  const pool = eruptive.length
+    ? eruptive
+    : inWin.filter((f) => classRank(f.classType || "") >= topRank && topRank >= classRank("C1.0"));
+  const names = [...new Set(pool.map((f) => f.activeRegionNum).filter((n): n is number => n != null && n > 0))].map(
+    (n) => `AR${n}`,
+  );
+  if (pool.some((f) => !f.activeRegionNum)) names.push("region not named yet");
+  const ars = names.length ? names.join(", ") : null;
+
+  if (chart && chartRank >= classRank("M1.0") && chartRank > topRank) {
+    return [`Chart ${chart}`, top ? `catalog ${top.classType}` : "catalog has not named it", ars].filter(Boolean).join(" · ");
+  }
+  if (!top) return null;
+  return [`Highest ${top.classType}`, ars].filter(Boolean).join(" · ");
 }
 
 function xrayPeak(xray: XrayPoint[], start: number, end: number): string | null {
@@ -210,6 +250,7 @@ export function buildDaySheet(input: {
   wind: SolarWind | null;
   scales: NoaaScales | null;
   volcanoes?: UsgsVolcanoAlert[];
+  flares?: DonkiFlare[];
   resonance: ResonanceScore | null;
   now?: number;
 }): DaySheet {
@@ -227,6 +268,8 @@ export function buildDaySheet(input: {
   const dayPeak = peakKp(input.kp, dayStart, now);
   const weekPeak = peakKp(input.kp, weekStart, now);
   const xPeak = xrayPeak(input.xray, dayStart, now);
+  const dayFlare = flareBit(input.flares, dayStart, now, xPeak);
+  const weekFlare = flareBit(input.flares, weekStart, now, null);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windBit(input.wind);
   const volc = volcanoBrief(input.volcanoes, dayStart, now, weekStart);
@@ -235,10 +278,12 @@ export function buildDaySheet(input: {
   const ended = clock(now);
   const dayWindow = `Past 24 hours · to ${ended}`;
   const weekWindow = `Past 7 days · to ${ended}`;
-  const daySolar = [xPeak ? `X-ray ${xPeak}` : null, dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
+  const daySolar = [dayFlare ?? "No catalogued flare", dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
     .filter(Boolean)
     .join(" · ");
-  const weekSolar = weekPeak != null ? `Kp ${weekPeak.toFixed(1)}` : null;
+  const weekSolar = [weekFlare ?? "No catalogued flare", weekPeak != null ? `Kp ${weekPeak.toFixed(1)}` : null]
+    .filter(Boolean)
+    .join(" · ");
 
   const daily: SheetBlock = {
     label: "Day",
