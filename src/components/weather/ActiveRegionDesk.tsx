@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleLabel, haleRank } from "@/lib/feeds/solarRegions";
 import { sdoStill } from "@/lib/feeds/solarMedia";
+import { diskXY, longitudeAt } from "@/lib/solar/diskPoint";
 
 function tone(r: ActiveRegion): string {
   if (haleRank(r.hale) >= 4) return "text-danger";
@@ -29,14 +30,11 @@ function spotColor(r: ActiveRegion): string {
   return "#94a3b8";
 }
 
-/** NOAA lat/lon onto the HMI frame. The disk nearly fills the square, so no extra zoom. */
+/** NOAA lat/lon onto the HMI frame, rotated from the daily report to now. */
 function place(r: ActiveRegion): { x: number; y: number } | null {
-  if (r.lon > 90 || r.lon < -90) return null;
-  const lon = (r.lon * Math.PI) / 180;
-  const lat = (r.lat * Math.PI) / 180;
-  const x = CX - Math.sin(lon) * Math.cos(lat) * R;
-  const y = CY - Math.sin(lat) * R;
-  return { x, y };
+  const at = Date.now();
+  const lon = longitudeAt(r.lon, r.lat, r.observed, at);
+  return diskXY(r.lat, lon, at, { cx: CX, cy: CY, r: R });
 }
 
 /** Chip starts on its spot. It slides only far enough to clear another chip. */

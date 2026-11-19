@@ -9,20 +9,13 @@ import { readLiveFlare } from "@/lib/solar/liveFlare";
 import { liveChartPeriod } from "@/lib/solar/flareOutlook";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
+import { diskXY, longitudeAt } from "@/lib/solar/diskPoint";
 
-/** AIA 171 browse frames are square. The bright limb is this far from center, in a 200-wide box. */
-const AIA_CX = 99.6;
-const AIA_CY = 99.2;
-const AIA_R = 80.9;
+const AIA = { cx: 99.6, cy: 99.2, r: 80.9 };
 
-function aiaSpot(r: ActiveRegion): { x: number; y: number } | null {
-  if (r.lon > 90 || r.lon < -90) return null;
-  const lon = (r.lon * Math.PI) / 180;
-  const lat = (r.lat * Math.PI) / 180;
-  return {
-    x: AIA_CX - Math.sin(lon) * Math.cos(lat) * AIA_R,
-    y: AIA_CY - Math.sin(lat) * AIA_R,
-  };
+function aiaSpot(r: ActiveRegion, at: number): { x: number; y: number } | null {
+  const lon = longitudeAt(r.lon, r.lat, r.observed, at);
+  return diskXY(r.lat, lon, at, AIA);
 }
 
 function aiaColor(r: ActiveRegion): string {
@@ -38,14 +31,14 @@ function Film({
   frames,
   fallback,
   play,
-  marks,
+  marksAt,
 }: {
   title: string;
   note: string;
   frames: { time: string; url: string }[];
   fallback: string;
   play: boolean;
-  marks?: { region: number; x: number; y: number; color: string }[];
+  marksAt?: (time: string | null) => { region: number; x: number; y: number; color: string }[];
 }) {
   const [i, setI] = useState(0);
   const [run, setRun] = useState(false);
@@ -76,6 +69,7 @@ function Film({
 
   const frame = frames[i];
   const stamp = frame ? frame.time.slice(5, 16).replace("T", " ") + " UTC" : "latest";
+  const marks = marksAt?.(frame?.time ?? null) ?? [];
 
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-black">
@@ -98,7 +92,7 @@ function Film({
           {run ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
           {run ? "Stop" : "Run"}
         </button>
-        {marks && marks.length > 0 && (
+        {marks.length > 0 && (
           <button
             type="button"
             className={`inline-flex min-h-8 items-center rounded-md border px-2 text-[0.62rem] ${labels ? "border-primary text-primary" : "border-border text-muted"}`}
@@ -123,7 +117,7 @@ function Film({
           />
         )}
         {labels &&
-          marks?.map((m) => (
+          marks.map((m) => (
             <span
               key={m.region}
               className="pointer-events-none absolute"
@@ -198,12 +192,16 @@ export function LaunchWatch() {
   }, []);
 
   const lead = launches[0];
-  const aiaMarks = regions
-    .map((r) => {
-      const p = aiaSpot(r);
-      return p ? { region: r.region, x: p.x, y: p.y, color: aiaColor(r) } : null;
-    })
-    .filter((m): m is { region: number; x: number; y: number; color: string } => m != null);
+  const aiaMarks = (time: string | null) => {
+    const at = time ? Date.parse(time) : Date.now();
+    const when = Number.isFinite(at) ? at : Date.now();
+    return regions
+      .map((r) => {
+        const p = aiaSpot(r, when);
+        return p ? { region: r.region, x: p.x, y: p.y, color: aiaColor(r) } : null;
+      })
+      .filter((m): m is { region: number; x: number; y: number; color: string } => m != null);
+  };
 
   return (
     <section className="space-y-2 rounded-xl border border-border bg-panel p-2">
@@ -229,7 +227,7 @@ export function LaunchWatch() {
         )}
       </p>
       <div className="mx-auto w-full max-w-xl">
-        <Film title="AIA 171" note="coronal loops · NOAA ARs" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} marks={aiaMarks} />
+        <Film title="AIA 171" note="coronal loops · NOAA ARs" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} marksAt={aiaMarks} />
       </div>
       <div className="grid items-start gap-2 sm:grid-cols-2">
         <Film title="SUVI 131" note="hot plasma" frames={suvi} fallback={suviLatest("131")} play={flareOn} />

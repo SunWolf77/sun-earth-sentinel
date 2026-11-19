@@ -121,8 +121,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.53: AIA 171 coronal-loop frames sit on the solar desk and step with a flare.
  * 1.39.54: NOAA active-region numbers sit on the AIA 171 disk.
  * 1.39.55: Field lines lead with the plot. The color key sits beside it.
+ * 1.39.56: Active-region marks follow the Sun's rotation, so they sit on the spots in each frame.
  */
-export const APP_VERSION = "1.39.55";
+export const APP_VERSION = "1.39.56";
 
 
 
