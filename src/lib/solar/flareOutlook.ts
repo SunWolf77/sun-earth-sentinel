@@ -497,3 +497,10 @@ export function buildFlareOutlook(
     recentFlares,
   };
 }
+
+/** Strongest 4–20 min repeat in the last 90 minutes of the long-channel chart. Not a forecast. */
+export function liveChartPeriod(points: XrayPoint[]): { period: number | null; ratio: number } {
+  const series = longSeries(points);
+  if (series.length < 40) return { period: null, ratio: 0 };
+  return harmonic(series, series.length - 1);
+}
