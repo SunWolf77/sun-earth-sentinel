@@ -28,7 +28,7 @@ export function DaySheetCard() {
     [features, kp, xray, wind, scales, volcanoes, resonance],
   );
 
-  const brief = `${sheet.shareText} wolfwatch.site`;
+  const brief = sheet.shareText;
 
   const share = async () => {
     const text = brief;
@@ -97,11 +97,15 @@ export function DaySheetCard() {
         {[sheet.daily, sheet.weekly].map((block) => (
           <div key={block.label} className="min-w-0">
             <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-primary">{block.label}</p>
-            <ul className="mt-1 space-y-0.5 text-[0.72rem] leading-snug text-muted">
-              {block.lines.map((line) => (
-                <li key={line}>{line}</li>
+            <p className="text-[0.62rem] text-dim">{block.window}</p>
+            <dl className="mt-1.5 space-y-1">
+              {block.rows.map((row) => (
+                <div key={row.key} className="grid grid-cols-[4.4rem_minmax(0,1fr)] gap-x-2 text-[0.72rem] leading-snug">
+                  <dt className="text-dim">{row.key}</dt>
+                  <dd className="text-muted">{row.value}</dd>
+                </div>
               ))}
-            </ul>
+            </dl>
           </div>
         ))}
       </div>

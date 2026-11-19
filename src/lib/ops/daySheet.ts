@@ -1,8 +1,7 @@
 /**
  * Day and week sheet for the share card.
- * Counts come from the loaded catalog and the Kp file.
- * A day is one UTC date, 0000–2359. A week is seven of those dates.
- * Not a forecast.
+ * Same row order on both sides. A day is one UTC date, 0000–2359.
+ * A week is seven of those dates. Not a forecast.
  */
 
 import { DRAGON_NODES, type EqFeature } from "@/lib/feeds/usgs";
@@ -24,9 +23,15 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const NODES = DRAGON_NODES.filter((n) => n.publishedFocus || n.watchPriority);
 
+export type SheetRow = {
+  key: string;
+  value: string;
+};
+
 export type SheetBlock = {
   label: string;
-  lines: string[];
+  window: string;
+  rows: SheetRow[];
 };
 
 export type DaySheet = {
@@ -60,29 +65,29 @@ function quakes(features: EqFeature[] | undefined, start: number, end: number): 
   return out;
 }
 
-function vsTypical(n: number, expectedDays: number): string {
+function quakeValue(n: number, expectedDays: number): string {
   if (expectedDays < 0.15) {
-    return n === 0 ? "No M5+ yet. UTC day still open." : `${n} M5+ so far. UTC day still open.`;
+    return n === 0 ? "No M5+ yet. Day still open" : `${n} M5+ so far. Day still open`;
   }
   const expected = M5_PER_DAY * expectedDays;
   const ratio = n / expected;
   const span = expectedDays > 1.2 ? "week" : "day";
-  if (n === 0) return `No M5+ in this ${span}.`;
-  if (ratio >= 2) return `${n} M5+ · about ${ratio.toFixed(1)}× a typical ${span}.`;
-  if (ratio <= 0.5) return `${n} M5+ · below a typical ${span}.`;
-  return `${n} M5+ · near a typical ${span}.`;
+  if (n === 0) return "No M5+";
+  if (ratio >= 2) return `${n} M5+ · ${ratio.toFixed(1)}× a typical ${span}`;
+  if (ratio <= 0.5) return `${n} M5+ · below a typical ${span}`;
+  return `${n} M5+ · near a typical ${span}`;
 }
 
-function largest(list: Quake[]): string {
+function largestValue(list: Quake[]): string {
   const top = list[0];
-  if (!top) return "No M5+.";
-  return `Largest M${top.mag.toFixed(1)} · ${top.place}.`;
+  if (!top) return "None";
+  return `M${top.mag.toFixed(1)} · ${top.place}`;
 }
 
-function nodesOf(list: Quake[]): string {
+function nodesValue(list: Quake[]): string {
   const names = [...new Set(list.map((q) => q.node).filter((n): n is string => !!n))];
-  if (!names.length) return "None on a watched node.";
-  return `Nodes: ${names.slice(0, 4).join(", ")}.`;
+  if (!names.length) return "None";
+  return names.slice(0, 4).join(", ");
 }
 
 function peakKp(kp: KpPoint[], start: number, end: number): number | null {
@@ -107,13 +112,13 @@ function xrayPeak(xray: XrayPoint[], start: number, end: number): string | null 
   return max > 0 ? fluxToClass(max) : null;
 }
 
-function windLine(wind: SolarWind | null): string | null {
+function windBit(wind: SolarWind | null): string | null {
   if (!wind || (wind.speed == null && wind.bz == null)) return null;
   const speed = wind.speed != null ? `${Math.round(wind.speed)} km/s` : null;
   const bz = wind.bz != null ? `Bz ${wind.bz > 0 ? "+" : ""}${wind.bz.toFixed(0)}` : null;
   const pace =
     wind.speed == null ? null : wind.speed >= 550 ? "fast" : wind.speed >= 450 ? "elevated" : "quiet";
-  return ["Wind now", pace, speed, bz].filter(Boolean).join(" ");
+  return ["wind now", pace, speed, bz].filter(Boolean).join(" ");
 }
 
 function noticeMs(v: UsgsVolcanoAlert): number | null {
@@ -141,10 +146,6 @@ function inWindow(v: UsgsVolcanoAlert, start: number, end: number): boolean {
   return t != null && t >= start && t < end;
 }
 
-/**
- * Current orange/red, plus a notice in the window that raised or eased.
- * Yellow advisories stay off this line.
- */
 function volcanoBrief(
   list: UsgsVolcanoAlert[] | undefined,
   dayStart: number,
@@ -153,7 +154,6 @@ function volcanoBrief(
 ): { day: string | null; week: string | null } {
   const all = list ?? [];
   const label = (v: UsgsVolcanoAlert) => `${v.name} ${(v.colorCode || v.alertLevel || "").toLowerCase()}`;
-
   const dayShifts = all.filter((v) => inWindow(v, dayStart, dayEnd));
   const weekShifts = all.filter((v) => inWindow(v, weekStart, dayStart));
   const up = dayShifts.filter((v) => rank(v) >= 2);
@@ -176,8 +176,8 @@ function volcanoBrief(
   if (weekDown.length) weekParts.push(`Eased: ${weekDown.slice(0, 4).map(label).join(", ")}`);
 
   return {
-    day: dayParts.length ? `Volcano: ${dayParts.join(". ")}.` : null,
-    week: weekParts.length ? `Volcano this week: ${weekParts.join(". ")}.` : null,
+    day: dayParts.length ? dayParts.join(". ") : null,
+    week: weekParts.length ? weekParts.join(". ") : null,
   };
 }
 
@@ -186,13 +186,20 @@ function dayName(ms: number): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
-/** UTC calendar day containing `now`: 0000 through the next 0000. */
 function utcDay(now: number): { start: number; end: number; open: boolean; fraction: number } {
   const d = new Date(now);
   const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   const end = start + DAY;
   const fraction = Math.min(1, Math.max(0, (now - start) / DAY));
   return { start, end, open: now < end, fraction };
+}
+
+function rowsOf(items: Array<[string, string | null]>): SheetRow[] {
+  return items.filter((item): item is [string, string] => !!item[1]).map(([key, value]) => ({ key, value }));
+}
+
+function blockText(block: SheetBlock): string {
+  return [`${block.label} · ${block.window}`, ...block.rows.map((r) => `${r.key} — ${r.value}`)].join("\n");
 }
 
 export function buildDaySheet(input: {
@@ -222,45 +229,41 @@ export function buildDaySheet(input: {
   const weekPeak = peakKp(input.kp, weekStart, weekEnd);
   const xPeak = xrayPeak(input.xray, day.start, day.end);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
-  const wind = windLine(input.wind);
+  const wind = windBit(input.wind);
   const volc = volcanoBrief(input.volcanoes, day.start, day.end, weekStart);
   const timing = resonanceVerdict(input.resonance);
 
   const dayWindow = `${dayName(day.start)} 0000–2359 UTC${day.open ? ", so far" : ""}`;
   const weekWindow = `${dayName(weekStart)} 0000 – ${dayName(day.start)} 2359 UTC${day.open ? ", today still open" : ""}`;
+  const daySolar = [xPeak ? `X-ray ${xPeak}` : null, dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
+    .filter(Boolean)
+    .join(" · ");
+  const weekSolar = weekPeak != null ? `Kp ${weekPeak.toFixed(1)}` : null;
 
-  const dailyLines = [
-    dayWindow + ".",
-    vsTypical(dayQ.length, day.fraction),
-    largest(dayQ),
-    nodesOf(dayQ),
-    [xPeak ? `X-ray peak ${xPeak}` : null, dayPeak != null ? `Kp peak ${dayPeak.toFixed(1)}` : null, scales]
-      .filter(Boolean)
-      .join(" · "),
-    wind,
-    volc.day,
-  ].filter((l): l is string => !!l);
+  const daily: SheetBlock = {
+    label: "Day",
+    window: dayWindow,
+    rows: rowsOf([
+      ["Quakes", quakeValue(dayQ.length, day.fraction)],
+      ["Largest", largestValue(dayQ)],
+      ["Nodes", nodesValue(dayQ)],
+      ["Solar", daySolar || null],
+      ["Volcano", volc.day],
+    ]),
+  };
+  const weekly: SheetBlock = {
+    label: "Week",
+    window: weekWindow,
+    rows: rowsOf([
+      ["Quakes", weekReady ? quakeValue(weekQ.length, weekDays) : "Catalog does not cover this week"],
+      ["Largest", largestValue(weekQ)],
+      ["Nodes", weekReady ? nodesValue(weekQ) : null],
+      ["Solar", weekSolar],
+      ["Volcano", volc.week],
+      ["Timing", `${timing.title}. Not a forecast`],
+    ]),
+  };
 
-  const weeklyLines = [
-    weekWindow + ".",
-    weekReady ? vsTypical(weekQ.length, weekDays) : "Catalog does not cover this full UTC week.",
-    largest(weekQ),
-    weekReady ? nodesOf(weekQ) : null,
-    weekPeak != null ? `Kp peak ${weekPeak.toFixed(1)} over the Kp file.` : null,
-    volc.week,
-    `Timing: ${timing.title}. Not a forecast.`,
-  ].filter((l): l is string => !!l);
-
-  const when = dayWindow;
-  const daily: SheetBlock = { label: "Day", lines: dailyLines };
-  const weekly: SheetBlock = { label: "Week", lines: weeklyLines };
-  // One paragraph. A share target that stores text as a web address turns
-  // real line breaks into the characters %0A and shows them.
-  const shareText = [
-    "Sun Earth Sentinel.",
-    `Day. ${dailyLines.join(" ")}`,
-    `Week. ${weeklyLines.join(" ")}`,
-  ].join(" ");
-
-  return { stamp: when, daily, weekly, shareText };
+  const shareText = ["Sun Earth Sentinel", blockText(daily), "", blockText(weekly), "", "wolfwatch.site"].join("\n");
+  return { stamp: dayWindow, daily, weekly, shareText };
 }

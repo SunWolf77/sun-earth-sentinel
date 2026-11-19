@@ -102,8 +102,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.34: Day and week are UTC dates, 0000–2359, not a rolling 24 hours. An open day says so.
  * 1.39.35: A volcano line is a notice issued in that UTC window, not the standing watch list.
  * 1.39.36: The week no longer carries the X-ray chart note. Volcano lines are orange/red now, or a shift up or down.
+ * 1.39.37: Day and week use the same rows: Quakes, Largest, Nodes, Solar, Volcano, Timing.
  */
-export const APP_VERSION = "1.39.36";
+export const APP_VERSION = "1.39.37";
 
 
 
