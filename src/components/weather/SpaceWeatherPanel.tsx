@@ -41,6 +41,7 @@ import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
 import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
 import { FarSideWatchDesk } from "@/components/weather/FarSideWatch";
+import { FieldLines } from "@/components/weather/FieldLines";
 import { RegionContinuityDesk } from "@/components/weather/RegionContinuity";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
 import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
@@ -341,6 +342,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             />
             </div>
             <div className="ww-solar-now__extra">
+              <FieldLines />
               <FarSideWatchDesk />
               <RegionContinuityDesk />
             </div>
