@@ -58,6 +58,7 @@ import { EclipseWatch } from "@/components/weather/EclipseWatch";
 import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
 import { GoesXrayDesk } from "@/components/weather/GoesXrayDesk";
 import { GoesLiveFeeds } from "@/components/weather/GoesLiveFeeds";
+import { LaunchWatch } from "@/components/weather/LaunchWatch";
 import { SolarCycleStrip } from "@/components/weather/SolarCycleStrip";
 import {
   Activity,
@@ -296,6 +297,10 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
             <span className="font-semibold">{impact.title}.</span>{" "}
             <span className="text-muted">{impact.summary}</span>
           </p>
+
+          <div className="ww-solar-now__watch">
+            <LaunchWatch />
+          </div>
 
           <div className="ww-solar-now__chain">
           <NowBoard

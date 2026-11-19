@@ -1854,6 +1854,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         transitions: get().volcWatchTransitions,
         notify: get().osNotify,
         regions: get().activeRegions,
+        xra: get().xraFlares,
         flareChance: get().flareChance,
         finishing: ambientTasks.length === 0,
       });
@@ -1871,6 +1872,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             transitions: get().volcWatchTransitions,
             notify: get().osNotify,
             regions: get().activeRegions,
+        xra: get().xraFlares,
             flareChance: o.pM,
             finishing: true,
           });
@@ -1961,6 +1963,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
             transitions: get().volcWatchTransitions,
             notify: get().osNotify,
             regions: get().activeRegions,
+        xra: get().xraFlares,
             flareChance: get().flareChance,
             finishing: true,
           });
@@ -2193,6 +2196,7 @@ export const useObservatory = create<ObservatoryState>((set, get) => ({
         transitions: get().volcWatchTransitions,
         notify: get().osNotify,
         regions: get().activeRegions,
+        xra: get().xraFlares,
         flareChance: get().flareChance,
         finishing: false,
       });

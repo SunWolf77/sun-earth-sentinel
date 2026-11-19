@@ -3153,6 +3153,7 @@
   gap: 0.75rem;
   grid-template-areas:
     "intro"
+    "watch"
     "chain"
     "sheet"
     "flare"
@@ -3161,6 +3162,7 @@
     "closer";
 }
 .ww-solar-now__intro { grid-area: intro; }
+.ww-solar-now__watch { grid-area: watch; min-width: 0; }
 .ww-solar-now__chain {
   grid-area: chain;
   container: chain / inline-size;
@@ -3193,6 +3195,7 @@
   .ww-solar-now {
     grid-template-areas:
       "intro intro"
+      "watch watch"
       "chain chain"
       "sheet sheet"
       "flare spots"

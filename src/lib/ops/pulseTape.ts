@@ -4,8 +4,9 @@ import { pointInBounds } from "@/lib/geo/bounds";
 import type { UsgsVolcanoAlert, VolcWatchTransition } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc";
 import { fluxToClass } from "@/lib/feeds/swpc";
-import type { ActiveRegion } from "@/lib/feeds/solarRegions";
+import type { ActiveRegion, XraFlare } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
+import { diskLaunches } from "@/lib/feeds/launchWatch";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
 
 export type TapeKind = "quake" | "solar" | "volcano";
@@ -87,6 +88,7 @@ export function buildPulseTape(input: {
   volcanoes: UsgsVolcanoAlert[];
   transitions?: VolcWatchTransition[];
   regions?: ActiveRegion[];
+  xra?: XraFlare[];
   /** M-flare chance over the next 6 hours, 0–1. Tape and notify from 0.5. */
   flareChance?: number | null;
   toggles: TapeToggles;
@@ -199,6 +201,17 @@ export function buildPulseTape(input: {
         major,
       });
     }
+  }
+
+  const launch = diskLaunches(input.xra, input.regions, input.now)[0];
+  if (launch && (launch.facing || launch.region == null) && show("solar", launch.facing, input.toggles)) {
+    const when = launch.at.slice(5, 16).replace("T", " ");
+    out.push({
+      id: `disk-${launch.at.slice(0, 16)}`,
+      kind: "solar",
+      text: `Disk launch ${launch.klass}${launch.region ? ` · AR${launch.region}` : ""} · ${launch.where} · ${when} UTC`,
+      major: launch.facing,
+    });
   }
 
   if (input.flareChance != null && input.flareChance >= 0.5 && show("solar", true, input.toggles)) {

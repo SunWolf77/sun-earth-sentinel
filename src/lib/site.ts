@@ -113,8 +113,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.45: A failed script reloads into plain language, and a bad script response is not kept.
  * 1.39.46: Week flares come from the GOES event list, so an M-class flare is not dropped while DONKI is late.
  * 1.39.47: CCOR-1 frame list can be stepped, which is how a CME shows in the coronagraph.
+ * 1.39.48: SUVI 131 and CCOR sit on the solar desk. An Earth-facing M or X is called a disk launch.
  */
-export const APP_VERSION = "1.39.47";
+export const APP_VERSION = "1.39.48";
 
 
 
