@@ -3,7 +3,8 @@ import { Pause, Play } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { fetchCcorFrames, type CcorFrame } from "@/lib/feeds/ccor";
 import { diskLaunches, fetchSuvi131, type StillFrame } from "@/lib/feeds/launchWatch";
-import { ccorLatest, suviLatest } from "@/lib/feeds/solarMedia";
+import { fetchAia171, type AiaFrame } from "@/lib/feeds/aia171";
+import { ccorLatest, sdoStill, suviLatest } from "@/lib/feeds/solarMedia";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
 import { liveChartPeriod } from "@/lib/solar/flareOutlook";
 
@@ -109,6 +110,7 @@ export function LaunchWatch() {
   const xray = useObservatory((s) => s.xray);
   const [suvi, setSuvi] = useState<StillFrame[]>([]);
   const [ccor, setCcor] = useState<CcorFrame[]>([]);
+  const [aia, setAia] = useState<AiaFrame[]>([]);
   const launches = diskLaunches(xra, regions);
   const live = readLiveFlare(xray, regions);
   const period = liveChartPeriod(xray).period;
@@ -126,6 +128,11 @@ export function LaunchWatch() {
     fetchCcorFrames()
       .then((list) => {
         if (!cancel) setCcor(list.slice(-24));
+      })
+      .catch(() => undefined);
+    fetchAia171()
+      .then((list) => {
+        if (!cancel) setAia(list);
       })
       .catch(() => undefined);
     return () => {
@@ -152,12 +159,15 @@ export function LaunchWatch() {
             Step SUVI 131, then CCOR.
           </>
         ) : (
-          <>SUVI 131 and CCOR-1. Run a film to step the last frames. A launch is motion, then a front leaving the disk.</>
+          <>SUVI 131, AIA 171, and CCOR-1. Run a film to step the frames. Loops move in 171. A launch is the brightening, then a front leaving the disk.</>
         )}
         {period != null && (
           <span className="text-dim"> Chart period {period} min in the last 90 minutes. That is a repeat in this chart, not a forecast.</span>
         )}
       </p>
+      <div className="mx-auto w-full max-w-xl">
+        <Film title="AIA 171" note="coronal loops · ~10 min" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} />
+      </div>
       <div className="grid items-start gap-2 sm:grid-cols-2">
         <Film title="SUVI 131" note="hot plasma" frames={suvi} fallback={suviLatest("131")} play={flareOn} />
         <Film title="CCOR-1" note="coronagraph" frames={ccor} fallback={ccorLatest()} play={frontOn} />
