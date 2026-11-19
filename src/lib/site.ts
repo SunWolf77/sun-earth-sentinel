@@ -120,8 +120,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.52: Solar has its own Pulse. X-ray, wind, regions, and recent flares stay on it.
  * 1.39.53: AIA 171 coronal-loop frames sit on the solar desk and step with a flare.
  * 1.39.54: NOAA active-region numbers sit on the AIA 171 disk.
+ * 1.39.55: Field lines lead with the plot. The color key sits beside it.
  */
-export const APP_VERSION = "1.39.54";
+export const APP_VERSION = "1.39.55";
 
 
 
