@@ -112,8 +112,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.44: A missing script after a deploy reloads the page once. Asset errors are no longer cached for a year.
  * 1.39.45: A failed script reloads into plain language, and a bad script response is not kept.
  * 1.39.46: Week flares come from the GOES event list, so an M-class flare is not dropped while DONKI is late.
+ * 1.39.47: CCOR-1 frame list can be stepped, which is how a CME shows in the coronagraph.
  */
-export const APP_VERSION = "1.39.46";
+export const APP_VERSION = "1.39.47";
 
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, Pause, Play, RefreshCw } from "lucide-react";
 import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
+import { fetchCcorFrames, type CcorFrame } from "@/lib/feeds/ccor";
 import {
   SUVI_BANDS,
   ccorLatest,
@@ -50,7 +51,7 @@ export function GoesLiveFeeds({
     {
       id: "ccor",
       title: "CCOR-1",
-      note: "GOES coronagraph",
+      note: "CME watch · 15 min",
       src: ccorLatest(bust),
       href: "https://www.swpc.noaa.gov/products/coronagraph",
     },
@@ -130,9 +131,9 @@ export function GoesLiveFeeds({
       )}
 
       <div className={`grid gap-2 ${compact ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 sm:grid-cols-2"}`}>
-        {goes.map((f) => (
-          <LiveFrame key={f.id} frame={f} tall={!compact} />
-        ))}
+        {goes.map((f) =>
+          f.id === "ccor" ? <CcorWatch key={f.id} tall={!compact} /> : <LiveFrame key={f.id} frame={f} tall={!compact} />,
+        )}
         {compact && models.map((f) => <LiveFrame key={f.id} frame={f} />)}
       </div>
 
@@ -157,6 +158,96 @@ export function GoesLiveFeeds({
         </p>
       )}
     </section>
+  );
+}
+
+function CcorWatch({ tall = false }: { tall?: boolean }) {
+  const [frames, setFrames] = useState<CcorFrame[]>([]);
+  const [i, setI] = useState(0);
+  const [play, setPlay] = useState(false);
+  const [broken, setBroken] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    fetchCcorFrames()
+      .then((list) => {
+        if (cancel || !list.length) return;
+        setFrames(list);
+        setI(list.length - 1);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!play || frames.length < 2) return;
+    const start = Math.max(0, frames.length - 16);
+    const id = window.setInterval(() => {
+      setI((n) => (n >= frames.length - 1 ? start : n + 1));
+    }, 420);
+    return () => window.clearInterval(id);
+  }, [play, frames.length]);
+
+  const frame = frames[i];
+  const src = frame?.url ?? ccorLatest();
+  const stamp = frame ? frame.time.slice(5, 16).replace("T", " ") + " UTC" : "latest frame";
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-[#070b12]">
+      <div className="flex items-center justify-between gap-2 border-b border-border/70 px-2 py-1">
+        <span className="min-w-0">
+          <a
+            href="https://www.swpc.noaa.gov/products/coronagraph"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block truncate text-[0.68rem] font-semibold text-fg hover:text-primary"
+          >
+            CCOR-1
+          </a>
+          <span className="block truncate text-[0.58rem] text-dim">{stamp} · CME watch</span>
+        </span>
+        <button
+          type="button"
+          className="inline-flex min-h-8 items-center gap-1 rounded-md border border-border px-2 text-[0.62rem] text-muted hover:text-fg"
+          onClick={() => {
+            if (!play && frames.length > 1) setI(Math.max(0, frames.length - 16));
+            setPlay((v) => !v);
+          }}
+        >
+          {play ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+          {play ? "Stop" : "Run"}
+        </button>
+      </div>
+      <div className={`flex items-center justify-center ${tall ? "min-h-48" : "aspect-video"}`}>
+        {broken ? (
+          <span className="px-2 text-center text-[0.62rem] text-dim">Frame unavailable</span>
+        ) : (
+          <img
+            src={src}
+            alt="GOES CCOR-1 coronagraph"
+            loading="lazy"
+            className={`w-full object-contain ${tall ? "max-h-72" : "max-h-36"}`}
+            onError={() => setBroken(true)}
+          />
+        )}
+      </div>
+      {frames.length > 1 && (
+        <input
+          type="range"
+          min={0}
+          max={frames.length - 1}
+          value={i}
+          aria-label="CCOR-1 frame time"
+          className="w-full accent-cyan-300"
+          onChange={(e) => {
+            setPlay(false);
+            setI(Number(e.target.value));
+          }}
+        />
+      )}
+    </div>
   );
 }
 
