@@ -1,7 +1,8 @@
 /**
  * Day and week sheet for the share card.
- * Same row order on both sides. A day is one UTC date, 0000–2359.
- * A week is seven of those dates. Not a forecast.
+ * Same row order on both sides. The day is the past 24 hours and the
+ * week is the past 7 days, ending now. A calendar day would read empty
+ * just after 0000 even when the day before was busy. Not a forecast.
  */
 
 import { DRAGON_NODES, type EqFeature } from "@/lib/feeds/usgs";
@@ -18,6 +19,7 @@ import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
 import { resonanceVerdict, type ResonanceScore } from "@/lib/supt/probe";
 
 const DAY = 24 * 3600_000;
+const WEEK = 7 * DAY;
 const M5_PER_DAY = 4;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -157,7 +159,7 @@ function volcanoBrief(
   const dayShifts = all.filter((v) => inWindow(v, dayStart, dayEnd));
   const weekShifts = all.filter((v) => inWindow(v, weekStart, dayStart));
   const up = dayShifts.filter((v) => rank(v) >= 2);
-  const down = dayShifts.filter((v) => rank(v) < 2);
+  const down = dayShifts.filter((v) => rank(v) === 0);
   const standing = all.filter((v) => rank(v) >= 2 && !up.some((u) => u.name === v.name));
 
   const dayParts: string[] = [];
@@ -170,7 +172,7 @@ function volcanoBrief(
   }
 
   const weekUp = weekShifts.filter((v) => rank(v) >= 2);
-  const weekDown = weekShifts.filter((v) => rank(v) < 2);
+  const weekDown = weekShifts.filter((v) => rank(v) === 0);
   const weekParts: string[] = [];
   if (weekUp.length) weekParts.push(`Up: ${weekUp.slice(0, 4).map(label).join(", ")}`);
   if (weekDown.length) weekParts.push(`Eased: ${weekDown.slice(0, 4).map(label).join(", ")}`);
@@ -186,12 +188,11 @@ function dayName(ms: number): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
-function utcDay(now: number): { start: number; end: number; open: boolean; fraction: number } {
-  const d = new Date(now);
-  const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  const end = start + DAY;
-  const fraction = Math.min(1, Math.max(0, (now - start) / DAY));
-  return { start, end, open: now < end, fraction };
+function clock(ms: number): string {
+  const d = new Date(ms);
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${dayName(ms)} ${hh}:${mm} UTC`;
 }
 
 function rowsOf(items: Array<[string, string | null]>): SheetRow[] {
@@ -213,28 +214,27 @@ export function buildDaySheet(input: {
   now?: number;
 }): DaySheet {
   const now = input.now ?? Date.now();
-  const day = utcDay(now);
-  const weekStart = day.start - 6 * DAY;
-  const weekEnd = day.end;
-  const dayQ = quakes(input.features, day.start, day.end);
-  const weekQ = quakes(input.features, weekStart, weekEnd);
+  const dayStart = now - DAY;
+  const weekStart = now - WEEK;
+  const dayQ = quakes(input.features, dayStart, now);
+  const weekQ = quakes(input.features, weekStart, now);
   const oldest = (input.features ?? []).reduce((min, f) => {
     const t = f.properties.time ?? 0;
     return t && t < min ? t : min;
   }, now);
   const weekReady = oldest <= weekStart + 3 * 3600_000;
-  const weekDays = 6 + day.fraction;
 
-  const dayPeak = peakKp(input.kp, day.start, day.end);
-  const weekPeak = peakKp(input.kp, weekStart, weekEnd);
-  const xPeak = xrayPeak(input.xray, day.start, day.end);
+  const dayPeak = peakKp(input.kp, dayStart, now);
+  const weekPeak = peakKp(input.kp, weekStart, now);
+  const xPeak = xrayPeak(input.xray, dayStart, now);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windBit(input.wind);
-  const volc = volcanoBrief(input.volcanoes, day.start, day.end, weekStart);
+  const volc = volcanoBrief(input.volcanoes, dayStart, now, weekStart);
   const timing = resonanceVerdict(input.resonance);
 
-  const dayWindow = `${dayName(day.start)} 0000–2359 UTC${day.open ? ", so far" : ""}`;
-  const weekWindow = `${dayName(weekStart)} 0000 – ${dayName(day.start)} 2359 UTC${day.open ? ", today still open" : ""}`;
+  const ended = clock(now);
+  const dayWindow = `Past 24 hours · to ${ended}`;
+  const weekWindow = `Past 7 days · to ${ended}`;
   const daySolar = [xPeak ? `X-ray ${xPeak}` : null, dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
     .filter(Boolean)
     .join(" · ");
@@ -244,7 +244,7 @@ export function buildDaySheet(input: {
     label: "Day",
     window: dayWindow,
     rows: rowsOf([
-      ["Quakes", quakeValue(dayQ.length, day.fraction)],
+      ["Quakes", quakeValue(dayQ.length, 1)],
       ["Largest", largestValue(dayQ)],
       ["Nodes", nodesValue(dayQ)],
       ["Solar", daySolar || null],
@@ -255,7 +255,7 @@ export function buildDaySheet(input: {
     label: "Week",
     window: weekWindow,
     rows: rowsOf([
-      ["Quakes", weekReady ? quakeValue(weekQ.length, weekDays) : "Catalog does not cover this week"],
+      ["Quakes", weekReady ? quakeValue(weekQ.length, 7) : "Catalog does not cover this week"],
       ["Largest", largestValue(weekQ)],
       ["Nodes", weekReady ? nodesValue(weekQ) : null],
       ["Solar", weekSolar],

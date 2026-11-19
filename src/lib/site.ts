@@ -103,8 +103,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.35: A volcano line is a notice issued in that UTC window, not the standing watch list.
  * 1.39.36: The week no longer carries the X-ray chart note. Volcano lines are orange/red now, or a shift up or down.
  * 1.39.37: Day and week use the same rows: Quakes, Largest, Nodes, Solar, Volcano, Timing.
+ * 1.39.38: Day is the past 24 hours and week is the past 7 days, so 0000 does not wipe a busy day.
  */
-export const APP_VERSION = "1.39.37";
+export const APP_VERSION = "1.39.38";
 
 
 
