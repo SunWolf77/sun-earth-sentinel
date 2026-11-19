@@ -400,11 +400,15 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
   const path = region.haleTrail
     .map((h) => haleLabel(h))
     .filter((s, i, all) => s !== "unclassified" && s !== all[i - 1]);
-  const change = region.reachedDelta
-    ? "Just reached delta"
-    : region.growing
-      ? "Class is getting more complex"
-      : "Class unchanged";
+  const change = !region.classToday
+    ? "No class on this report"
+    : region.reachedDelta
+      ? "Just reached delta"
+      : region.growing
+        ? "Class is getting more complex"
+        : haleRank(region.hale) < haleRank(path.length > 1 ? region.haleTrail[region.haleTrail.length - 2] : "")
+          ? "Class is simpler than the previous report"
+          : "Class unchanged";
   return (
     <section className="rounded-xl border border-border bg-panel px-3 py-3">
       <p className={`text-[0.95rem] font-semibold leading-snug ${tone(region)}`}>
@@ -412,13 +416,16 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
         <span className="ml-2 font-mono text-[0.8rem] font-normal text-fg">{region.location}</span>
       </p>
       <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[0.72rem]">
-        <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "—"} />
-        <Stat k="Area" v={region.area != null ? `${region.area} millionths` : "—"} />
+        <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "Not reported"} />
+        <Stat k="Area" v={region.area != null ? `${region.area} millionths` : "Not reported"} />
         <Stat k="Logged" v={`C${region.cLife} M${region.mLife} X${region.xLife}`} />
         <Stat k="Latest" v={region.lastFlare ? `${region.lastFlare.klass} · ${flareStamp(region.lastFlare.at)}` : "None assigned yet"} />
       </dl>
-      {path.length > 1 && (
-        <p className="mt-1.5 text-[0.68rem] text-muted">{path.join(" → ")}. {change}.</p>
+      {(path.length > 1 || !region.classToday) && (
+        <p className="mt-1.5 text-[0.68rem] text-muted">
+          {path.length > 1 ? `${path.join(" → ")}. ` : ""}
+          {change}.
+        </p>
       )}
     </section>
   );

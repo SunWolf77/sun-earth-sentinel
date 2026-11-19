@@ -45,6 +45,8 @@ export type ActiveRegion = {
   haleTrail: HaleCode[];
   growing: boolean;
   reachedDelta: boolean;
+  /** False when this report left the magnetic class blank. */
+  classToday: boolean;
   phase: EarthPhase;
   phaseLabel: string;
   sentence: string;
@@ -53,6 +55,7 @@ export type ActiveRegion = {
 type Raw = Record<string, unknown>;
 
 function num(v: unknown): number | null {
+  if (v == null || v === "") return null;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : null;
 }
@@ -152,7 +155,8 @@ export function parseSolarRegions(raw: unknown): ActiveRegion[] {
       .slice()
       .sort((a, b) => String(a.observed_date).localeCompare(String(b.observed_date)));
     const haleTrail = hist.map((h) => haleOf(h.mag_class)).filter((h) => h !== "");
-    const hale = haleOf(r.mag_class) || haleTrail[haleTrail.length - 1] || "";
+    const todayHale = haleOf(r.mag_class);
+    const hale = todayHale || haleTrail[haleTrail.length - 1] || "";
     const prev = haleTrail.length >= 2 ? haleTrail[haleTrail.length - 2]! : "";
     const phase = earthPhase(lon);
     const location = String(r.location ?? "").trim() || `${lat}°, ${lon}°`;
@@ -181,8 +185,9 @@ export function parseSolarRegions(raw: unknown): ActiveRegion[] {
       xProb: num(r.x_flare_probability) ?? 0,
       observed: latest,
       haleTrail,
-      growing: haleRank(hale) > haleRank(prev),
-      reachedDelta: haleRank(hale) >= 4 && haleRank(prev) < 4,
+      growing: todayHale !== "" && haleRank(todayHale) > haleRank(prev),
+      reachedDelta: todayHale !== "" && haleRank(todayHale) >= 4 && haleRank(prev) < 4,
+      classToday: todayHale !== "",
       phase: phase.phase,
       phaseLabel: phase.label,
       sentence: sentence(id, hale, phase.clause, location),
