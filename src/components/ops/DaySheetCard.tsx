@@ -29,7 +29,7 @@ export function DaySheetCard() {
   );
 
   const share = async () => {
-    const text = `${sheet.shareText}\nwolfwatch.site`;
+    const text = `${sheet.shareText} wolfwatch.site`;
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "Sun Earth Sentinel", text });

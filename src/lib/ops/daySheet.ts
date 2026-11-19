@@ -182,17 +182,13 @@ export function buildDaySheet(input: {
   const when = stamp(now);
   const daily: SheetBlock = { label: "Day", lines: dailyLines };
   const weekly: SheetBlock = { label: "Week", lines: weeklyLines };
+  // One paragraph. A share target that stores text as a web address turns
+  // real line breaks into the characters %0A and shows them.
   const shareText = [
-    `Sun Earth Sentinel · ${when}`,
-    "",
-    "Day",
-    ...dailyLines,
-    "",
-    "Week",
-    ...weeklyLines,
-    "",
-    "Not a forecast.",
-  ].join("\n");
+    `Sun Earth Sentinel, ${when}.`,
+    `Day. ${dailyLines.join(" ")}`,
+    `Week. ${weeklyLines.join(" ")}`,
+  ].join(" ");
 
   return { stamp: when, daily, weekly, shareText };
 }
