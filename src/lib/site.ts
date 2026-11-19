@@ -122,8 +122,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.54: NOAA active-region numbers sit on the AIA 171 disk.
  * 1.39.55: Field lines lead with the plot. The color key sits beside it.
  * 1.39.56: Active-region marks follow the Sun's rotation, so they sit on the spots in each frame.
+ * 1.39.57: The solar Pulse says the X-ray repeat is the last 90 minutes, not a forecast.
  */
-export const APP_VERSION = "1.39.56";
+export const APP_VERSION = "1.39.57";
 
 
 

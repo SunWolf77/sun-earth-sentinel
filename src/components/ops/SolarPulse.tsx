@@ -21,7 +21,7 @@ export function SolarPulse() {
       rows.push({
         id: `period-${period}`,
         kind: "solar",
-        text: "repeat in the last 90 min of the X-ray chart",
+        text: "X-ray rise and fall, last 90 min. Not a forecast.",
         mark: `${period} min`,
         major: false,
       });
