@@ -104,6 +104,42 @@ function peakKp(kp: KpPoint[], start: number, end: number): number | null {
   return peak;
 }
 
+function gScale(kp: number): string {
+  if (kp >= 9) return "G5";
+  if (kp >= 8) return "G4";
+  if (kp >= 7) return "G3";
+  if (kp >= 6) return "G2";
+  if (kp >= 5) return "G1";
+  return "below storm";
+}
+
+/** Peak, when it happened, and how much of the file was actually at storm. */
+function kpWeek(kp: KpPoint[], start: number, end: number): string | null {
+  let peak: number | null = null;
+  let peakAt: number | null = null;
+  let storm = 0;
+  let n = 0;
+  let oldest = end;
+  for (const p of kp) {
+    const t = Date.parse(p.time_tag);
+    const v = Number(p.Kp);
+    if (!Number.isFinite(t) || t < start || t >= end || !Number.isFinite(v)) continue;
+    n += 1;
+    if (t < oldest) oldest = t;
+    if (v >= 5) storm += 1;
+    if (peak == null || v > peak) {
+      peak = v;
+      peakAt = t;
+    }
+  }
+  if (peak == null || peakAt == null) return null;
+  const coverDays = (end - oldest) / DAY;
+  const cover = n > 0 && coverDays < 5 ? `file covers ${Math.max(1, Math.round(coverDays))} days` : null;
+  const blocks =
+    peak < 5 ? "no storm block" : storm === 1 ? "one 3-hour block" : `${storm} storm blocks`;
+  return [`Kp ${peak.toFixed(1)} at ${clock(peakAt)}`, gScale(peak), blocks, cover].filter(Boolean).join(" · ");
+}
+
 function classRank(klass: string): number {
   const m = klass.trim().toUpperCase().match(/^([ABCMX])(\d+(?:\.\d+)?)/);
   if (!m) return 0;
@@ -266,7 +302,6 @@ export function buildDaySheet(input: {
   const weekReady = oldest <= weekStart + 3 * 3600_000;
 
   const dayPeak = peakKp(input.kp, dayStart, now);
-  const weekPeak = peakKp(input.kp, weekStart, now);
   const xPeak = xrayPeak(input.xray, dayStart, now);
   const dayFlare = flareBit(input.flares, dayStart, now, xPeak);
   const weekFlare = flareBit(input.flares, weekStart, now, null);
@@ -281,7 +316,7 @@ export function buildDaySheet(input: {
   const daySolar = [dayFlare ?? "No catalogued flare", dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
     .filter(Boolean)
     .join(" · ");
-  const weekSolar = [weekFlare ?? "No catalogued flare", weekPeak != null ? `Kp ${weekPeak.toFixed(1)}` : null]
+  const weekSolar = [weekFlare ?? "No catalogued flare", kpWeek(input.kp, weekStart, now)]
     .filter(Boolean)
     .join(" · ");
 

@@ -107,8 +107,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.39: Flare detail states the chart period and drops the claim that a chance model was trained.
  * 1.39.40: Day and week share controls stack on a phone. Flare detail uses the same rows.
  * 1.39.41: Solar row is the highest catalogued flare in the window, and every AR that produced an M or X.
+ * 1.39.42: Week solar says when Kp peaked, the G-scale, and how many 3-hour blocks reached storm.
  */
-export const APP_VERSION = "1.39.41";
+export const APP_VERSION = "1.39.42";
 
 
 
