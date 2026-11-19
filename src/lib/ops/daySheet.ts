@@ -127,23 +127,58 @@ function noticeMs(v: UsgsVolcanoAlert): number | null {
   return null;
 }
 
-function elevated(v: UsgsVolcanoAlert): boolean {
-  const a = (v.alertLevel || "").toUpperCase();
+function rank(v: UsgsVolcanoAlert): number {
   const c = (v.colorCode || "").toUpperCase();
-  return a === "ADVISORY" || a === "WATCH" || a === "WARNING" || c === "YELLOW" || c === "ORANGE" || c === "RED";
+  const a = (v.alertLevel || "").toUpperCase();
+  if (c === "RED" || a === "WARNING") return 3;
+  if (c === "ORANGE" || a === "WATCH") return 2;
+  if (c === "YELLOW" || a === "ADVISORY") return 1;
+  return 0;
 }
 
-/** Notices issued inside the UTC window. A standing color with an older notice is not an event. */
-function volcanoLine(list: UsgsVolcanoAlert[] | undefined, start: number, end: number): string | null {
-  const hot = (list ?? []).filter((v) => {
-    if (!elevated(v)) return false;
-    const t = noticeMs(v);
-    return t != null && t >= start && t < end;
-  });
-  if (!hot.length) return null;
-  const names = hot.slice(0, 4).map((v) => `${v.name} ${v.colorCode.toLowerCase()}`);
-  const more = hot.length > 4 ? ` and ${hot.length - 4} more` : "";
-  return `Volcano notice: ${names.join(", ")}${more}.`;
+function inWindow(v: UsgsVolcanoAlert, start: number, end: number): boolean {
+  const t = noticeMs(v);
+  return t != null && t >= start && t < end;
+}
+
+/**
+ * Current orange/red, plus a notice in the window that raised or eased.
+ * Yellow advisories stay off this line.
+ */
+function volcanoBrief(
+  list: UsgsVolcanoAlert[] | undefined,
+  dayStart: number,
+  dayEnd: number,
+  weekStart: number,
+): { day: string | null; week: string | null } {
+  const all = list ?? [];
+  const label = (v: UsgsVolcanoAlert) => `${v.name} ${(v.colorCode || v.alertLevel || "").toLowerCase()}`;
+
+  const dayShifts = all.filter((v) => inWindow(v, dayStart, dayEnd));
+  const weekShifts = all.filter((v) => inWindow(v, weekStart, dayStart));
+  const up = dayShifts.filter((v) => rank(v) >= 2);
+  const down = dayShifts.filter((v) => rank(v) < 2);
+  const standing = all.filter((v) => rank(v) >= 2 && !up.some((u) => u.name === v.name));
+
+  const dayParts: string[] = [];
+  if (up.length) dayParts.push(`Up: ${up.slice(0, 4).map(label).join(", ")}`);
+  if (down.length) dayParts.push(`Eased: ${down.slice(0, 4).map(label).join(", ")}`);
+  if (standing.length) {
+    const names = standing.slice(0, 4).map(label);
+    const more = standing.length > 4 ? ` and ${standing.length - 4} more` : "";
+    dayParts.push(`Elevated now: ${names.join(", ")}${more}`);
+  }
+
+  const weekUp = weekShifts.filter((v) => rank(v) >= 2);
+  const weekDown = weekShifts.filter((v) => rank(v) < 2);
+  const weekParts: string[] = [];
+  if (weekUp.length) weekParts.push(`Up: ${weekUp.slice(0, 4).map(label).join(", ")}`);
+  if (weekDown.length) weekParts.push(`Eased: ${weekDown.slice(0, 4).map(label).join(", ")}`);
+
+  return {
+    day: dayParts.length ? `Volcano: ${dayParts.join(". ")}.` : null,
+    week: weekParts.length ? `Volcano this week: ${weekParts.join(". ")}.` : null,
+  };
 }
 
 function dayName(ms: number): string {
@@ -188,8 +223,7 @@ export function buildDaySheet(input: {
   const xPeak = xrayPeak(input.xray, day.start, day.end);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windLine(input.wind);
-  const dayVolc = volcanoLine(input.volcanoes, day.start, day.end);
-  const weekVolc = volcanoLine(input.volcanoes, weekStart, weekEnd);
+  const volc = volcanoBrief(input.volcanoes, day.start, day.end, weekStart);
   const timing = resonanceVerdict(input.resonance);
 
   const dayWindow = `${dayName(day.start)} 0000–2359 UTC${day.open ? ", so far" : ""}`;
@@ -204,7 +238,7 @@ export function buildDaySheet(input: {
       .filter(Boolean)
       .join(" · "),
     wind,
-    dayVolc,
+    volc.day,
   ].filter((l): l is string => !!l);
 
   const weeklyLines = [
@@ -213,9 +247,8 @@ export function buildDaySheet(input: {
     largest(weekQ),
     weekReady ? nodesOf(weekQ) : null,
     weekPeak != null ? `Kp peak ${weekPeak.toFixed(1)} over the Kp file.` : null,
-    weekVolc,
+    volc.week,
     `Timing: ${timing.title}. Not a forecast.`,
-    "X-ray chart is the last day, not the week.",
   ].filter((l): l is string => !!l);
 
   const when = dayWindow;
