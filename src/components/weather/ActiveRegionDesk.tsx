@@ -249,7 +249,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
           <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-primary">
             Sunspots aimed at Earth
           </h2>
-          <span className="ml-auto text-[0.58rem] uppercase tracking-wide text-dim">NOAA next day</span>
+          <span className="ml-auto text-[0.58rem] uppercase tracking-wide text-dim">Flares logged</span>
           <button
             type="button"
             onClick={() => setFull(true)}
@@ -268,7 +268,7 @@ export function ActiveRegionDesk({ regions, observed }: { regions: ActiveRegion[
             onHover={setHot}
             onPick={setPicked}
             leadNote={delta ? `AR${delta.region} just reached delta.` : null}
-            foot={observed ? `Report ${observed}. C M X on the right are today's odds, not flares logged.` : "Click an AR for its spots, area, and flares."}
+            foot={observed ? `Report ${observed}. C M X on the right are flares NOAA has logged on that number.` : "Click an AR for its spots, area, and flares."}
           />
         </div>
       </section>
@@ -374,12 +374,12 @@ function RegionList({
                   </span>
                 </span>
                 <span className="font-mono text-[0.62rem] tabular-nums">
-                  <span className="text-dim">C </span>
-                  {Math.round(r.cProb)}
-                  <span className="text-dim"> M </span>
-                  <span className={r.mProb >= 15 ? "text-warn" : "text-fg"}>{Math.round(r.mProb)}</span>
-                  <span className="text-dim"> X </span>
-                  <span className={r.xProb >= 5 ? "text-danger" : "text-fg"}>{Math.round(r.xProb)}</span>
+                  <span className="text-dim">C</span>
+                  <span className={r.cLife > 0 ? "text-fg" : "text-dim"}>{r.cLife}</span>
+                  <span className="text-dim"> M</span>
+                  <span className={r.mLife > 0 ? "text-warn" : "text-dim"}>{r.mLife}</span>
+                  <span className="text-dim"> X</span>
+                  <span className={r.xLife > 0 ? "text-danger" : "text-dim"}>{r.xLife}</span>
                 </span>
               </button>
             </li>

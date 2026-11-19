@@ -116,8 +116,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.48: SUVI 131 and CCOR sit on the solar desk. An Earth-facing M or X is called a disk launch.
  * 1.39.49: GONG field lines on the solar desk. Open lines leave with the wind. Closed lines can erupt.
  * 1.39.50: SUVI and CCOR fill their columns. The films start when the X-ray flux is rising or already at M.
+ * 1.39.51: Each active region shows the flares NOAA has logged, not a zero next-day chance.
  */
-export const APP_VERSION = "1.39.50";
+export const APP_VERSION = "1.39.51";
 
 
 
