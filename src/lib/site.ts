@@ -95,8 +95,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.27: Flare log uses the event file, where the region is assigned after the class is known.
  * 1.39.28: On a phone, full-screen sunspots keep the disk. Region detail opens only when asked.
  * 1.39.29: An M flare in progress, the region being watched, and an L1 current-sheet or electron rise.
+ * 1.39.30: Solar page has a shareable day and week sheet. Counts are the loaded catalog, not a forecast.
  */
-export const APP_VERSION = "1.39.29";
+export const APP_VERSION = "1.39.30";
 
 
 

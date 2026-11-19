@@ -3154,6 +3154,7 @@
   grid-template-areas:
     "intro"
     "chain"
+    "sheet"
     "flare"
     "spots"
     "extra"
@@ -3164,6 +3165,7 @@
   grid-area: chain;
   container: chain / inline-size;
 }
+.ww-solar-now__sheet { grid-area: sheet; min-width: 0; }
 .ww-solar-now__flare { grid-area: flare; min-width: 0; }
 .ww-solar-now__spots { grid-area: spots; min-width: 0; }
 .ww-solar-now__extra {
@@ -3192,6 +3194,7 @@
     grid-template-areas:
       "intro intro"
       "chain chain"
+      "sheet sheet"
       "flare spots"
       "extra extra"
       "closer closer";
