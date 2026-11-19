@@ -116,16 +116,34 @@ function windLine(wind: SolarWind | null): string | null {
   return ["Wind now", pace, speed, bz].filter(Boolean).join(" ");
 }
 
-function volcanoLine(list: UsgsVolcanoAlert[] | undefined): string | null {
+function noticeMs(v: UsgsVolcanoAlert): number | null {
+  if (v.sentUnix != null && Number.isFinite(v.sentUnix) && v.sentUnix > 0) {
+    return v.sentUnix > 1e12 ? v.sentUnix : v.sentUnix * 1000;
+  }
+  if (v.sentUtc) {
+    const t = Date.parse(v.sentUtc);
+    if (Number.isFinite(t)) return t;
+  }
+  return null;
+}
+
+function elevated(v: UsgsVolcanoAlert): boolean {
+  const a = (v.alertLevel || "").toUpperCase();
+  const c = (v.colorCode || "").toUpperCase();
+  return a === "ADVISORY" || a === "WATCH" || a === "WARNING" || c === "YELLOW" || c === "ORANGE" || c === "RED";
+}
+
+/** Notices issued inside the UTC window. A standing color with an older notice is not an event. */
+function volcanoLine(list: UsgsVolcanoAlert[] | undefined, start: number, end: number): string | null {
   const hot = (list ?? []).filter((v) => {
-    const a = (v.alertLevel || "").toUpperCase();
-    const c = (v.colorCode || "").toUpperCase();
-    return a === "ADVISORY" || a === "WATCH" || a === "WARNING" || c === "YELLOW" || c === "ORANGE" || c === "RED";
+    if (!elevated(v)) return false;
+    const t = noticeMs(v);
+    return t != null && t >= start && t < end;
   });
   if (!hot.length) return null;
-  const names = hot.slice(0, 3).map((v) => `${v.name} ${v.colorCode.toLowerCase()}`);
-  const more = hot.length > 3 ? ` +${hot.length - 3}` : "";
-  return `Volcano: ${names.join(", ")}${more}.`;
+  const names = hot.slice(0, 4).map((v) => `${v.name} ${v.colorCode.toLowerCase()}`);
+  const more = hot.length > 4 ? ` and ${hot.length - 4} more` : "";
+  return `Volcano notice: ${names.join(", ")}${more}.`;
 }
 
 function dayName(ms: number): string {
@@ -170,7 +188,8 @@ export function buildDaySheet(input: {
   const xPeak = xrayPeak(input.xray, day.start, day.end);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windLine(input.wind);
-  const volc = volcanoLine(input.volcanoes);
+  const dayVolc = volcanoLine(input.volcanoes, day.start, day.end);
+  const weekVolc = volcanoLine(input.volcanoes, weekStart, weekEnd);
   const timing = resonanceVerdict(input.resonance);
 
   const dayWindow = `${dayName(day.start)} 0000–2359 UTC${day.open ? ", so far" : ""}`;
@@ -185,7 +204,7 @@ export function buildDaySheet(input: {
       .filter(Boolean)
       .join(" · "),
     wind,
-    volc,
+    dayVolc,
   ].filter((l): l is string => !!l);
 
   const weeklyLines = [
@@ -194,6 +213,7 @@ export function buildDaySheet(input: {
     largest(weekQ),
     weekReady ? nodesOf(weekQ) : null,
     weekPeak != null ? `Kp peak ${weekPeak.toFixed(1)} over the Kp file.` : null,
+    weekVolc,
     `Timing: ${timing.title}. Not a forecast.`,
     "X-ray chart is the last day, not the week.",
   ].filter((l): l is string => !!l);
