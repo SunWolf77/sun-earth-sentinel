@@ -125,8 +125,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.57: The solar Pulse says the X-ray repeat is the last 90 minutes, not a forecast.
  * 1.39.58: A blank NOAA spot count or area stays blank. It is not shown as zero.
  * 1.39.59: Day and week briefs count M/X from the GOES flare list, not the slower edited-events file.
+ * 1.39.60: Nodes are watched boxes only, with the count and the largest magnitude. Day Kp uses the same peak line as the week.
  */
-export const APP_VERSION = "1.39.59";
+export const APP_VERSION = "1.39.60";
 
 
 

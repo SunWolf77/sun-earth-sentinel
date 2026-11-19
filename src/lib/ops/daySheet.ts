@@ -89,38 +89,24 @@ function largestValue(list: Quake[]): string {
   return `M${top.mag.toFixed(1)} · ${top.place}`;
 }
 
-function nodesValue(list: Quake[]): string {
-  const names = [...new Set(list.map((q) => q.node).filter((n): n is string => !!n))];
-  if (!names.length) return "None";
-  return names.slice(0, 4).join(", ");
-}
-
-function nodesWeek(list: Quake[]): string {
-  const counts = new Map<string, number>();
+function nodesLine(list: Quake[]): string {
+  const by = new Map<string, { n: number; mag: number }>();
   for (const q of list) {
     if (!q.node) continue;
-    counts.set(q.node, (counts.get(q.node) ?? 0) + 1);
+    const row = by.get(q.node) ?? { n: 0, mag: 0 };
+    row.n += 1;
+    if (q.mag > row.mag) row.mag = q.mag;
+    by.set(q.node, row);
   }
-  const rows = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const rows = [...by.entries()].sort(
+    (a, b) => b[1].mag - a[1].mag || b[1].n - a[1].n || a[0].localeCompare(b[0]),
+  );
   if (!rows.length) return "None";
-  const shown = rows.slice(0, 4).map(([name, n]) => `${name} ${n}`);
-  const more = rows.length > 4 ? ` and ${rows.length - 4} more` : "";
-  return `${shown.join(", ")}${more}`;
+  return rows.map(([name, row]) => `${name} ${row.n} (M${row.mag.toFixed(1)})`).join(", ");
 }
 
 function m6Count(list: Quake[]): number {
   return list.filter((q) => q.mag >= 6).length;
-}
-
-function peakKp(kp: KpPoint[], start: number, end: number): number | null {
-  let peak: number | null = null;
-  for (const p of kp) {
-    const t = Date.parse(p.time_tag);
-    const v = Number(p.Kp);
-    if (!Number.isFinite(t) || t < start || t >= end || !Number.isFinite(v)) continue;
-    if (peak == null || v > peak) peak = v;
-  }
-  return peak;
 }
 
 function gScale(kp: number): string {
@@ -156,7 +142,7 @@ function kpWeek(kp: KpPoint[], start: number, end: number): string | null {
   const cover = n > 0 && coverDays < 5 ? `file covers ${Math.max(1, Math.round(coverDays))} days` : null;
   const blocks =
     peak < 5 ? "no storm block" : storm === 1 ? "one 3-hour block" : `${storm} storm blocks`;
-  return [`Kp ${peak.toFixed(1)} at ${clock(peakAt)}`, gScale(peak), blocks, cover].filter(Boolean).join(" · ");
+  return [`Kp peak ${peak.toFixed(1)} at ${clock(peakAt)}`, gScale(peak), blocks, cover].filter(Boolean).join(" · ");
 }
 
 function classRank(klass: string): number {
@@ -375,7 +361,6 @@ export function buildDaySheet(input: {
   }, now);
   const weekReady = oldest <= weekStart + 3 * 3600_000;
 
-  const dayPeak = peakKp(input.kp, dayStart, now);
   const dayList = withFluxPeak(namedFlares(input.flares, input.xra, dayStart, now), xrayPeak(input.xray, dayStart, now));
   const weekList = withFluxPeak(namedFlares(input.flares, input.xra, weekStart, now), xrayPeak(input.xray, weekStart, now));
   const dayFlare = describeFlares(dayList);
@@ -389,7 +374,7 @@ export function buildDaySheet(input: {
   const ended = clock(now);
   const dayWindow = `Past 24 hours · to ${ended}`;
   const weekWindow = `Past 7 days · to ${ended}`;
-  const daySolar = [dayFlare ?? "No M/X", dayPeak != null ? `Kp ${dayPeak.toFixed(1)}` : null, scales, wind]
+  const daySolar = [dayFlare ?? "No M/X", kpWeek(input.kp, dayStart, now), scales, wind]
     .filter(Boolean)
     .join(" · ");
   const weekSolar = [weekFlare ?? "No M/X", weekCme, kpWeek(input.kp, weekStart, now)]
@@ -402,7 +387,7 @@ export function buildDaySheet(input: {
     rows: rowsOf([
       ["Quakes", quakeValue(dayQ.length, 1)],
       ["Largest", largestValue(dayQ)],
-      ["Nodes", nodesValue(dayQ)],
+      ["Nodes", nodesLine(dayQ)],
       ["Solar", daySolar || null],
       ["Volcano", volc.day],
     ]),
@@ -413,7 +398,7 @@ export function buildDaySheet(input: {
     rows: rowsOf([
       ["Quakes", weekReady ? [quakeValue(weekQ.length, 7), m6Count(weekQ) ? `${m6Count(weekQ)} M6+` : null].filter(Boolean).join(" · ") : "Catalog does not cover this week"],
       ["Largest", largestValue(weekQ)],
-      ["Nodes", weekReady ? nodesWeek(weekQ) : null],
+      ["Nodes", weekReady ? nodesLine(weekQ) : null],
       ["Solar", weekSolar],
       ["Volcano", volc.week],
       ["Timing", `${timing.title}. Not a forecast`],
