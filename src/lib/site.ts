@@ -99,8 +99,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.31: Share sends the day and week text, not the site link. The text is that minute.
  * 1.39.32: The shared brief is one paragraph. Line breaks were showing up as %0A.
  * 1.39.33: X, WhatsApp, and Telegram open with the brief already written.
+ * 1.39.34: Day and week are UTC dates, 0000–2359, not a rolling 24 hours. An open day says so.
  */
-export const APP_VERSION = "1.39.33";
+export const APP_VERSION = "1.39.34";
 
 
 
