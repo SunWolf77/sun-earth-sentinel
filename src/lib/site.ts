@@ -111,8 +111,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.43: The week stands alone: M6+ count, node counts, M and X totals, Earth-directed CMEs, and the full seven days of volcano shifts.
  * 1.39.44: A missing script after a deploy reloads the page once. Asset errors are no longer cached for a year.
  * 1.39.45: A failed script reloads into plain language, and a bad script response is not kept.
+ * 1.39.46: Week flares come from the GOES event list, so an M-class flare is not dropped while DONKI is late.
  */
-export const APP_VERSION = "1.39.45";
+export const APP_VERSION = "1.39.46";
 
 
 

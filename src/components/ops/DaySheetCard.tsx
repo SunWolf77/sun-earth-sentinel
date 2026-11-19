@@ -12,6 +12,7 @@ export function DaySheetCard() {
   const scales = useObservatory((s) => s.scales);
   const volcanoes = useObservatory((s) => s.usgsVolcAlerts);
   const flares = useObservatory((s) => s.donki?.flares);
+  const xra = useObservatory((s) => s.xraFlares);
   const cmes = useObservatory((s) => s.donki?.cmes);
   const resonance = useObservatory((s) => s.resonance);
   const [state, setState] = useState<"idle" | "sent" | "copied">("idle");
@@ -26,10 +27,11 @@ export function DaySheetCard() {
         scales,
         volcanoes,
         flares,
+        xra,
         cmes,
         resonance,
       }),
-    [features, kp, xray, wind, scales, volcanoes, flares, cmes, resonance],
+    [features, kp, xray, wind, scales, volcanoes, flares, xra, cmes, resonance],
   );
 
   const brief = sheet.shareText;

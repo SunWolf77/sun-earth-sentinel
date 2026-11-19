@@ -18,6 +18,7 @@ import {
 import type { UsgsVolcanoAlert } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { DonkiCme, DonkiFlare } from "@/lib/feeds/donki";
 import { earthDirectedCmes } from "@/lib/feeds/donki";
+import type { XraFlare } from "@/lib/feeds/solarRegions";
 import { resonanceVerdict, type ResonanceScore } from "@/lib/supt/probe";
 
 const DAY = 24 * 3600_000;
@@ -170,48 +171,67 @@ function flareMs(f: DonkiFlare): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-/** Highest catalogued flare in the window, and every AR that produced one at M or above. */
-function flareBit(flares: DonkiFlare[] | undefined, start: number, end: number, chart: string | null): string | null {
-  const inWin = (flares ?? []).filter((f) => {
+type NamedFlare = { klass: string; at: number; region: number | null };
+
+function namedFlares(
+  donki: DonkiFlare[] | undefined,
+  xra: XraFlare[] | undefined,
+  start: number,
+  end: number,
+): NamedFlare[] {
+  const byMin = new Map<number, NamedFlare>();
+  const put = (klass: string, at: number, region: number | null) => {
+    if (at < start || at >= end) return;
+    const k = klass.trim().toUpperCase().split(/[/\s]/)[0] ?? "";
+    if (!/^[ABCMX]\d/.test(k)) return;
+    const minute = Math.floor(at / 60_000);
+    const prev = byMin.get(minute);
+    if (!prev) {
+      byMin.set(minute, { klass: k, at, region });
+      return;
+    }
+    const better = classRank(k) > classRank(prev.klass);
+    byMin.set(minute, {
+      klass: better ? k : prev.klass,
+      at: better ? at : prev.at,
+      region: prev.region ?? region,
+    });
+  };
+  for (const f of xra ?? []) {
+    const t = Date.parse(f.at);
+    if (Number.isFinite(t)) put(f.klass, t, f.region);
+  }
+  for (const f of donki ?? []) {
     const t = flareMs(f);
-    return t != null && t >= start && t < end && !!f.classType;
-  });
-  inWin.sort((a, b) => classRank(b.classType || "") - classRank(a.classType || ""));
-  const top = inWin[0];
-  const topRank = top ? classRank(top.classType || "") : 0;
+    if (t == null || !f.classType) continue;
+    const region = f.activeRegionNum != null && f.activeRegionNum > 0 ? f.activeRegionNum : null;
+    put(f.classType, t, region);
+  }
+  return [...byMin.values()];
+}
+
+function describeFlares(list: NamedFlare[], chart: string | null, withCounts: boolean): string | null {
+  const sorted = [...list].sort((a, b) => classRank(b.klass) - classRank(a.klass));
+  const top = sorted[0];
+  const topRank = top ? classRank(top.klass) : 0;
   const chartRank = chart ? classRank(chart) : 0;
-  const eruptive = inWin.filter((f) => classRank(f.classType || "") >= classRank("M1.0"));
+  const eruptive = sorted.filter((f) => classRank(f.klass) >= classRank("M1.0"));
   const pool = eruptive.length
     ? eruptive
-    : inWin.filter((f) => classRank(f.classType || "") >= topRank && topRank >= classRank("C1.0"));
-  const names = [...new Set(pool.map((f) => f.activeRegionNum).filter((n): n is number => n != null && n > 0))].map(
-    (n) => `AR${n}`,
-  );
-  if (pool.some((f) => !f.activeRegionNum)) names.push("region not named yet");
+    : sorted.filter((f) => classRank(f.klass) >= topRank && topRank >= classRank("C1.0"));
+  const names = [...new Set(pool.map((f) => f.region).filter((n): n is number => n != null))].map((n) => `AR${n}`);
+  if (pool.some((f) => f.region == null)) names.push("region not named yet");
   const ars = names.length ? names.join(", ") : null;
-
+  const m = sorted.filter((f) => f.klass.startsWith("M")).length;
+  const x = sorted.filter((f) => f.klass.startsWith("X")).length;
+  const counts = withCounts && m + x > 0 ? `${m} M · ${x} X` : null;
   if (chart && chartRank >= classRank("M1.0") && chartRank > topRank) {
-    return [`Chart ${chart}`, top ? `catalog ${top.classType}` : "catalog has not named it", ars].filter(Boolean).join(" · ");
+    return [counts, `Chart ${chart}`, top ? `catalog ${top.klass}` : "catalog has not named it", ars]
+      .filter(Boolean)
+      .join(" · ");
   }
-  if (!top) return null;
-  return [`Highest ${top.classType}`, ars].filter(Boolean).join(" · ");
-}
-
-function flaresIn(flares: DonkiFlare[] | undefined, start: number, end: number): DonkiFlare[] {
-  return (flares ?? []).filter((f) => {
-    const t = flareMs(f);
-    return t != null && t >= start && t < end && !!f.classType;
-  });
-}
-
-function flareWeek(flares: DonkiFlare[] | undefined, start: number, end: number): string | null {
-  const inWin = flaresIn(flares, start, end);
-  const m = inWin.filter((f) => (f.classType || "").toUpperCase().startsWith("M")).length;
-  const x = inWin.filter((f) => (f.classType || "").toUpperCase().startsWith("X")).length;
-  const counts = m + x > 0 ? `${m} M · ${x} X` : null;
-  const top = flareBit(flares, start, end, null);
-  if (!counts && !top) return null;
-  return [counts, top].filter(Boolean).join(" · ");
+  if (!top) return counts;
+  return [counts, `Highest ${top.klass}`, ars].filter(Boolean).join(" · ");
 }
 
 function cmeBit(cmes: DonkiCme[] | undefined, start: number, end: number): string | null {
@@ -338,6 +358,7 @@ export function buildDaySheet(input: {
   scales: NoaaScales | null;
   volcanoes?: UsgsVolcanoAlert[];
   flares?: DonkiFlare[];
+  xra?: XraFlare[];
   cmes?: DonkiCme[];
   resonance: ResonanceScore | null;
   now?: number;
@@ -355,8 +376,8 @@ export function buildDaySheet(input: {
 
   const dayPeak = peakKp(input.kp, dayStart, now);
   const xPeak = xrayPeak(input.xray, dayStart, now);
-  const dayFlare = flareBit(input.flares, dayStart, now, xPeak);
-  const weekFlare = flareWeek(input.flares, weekStart, now);
+  const dayFlare = describeFlares(namedFlares(input.flares, input.xra, dayStart, now), xPeak, false);
+  const weekFlare = describeFlares(namedFlares(input.flares, input.xra, weekStart, now), null, true);
   const weekCme = cmeBit(input.cmes, weekStart, now);
   const scales = input.scales ? `R${input.scales.R} S${input.scales.S} G${input.scales.G}` : null;
   const wind = windBit(input.wind);

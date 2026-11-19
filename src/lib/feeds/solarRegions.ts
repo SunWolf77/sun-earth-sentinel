@@ -198,6 +198,52 @@ export function interest(r: ActiveRegion): number {
   return haleRank(r.hale) * 10 + earth + (r.growing ? 2 : 0);
 }
 
+export type XraFlare = {
+  klass: string;
+  at: string;
+  region: number | null;
+};
+
+function klassRank(klass: string): number {
+  const m = klass.match(/^([CMX])(\d+(?:\.\d+)?)/);
+  if (!m) return 0;
+  const letter = { C: 1, M: 2, X: 3 }[m[1] as "C" | "M" | "X"] ?? 0;
+  return letter * 100 + Number(m[2]);
+}
+
+/** Assigned X-ray flares from SWPC edited events. Same minute from two GOES birds is one flare. */
+export function listXraFlares(raw: unknown): XraFlare[] {
+  if (!Array.isArray(raw)) return [];
+  const byMin = new Map<number, XraFlare>();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const e = row as Record<string, unknown>;
+    if (e.type !== "XRA") continue;
+    const klass = String(e.particulars1 ?? "")
+      .trim()
+      .toUpperCase()
+      .split(/[/\s]/)[0];
+    if (!klass || !/^[CMX]\d/.test(klass)) continue;
+    const at = String(e.max_datetime ?? e.begin_datetime ?? "");
+    const t = Date.parse(at);
+    if (!Number.isFinite(t)) continue;
+    const region = num(e.region);
+    const named = region != null && region > 0 ? region : null;
+    const prev = byMin.get(Math.floor(t / 60_000));
+    if (!prev) {
+      byMin.set(Math.floor(t / 60_000), { klass, at, region: named });
+      continue;
+    }
+    const better = klassRank(klass) > klassRank(prev.klass);
+    byMin.set(Math.floor(t / 60_000), {
+      klass: better ? klass : prev.klass,
+      at: better ? at : prev.at,
+      region: prev.region ?? named,
+    });
+  }
+  return [...byMin.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+}
+
 export function tallyAssignedFlares(raw: unknown): Map<number, { c: number; m: number; x: number; lastFlare: { klass: string; at: string } | null }> {
   const out = new Map<number, { c: number; m: number; x: number; lastFlare: { klass: string; at: string } | null }>();
   if (!Array.isArray(raw)) return out;
@@ -225,18 +271,24 @@ export function tallyAssignedFlares(raw: unknown): Map<number, { c: number; m: n
   return out;
 }
 
-export async function fetchSolarRegions(): Promise<ActiveRegion[]> {
+export async function fetchSolarRegionPack(): Promise<{ regions: ActiveRegion[]; xra: XraFlare[] }> {
   const [regRes, evRes] = await Promise.all([
     fetch(URL, { headers: { Accept: "application/json" } }),
     fetch(EVENTS, { headers: { Accept: "application/json" } }).catch(() => null),
   ]);
-  if (!regRes.ok) return [];
-  const regions = parseSolarRegions(await regRes.json());
-  if (!evRes?.ok) return regions;
-  const tally = tallyAssignedFlares(await evRes.json());
-  return regions.map((r) => {
+  if (!regRes.ok) return { regions: [], xra: [] };
+  let regions = parseSolarRegions(await regRes.json());
+  if (!evRes?.ok) return { regions, xra: [] };
+  const raw = await evRes.json();
+  const tally = tallyAssignedFlares(raw);
+  regions = regions.map((r) => {
     const hit = tally.get(r.region);
     if (!hit) return r;
     return { ...r, cLife: hit.c, mLife: hit.m, xLife: hit.x, lastFlare: hit.lastFlare };
   });
+  return { regions, xra: listXraFlares(raw) };
+}
+
+export async function fetchSolarRegions(): Promise<ActiveRegion[]> {
+  return (await fetchSolarRegionPack()).regions;
 }
