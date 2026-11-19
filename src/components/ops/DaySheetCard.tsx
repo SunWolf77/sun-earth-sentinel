@@ -28,8 +28,10 @@ export function DaySheetCard() {
     [features, kp, xray, wind, scales, volcanoes, resonance],
   );
 
+  const brief = `${sheet.shareText} wolfwatch.site`;
+
   const share = async () => {
-    const text = `${sheet.shareText} wolfwatch.site`;
+    const text = brief;
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "Sun Earth Sentinel", text });
@@ -56,14 +58,40 @@ export function DaySheetCard() {
           <h2 className="text-sm font-semibold text-fg">Day and week</h2>
           <p className="text-[0.62rem] text-dim">{sheet.stamp} · not a forecast</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void share()}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-fg"
-        >
-          {state === "idle" ? <Share2 className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
-          {label}
-        </button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          <a
+            href={`https://x.com/intent/tweet?text=${encodeURIComponent(brief)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-md border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-fg"
+          >
+            X
+          </a>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(brief)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-md border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-fg"
+          >
+            WhatsApp
+          </a>
+          <a
+            href={`https://t.me/share/url?text=${encodeURIComponent(brief)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-md border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-fg"
+          >
+            Telegram
+          </a>
+          <button
+            type="button"
+            onClick={() => void share()}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-[0.68rem] font-semibold text-fg"
+          >
+            {state === "idle" ? <Share2 className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+            {label}
+          </button>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {[sheet.daily, sheet.weekly].map((block) => (

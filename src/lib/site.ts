@@ -98,8 +98,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.30: Solar page has a shareable day and week sheet. Counts are the loaded catalog, not a forecast.
  * 1.39.31: Share sends the day and week text, not the site link. The text is that minute.
  * 1.39.32: The shared brief is one paragraph. Line breaks were showing up as %0A.
+ * 1.39.33: X, WhatsApp, and Telegram open with the brief already written.
  */
-export const APP_VERSION = "1.39.32";
+export const APP_VERSION = "1.39.33";
 
 
 
