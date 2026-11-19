@@ -3,7 +3,7 @@ import { DRAGON_NODES } from "@/lib/feeds/usgs";
 import { pointInBounds } from "@/lib/geo/bounds";
 import type { UsgsVolcanoAlert, VolcWatchTransition } from "@/lib/feeds/usgsVolcanoAlerts";
 import type { KpPoint, NoaaScales, SolarWind, XrayPoint } from "@/lib/feeds/swpc";
-import { fluxToClass } from "@/lib/feeds/swpc";
+import { fluxToClass, longChannelXrays } from "@/lib/feeds/swpc";
 import type { ActiveRegion, XraFlare } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
 import { diskLaunches } from "@/lib/feeds/launchWatch";
@@ -227,6 +227,126 @@ export function buildPulseTape(input: {
   for (const v of vols) {
     if (!show("volcano", v.major, input.toggles)) continue;
     out.push(v.item);
+  }
+
+  return out;
+}
+
+/** Solar desk ticker. Quiet X-ray and wind stay on, because this tape is only solar. */
+export function buildSolarPulse(input: {
+  kp: KpPoint[];
+  solarWind: SolarWind | null;
+  scales: NoaaScales | null;
+  xray: XrayPoint[];
+  regions?: ActiveRegion[];
+  xra?: XraFlare[];
+  flareChance?: number | null;
+  now?: number;
+}): TapeItem[] {
+  const now = input.now ?? Date.now();
+  const out: TapeItem[] = [];
+  const live = readLiveFlare(input.xray, input.regions ?? [], now);
+  if (live) out.push({ id: live.id, kind: "solar", text: live.line, major: live.phase !== "subsided" });
+
+  const launch = diskLaunches(input.xra, input.regions, now)[0];
+  if (launch) {
+    const when = launch.at.slice(5, 16).replace("T", " ");
+    out.push({
+      id: `disk-${launch.at.slice(0, 16)}`,
+      kind: "solar",
+      text: `${launch.klass}${launch.region ? ` · AR${launch.region}` : ""} · ${launch.where} · ${when} UTC`,
+      mark: "Launch",
+      major: launch.facing,
+    });
+  }
+
+  const series = longChannelXrays(input.xray);
+  let xr = series[0];
+  for (const p of series) {
+    if ((p.time_tag ?? "") > (xr?.time_tag ?? "")) xr = p;
+  }
+  const flux = xr ? xr.flux || xr.observed_flux || 0 : 0;
+  if (xr && flux > 0) {
+    const klass = fluxToClass(flux);
+    out.push({
+      id: "xray-now",
+      kind: "solar",
+      text: "long channel",
+      mark: klass,
+      major: klass.startsWith("M") || klass.startsWith("X"),
+    });
+  }
+
+  const weekAgo = now - 7 * 86400000;
+  for (const f of (input.xra ?? []).slice(0, 12)) {
+    if (out.filter((i) => i.id.startsWith("xra-")).length >= 4) break;
+    const t = Date.parse(f.at);
+    if (!Number.isFinite(t) || t < weekAgo || t > now + 120_000) continue;
+    const when = f.at.slice(5, 16).replace("T", " ");
+    out.push({
+      id: `xra-${f.at.slice(0, 16)}-${f.klass}`,
+      kind: "solar",
+      text: `${f.region ? `AR${f.region} · ` : ""}${when} UTC`,
+      mark: f.klass,
+      major: /^[MX]/i.test(f.klass),
+    });
+  }
+
+  const regions = [...(input.regions ?? [])]
+    .filter((r) => r.phase === "direct" || r.phase === "entering" || r.phase === "leaving" || r.phase === "east")
+    .filter((r) => r.cLife + r.mLife + r.xLife > 0 || haleRank(r.hale) >= 3)
+    .sort((a, b) => b.xLife - a.xLife || b.mLife - a.mLife || b.cLife - a.cLife || haleRank(b.hale) - haleRank(a.hale))
+    .slice(0, 3);
+  for (const r of regions) {
+    out.push({
+      id: `sol-ar-${r.region}`,
+      kind: "solar",
+      text: `${r.haleLabel} · ${r.phaseLabel}`,
+      mark: `AR${r.region} C${r.cLife} M${r.mLife} X${r.xLife}`,
+      major: r.mLife > 0 || r.xLife > 0,
+    });
+  }
+
+  const wind = input.solarWind;
+  if (wind && (wind.speed != null || wind.bz != null)) {
+    const speed = wind.speed != null ? Math.round(wind.speed) : null;
+    const bz = wind.bz;
+    const major = (speed != null && speed >= 600) || (bz != null && bz <= -8);
+    const bits = [
+      wind.rtsw ? "RTSW" : "Wind",
+      wind.source,
+      speed != null ? `${speed} km/s` : null,
+      bz != null ? `Bz ${bz > 0 ? "+" : ""}${bz.toFixed(1)}` : null,
+    ].filter(Boolean);
+    out.push({ id: "wind", kind: "solar", text: bits.join(" · "), major });
+  }
+  if (wind?.sheet) out.push({ id: "l1-sheet", kind: "solar", text: wind.sheet, major: true });
+  if (wind?.electrons) out.push({ id: "l1-electrons", kind: "solar", text: wind.electrons, major: true });
+
+  const kp = input.kp.length ? Number(input.kp[input.kp.length - 1]!.Kp) : null;
+  if (kp != null && Number.isFinite(kp)) {
+    out.push({ id: "kp", kind: "solar", text: "planetary", mark: `Kp ${kp.toFixed(1)}`, major: kp >= 5 });
+  }
+
+  if (input.scales) {
+    out.push({
+      id: "scales",
+      kind: "solar",
+      text: "NOAA scales",
+      mark: `R${input.scales.R} S${input.scales.S} G${input.scales.G}`,
+      major: scaleN(input.scales.R) >= 2 || scaleN(input.scales.S) >= 2 || scaleN(input.scales.G) >= 2,
+    });
+  }
+
+  if (input.flareChance != null && Number.isFinite(input.flareChance)) {
+    const pct = Math.round(input.flareChance * 100);
+    out.push({
+      id: "flare-chance",
+      kind: "solar",
+      text: "chance of M in 6 h",
+      mark: `${pct}%`,
+      major: input.flareChance >= 0.5,
+    });
   }
 
   return out;

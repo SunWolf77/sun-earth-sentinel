@@ -117,8 +117,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.49: GONG field lines on the solar desk. Open lines leave with the wind. Closed lines can erupt.
  * 1.39.50: SUVI and CCOR fill their columns. The films start when the X-ray flux is rising or already at M.
  * 1.39.51: Each active region shows the flares NOAA has logged, not a zero next-day chance.
+ * 1.39.52: Solar has its own Pulse. X-ray, wind, regions, and recent flares stay on it.
  */
-export const APP_VERSION = "1.39.51";
+export const APP_VERSION = "1.39.52";
 
 
 

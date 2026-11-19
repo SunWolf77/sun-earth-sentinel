@@ -68,7 +68,9 @@
   animation: ww-tape-scroll var(--ww-tape-dur, 42s) linear infinite;
 }
 .ww-tape:hover .ww-tape-track,
-.ww-tape:focus-within .ww-tape-track {
+.ww-tape:focus-within .ww-tape-track,
+.ww-solar-pulse:hover .ww-tape-track,
+.ww-solar-pulse:focus-within .ww-tape-track {
   animation-play-state: paused;
 }
 @keyframes ww-tape-scroll {

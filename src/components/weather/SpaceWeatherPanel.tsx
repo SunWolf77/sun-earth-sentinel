@@ -60,6 +60,7 @@ import { FieldCouplingDesk } from "@/components/ops/FieldCouplingDesk";
 import { GoesXrayDesk } from "@/components/weather/GoesXrayDesk";
 import { GoesLiveFeeds } from "@/components/weather/GoesLiveFeeds";
 import { LaunchWatch } from "@/components/weather/LaunchWatch";
+import { SolarPulse } from "@/components/ops/SolarPulse";
 import { SolarCycleStrip } from "@/components/weather/SolarCycleStrip";
 import {
   Activity,
@@ -291,6 +292,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           tabs={SOLAR_VIEWS.map((v) => ({ id: v.id, label: v.label, hint: v.hint }))}
         />
       </header>
+      <SolarPulse />
 
       {solarView === "now" && (
         <div className="ww-solar-now">
