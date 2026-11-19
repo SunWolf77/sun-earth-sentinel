@@ -341,6 +341,26 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/** A hashed script that came back as HTML or an error must not be stored or parsed. */
+function scriptOk(res, pathname) {
+  if (!res || !res.ok) return false;
+  if (/\.js$/i.test(pathname)) {
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("text/html")) return false;
+  }
+  return true;
+}
+
+function scriptMiss(pathname) {
+  if (pathname && /\.js$/i.test(pathname)) {
+    return new Response("/* missing */", {
+      status: 404,
+      headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
+    });
+  }
+  return new Response("", { status: 404, headers: { "Cache-Control": "no-store" } });
+}
+
 function isLiveApi(url) {
   const h = url.hostname;
   return (
@@ -421,22 +441,18 @@ self.addEventListener("fetch", (event) => {
         }
         try {
           const res = await fetch(req);
-          if (res.ok) await putRuntime(req, res.clone());
+          if (!scriptOk(res, url.pathname)) return scriptMiss(url.pathname);
+          await putRuntime(req, res.clone());
           return res;
         } catch {
           // One retry — mobile blips kill dynamic imports on empty 504.
           try {
             const res = await fetch(req);
-            if (res.ok) await putRuntime(req, res.clone());
+            if (!scriptOk(res, url.pathname)) return scriptMiss(url.pathname);
+            await putRuntime(req, res.clone());
             return res;
           } catch {
-            if (/\.js$/i.test(url.pathname)) {
-              return new Response("/* chunk fetch failed */", {
-                status: 504,
-                headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
-              });
-            }
-            return new Response("", { status: 504 });
+            return scriptMiss(url.pathname);
           }
         }
       }
@@ -463,21 +479,17 @@ self.addEventListener("fetch", (event) => {
 
       try {
         const res = await fetch(req);
-        if (res.ok) await putRuntime(req, res.clone());
+        if (!scriptOk(res, url.pathname)) return scriptMiss(url.pathname);
+        await putRuntime(req, res.clone());
         return res;
       } catch {
         try {
           const res = await fetch(req);
-          if (res.ok) await putRuntime(req, res.clone());
+          if (!scriptOk(res, url.pathname)) return scriptMiss(url.pathname);
+          await putRuntime(req, res.clone());
           return res;
         } catch {
-          if (/\.js$/i.test(url.pathname)) {
-            return new Response("/* chunk fetch failed */", {
-              status: 504,
-              headers: { "Content-Type": "application/javascript", "Cache-Control": "no-store" },
-            });
-          }
-          return new Response("", { status: 504 });
+          return scriptMiss(url.pathname);
         }
       }
     })(),

@@ -106,9 +106,17 @@ export const Route = createRootRoute({
     styles: [{ children: CRITICAL_CSS }],
   }),
   component: RootShell,
+  errorComponent: LoadError,
 });
 
 function RootShell() {
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem("ww-chunk-reload");
+    } catch {
+      /* private mode */
+    }
+  }, []);
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -119,7 +127,7 @@ function RootShell() {
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){function bad(e){var m=String((e&&(e.message||e.reason))||e||"");return /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(m)}function go(){try{if(sessionStorage.getItem("ww-chunk-reload"))return;sessionStorage.setItem("ww-chunk-reload","1")}catch(x){}var u=new URL(location.href);u.searchParams.set("v",String(Date.now()));location.replace(u.toString())}window.addEventListener("unhandledrejection",function(ev){if(bad(ev.reason)){ev.preventDefault();go()}});window.addEventListener("vite:preloadError",function(ev){ev.preventDefault();go()})})();`,
+            __html: `(function(){function bad(s){return /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Something went wrong/i.test(s||"")}function go(){try{if(sessionStorage.getItem("ww-chunk-reload"))return;sessionStorage.setItem("ww-chunk-reload","1")}catch(e){}var u=new URL(location.href);u.searchParams.set("v",String(Date.now()));location.replace(u.toString())}window.addEventListener("unhandledrejection",function(ev){var m=String((ev.reason&&ev.reason.message)||ev.reason||"");if(bad(m)){ev.preventDefault();go()}});window.addEventListener("vite:preloadError",function(ev){ev.preventDefault();go()});var n=0;var id=setInterval(function(){n++;var t=document.body?document.body.innerText:"";if(bad(t)){clearInterval(id);go()}if(n>16)clearInterval(id)},500)})();`,
           }}
         />
         <HeadContent />
@@ -134,6 +142,71 @@ function RootShell() {
         </AuthProvider>
       </body>
     </html>
+  );
+}
+
+function LoadError({ error }: { error: unknown }) {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  const stale = /fetch|import|module|chunk|dynamically/i.test(msg);
+  useEffect(() => {
+    if (!stale) return;
+    try {
+      if (sessionStorage.getItem("ww-chunk-reload")) return;
+      sessionStorage.setItem("ww-chunk-reload", "1");
+    } catch {
+      return;
+    }
+    const u = new URL(window.location.href);
+    u.searchParams.set("v", String(Date.now()));
+    window.location.replace(u.toString());
+  }, [stale]);
+  const reload = () => {
+    try {
+      sessionStorage.removeItem("ww-chunk-reload");
+    } catch {
+      /* private mode */
+    }
+    const u = new URL(window.location.href);
+    u.searchParams.set("v", String(Date.now()));
+    window.location.replace(u.toString());
+  };
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "grid",
+        placeItems: "center",
+        padding: "1.5rem",
+        background: "#070b12",
+        color: "#e2e8f0",
+        fontFamily: "system-ui, sans-serif",
+        textAlign: "center",
+      }}
+    >
+      <div>
+        <p style={{ fontSize: "1.05rem", margin: "0 0 0.4rem" }}>
+          {stale ? "A newer version of the page is ready." : "This page hit a problem."}
+        </p>
+        <p style={{ color: "#94a3b8", margin: "0 0 1rem", fontSize: "0.9rem" }}>
+          Reload it. You do not need to clear anything.
+        </p>
+        <button
+          type="button"
+          onClick={reload}
+          style={{
+            background: "#22d3ee",
+            color: "#070b12",
+            border: 0,
+            borderRadius: 8,
+            padding: "0.7rem 1.1rem",
+            fontWeight: 700,
+            fontSize: "1rem",
+          }}
+        >
+          Reload
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -153,7 +226,7 @@ function AssetHealthGuard({ cssHref }: { cssHref: string }) {
       el.id = "ww-css-fail-banner";
       el.className = "ww-css-fail";
       el.innerHTML =
-        "Styles failed to load (stale cache or deploy edge). <button type='button'>Reload clean</button>";
+        "The page did not finish loading. <button type='button'>Reload</button>";
       el.querySelector("button")?.addEventListener("click", () => {
         try {
           const u = new URL(window.location.href);
