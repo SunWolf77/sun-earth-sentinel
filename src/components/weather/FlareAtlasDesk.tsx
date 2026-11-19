@@ -123,31 +123,29 @@ export function FlareAtlasDesk({
             </svg>
           )}
           {selected && (
-            <div className="mt-1 space-y-1.5">
+            <div className="mt-1.5 border-t border-border/70 pt-2">
               <p className="text-[0.85rem] font-semibold text-fg">
                 <span style={{ color: tone(selected.letter) }}>{selected.klass}</span>
-                <span className="ml-2 font-normal text-muted">{selected.steps[0]?.text.split(".")[0]}</span>
               </p>
-              <ol className="space-y-1">
+              <dl className="mt-1.5 space-y-1">
                 {selected.steps.map((s) => (
-                  <li key={s.title} className="text-[0.68rem] leading-snug text-muted">
-                    <span className="font-semibold text-fg">{s.title}. </span>
-                    {s.text}
-                  </li>
+                  <div key={s.title} className="grid grid-cols-[4.4rem_minmax(0,1fr)] gap-x-2 text-[0.72rem] leading-snug">
+                    <dt className="text-dim">{s.title}</dt>
+                    <dd className="min-w-0 break-words text-muted">{s.text}</dd>
+                  </div>
                 ))}
-                <li className="text-[0.68rem] leading-snug text-muted">
-                  <span className="font-semibold text-fg">Source. </span>
-                  {source?.activeRegionNum
-                    ? `DONKI links this peak to AR${source.activeRegionNum}${loc ? ` at ${loc.label}` : ""}${phase ? `, ${phase.clause}` : ""}.`
-                    : "GOES times the flare. DONKI has not named a sunspot for this peak."}
-                  {region ? ` That region is on the sunspot desk as ${region.haleLabel}, ${region.phaseLabel}.` : ""}
-                  {source?.linkedEvents?.length
-                    ? ` ${source.linkedEvents.length} linked DONKI event${source.linkedEvents.length === 1 ? "" : "s"}.`
-                    : ""}
-                </li>
-              </ol>
+                <div className="grid grid-cols-[4.4rem_minmax(0,1fr)] gap-x-2 text-[0.72rem] leading-snug">
+                  <dt className="text-dim">Source</dt>
+                  <dd className="min-w-0 break-words text-muted">
+                    {source?.activeRegionNum
+                      ? `AR${source.activeRegionNum}${loc ? ` · ${loc.label}` : ""}${phase ? ` · ${phase.label}` : ""}`
+                      : "Region not named yet"}
+                    {region ? ` · ${region.haleLabel}` : ""}
+                  </dd>
+                </div>
+              </dl>
               {loc && (
-                <svg viewBox="0 0 120 70" className="h-16 w-28" aria-label="Flare location on the Earth-facing disk">
+                <svg viewBox="0 0 120 70" className="mt-2 h-14 w-24" aria-label="Flare location on the Earth-facing disk">
                   <circle cx="60" cy="34" r="28" fill="rgba(251,191,36,0.2)" stroke="rgba(253,230,138,0.7)" />
                   <line x1="60" y1="6" x2="60" y2="62" stroke="rgba(34,211,238,0.7)" strokeDasharray="2 2" />
                   <circle
@@ -159,7 +157,7 @@ export function FlareAtlasDesk({
                 </svg>
               )}
               {onOpenXray && (
-                <button type="button" onClick={onOpenXray} className="text-[0.65rem] font-semibold text-primary">
+                <button type="button" onClick={onOpenXray} className="mt-1 min-h-11 text-[0.72rem] font-semibold text-primary">
                   Open the X-ray chart
                 </button>
               )}

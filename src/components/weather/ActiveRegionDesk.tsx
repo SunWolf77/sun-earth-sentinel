@@ -413,7 +413,7 @@ function RegionDossier({ region }: { region: ActiveRegion | null }) {
         AR{region.region}
         <span className="ml-2 font-mono text-[0.8rem] font-normal text-fg">{region.location}</span>
       </p>
-      <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[0.72rem]">
+      <dl className="ww-ar-stats mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[0.72rem]">
         <Stat k="Spots" v={region.spotClass ? `${region.spotClass}${region.spots != null ? ` · ${region.spots}` : ""}` : "—"} />
         <Stat k="Area" v={region.area != null ? `${region.area} millionths` : "—"} />
         <Stat k="Logged" v={`C${region.cLife} M${region.mLife} X${region.xLife}`} />
@@ -437,7 +437,7 @@ function Stat({ k, v }: { k: string; v: string }) {
   return (
     <div>
       <dt className="text-[0.58rem] uppercase tracking-wide text-dim">{k}</dt>
-      <dd className="text-fg">{v}</dd>
+      <dd className="min-w-0 break-words text-fg">{v}</dd>
     </div>
   );
 }

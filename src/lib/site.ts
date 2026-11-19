@@ -105,8 +105,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.37: Day and week use the same rows: Quakes, Largest, Nodes, Solar, Volcano, Timing.
  * 1.39.38: Day is the past 24 hours and week is the past 7 days, so 0000 does not wipe a busy day.
  * 1.39.39: Flare detail states the chart period and drops the claim that a chance model was trained.
+ * 1.39.40: Day and week share controls stack on a phone. Flare detail uses the same rows.
  */
-export const APP_VERSION = "1.39.39";
+export const APP_VERSION = "1.39.40";
 
 
 
