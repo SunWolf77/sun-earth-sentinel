@@ -134,7 +134,7 @@ export function nodePopupHtml(
     ${look}
     ${boardLink}${gvp}${agency}
     <button type="button" class="ww-focus-btn" data-node="${node.id}" style="margin-top:8px;cursor:pointer;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600">
-      ${opts.isFocus ? "Exit focus · home view" : "Focus this zone"}
+      ${opts.isFocus ? (boardHref ? "Open the node board" : "Focused") : "Focus this zone"}
     </button>
   `;
 }

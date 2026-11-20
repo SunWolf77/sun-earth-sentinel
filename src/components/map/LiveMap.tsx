@@ -40,7 +40,7 @@ import { MmiFocusBanner } from "@/components/map/MmiFocusBanner";
 import { gvpProfileUrl } from "@/lib/feeds/gvpGlobal";
 import { nodeIdForAlert } from "@/lib/feeds/watchlistOverride";
 import { alertSourceLabel } from "@/lib/feeds/globalVolcanoAlerts";
-import { monitorHandoffUrl } from "@/lib/feeds/publishedMonitors";
+import { monitorHandoffUrl, openMonitorBoard } from "@/lib/feeds/publishedMonitors";
 import { useLookZones } from "@/components/ops/WatchZoneStrip";
 import { formatUtc } from "@/lib/utils";
 import { fitWorldView, WORLD_MAP_INIT } from "@/lib/map/worldView";
@@ -1080,7 +1080,7 @@ export function LiveMap() {
               (ev) => {
                 ev.preventDefault();
                 ev.stopPropagation();
-                if (isFocus) exitToHomeView();
+                if (isFocus) openMonitorBoard(node.id);
                 else setFocusNode(node.id);
                 mapObj.current?.closePopup();
               },
@@ -1113,13 +1113,15 @@ export function LiveMap() {
         rect.bindTooltip(
           isLook
             ? `${node.name} · Look · ${lookZ?.why ?? "pattern"} — not a forecast`
-            : `${node.name} · ${nodeMarkChip(node)} — click to focus`,
+            : isFocus
+              ? `${node.name} · open the node board`
+              : `${node.name} · click to focus`,
           { sticky: true, direction: "top", opacity: 0.95, className: "ww-node-tip" },
         );
         rect.on("click", (e) => {
           L.DomEvent.stopPropagation(e);
-          if (isFocus) exitToHomeView();
-          else setFocusNode(node.id);
+          if (!isFocus) setFocusNode(node.id);
+          else openMonitorBoard(node.id);
         });
         nodeLayer.current.addLayer(rect);
       }

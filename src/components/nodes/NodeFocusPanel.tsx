@@ -10,6 +10,7 @@ import { AVIATION_COLOR, AVIATION_LABEL } from "@/lib/feeds/volcanoWatches";
 import {
   getPublishedMonitor,
   monitorHandoffUrl,
+  openMonitorBoard,
 } from "@/lib/feeds/publishedMonitors";
 import { downloadNodesCsv } from "@/lib/nodes/exportNodesCsv";
 import { DeskGlyph } from "@/components/nodes/DeskGlyph";
@@ -248,7 +249,7 @@ export function NodeFocusPanel({ allFeatures }: { allFeatures: EqFeature[] }) {
             <li key={node.id}>
               <button
                 type="button"
-                onClick={() => (active ? exitToHomeView() : setFocusNode(node.id))}
+                onClick={() => (active ? openMonitorBoard(node.id) : setFocusNode(node.id))}
                 className={`flex w-full items-start gap-2 rounded-md border px-2 py-1.5 text-left transition ${
                   active
                     ? isVolc

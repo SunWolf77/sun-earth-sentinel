@@ -130,8 +130,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.62: NOAA active-region numbers sit on the SUVI 131 disk, on that image's own limb scale.
  * 1.39.63: The AIA 171 film and the sunspot list sit side by side at the top of the solar desk.
  * 1.39.64: Kamchatka–Kurils stops at 169°E, so Attu is not that node. Japan stops at Cape Nosappu, so the Kurils are not Japan.
+ * 1.39.65: A focused node corridor stays focused. A second click opens that node's board instead of returning to the world view.
  */
-export const APP_VERSION = "1.39.64";
+export const APP_VERSION = "1.39.65";
 
 
 

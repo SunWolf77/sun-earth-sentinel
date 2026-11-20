@@ -10,6 +10,7 @@ import { useObservatory } from "@/store/observatory";
 import {
   WOLFWATCH_NETWORK,
   monitorHandoffUrl,
+  openMonitorBoard,
   monitorNavLabel,
   orderedPublishedMonitors,
   resolveNodeId,
@@ -67,9 +68,7 @@ export function PublishedNodesNav({ className = "" }: { className?: string }) {
   const goNode = (sesNodeId: string) => {
     setTab("live");
     if (focused === sesNodeId) {
-      exitToHomeView();
-      setMobileSheet("closed");
-      setSheetOpen(false);
+      openMonitorBoard(sesNodeId);
       return;
     }
     setFocusNode(sesNodeId);

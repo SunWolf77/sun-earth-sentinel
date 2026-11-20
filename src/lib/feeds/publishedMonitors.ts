@@ -307,6 +307,14 @@ export function monitorHandoffUrl(sesNodeId: string | null | undefined): string 
   }
 }
 
+/** Open the node's own board. SES focus stays put. Returns false when this node has no board. */
+export function openMonitorBoard(sesNodeId: string | null | undefined): boolean {
+  const board = monitorHandoffUrl(sesNodeId);
+  if (!board || typeof window === "undefined") return false;
+  window.open(board, "_blank", "noopener,noreferrer");
+  return true;
+}
+
 /** Absolute Sentinel deep link that restores node focus. */
 export function sentinelFocusUrl(
   sesNodeId: string,
