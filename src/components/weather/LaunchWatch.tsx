@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 import { useObservatory } from "@/store/observatory";
 import { fetchCcorFrames, type CcorFrame } from "@/lib/feeds/ccor";
@@ -156,8 +156,8 @@ function Film({
   );
 }
 
-/** SUVI 131 and CCOR-1 on the solar desk. A launch is seen by stepping these, not from a still. */
-export function LaunchWatch() {
+/** SUVI 131, AIA 171, and CCOR-1. The AIA film sits beside the sunspot list when one is passed. */
+export function LaunchWatch({ side }: { side?: ReactNode }) {
   const xra = useObservatory((s) => s.xraFlares);
   const regions = useObservatory((s) => s.activeRegions);
   const xray = useObservatory((s) => s.xray);
@@ -208,7 +208,7 @@ export function LaunchWatch() {
   const suviMarks = marksFor(SUVI);
 
   return (
-    <section className="space-y-2 rounded-xl border border-border bg-panel p-2">
+    <div className="space-y-2">
       <p className="text-[0.72rem] leading-snug text-muted">
         {live ? (
           <span className={live.phase === "peak" || live.phase === "rising" ? "text-warn" : "text-fg"}>
@@ -224,19 +224,20 @@ export function LaunchWatch() {
             Step SUVI 131, then CCOR.
           </>
         ) : (
-          <>SUVI 131, AIA 171, and CCOR-1. Run a film to step the frames. Loops move in 171. A launch is the brightening, then a front leaving the disk.</>
+          <>Loops move in 171. A launch is the brightening, then a front leaving the disk.</>
         )}
         {period != null && (
           <span className="text-dim"> Chart period {period} min in the last 90 minutes. That is a repeat in this chart, not a forecast.</span>
         )}
       </p>
-      <div className="mx-auto w-full max-w-xl">
+      <div className="ww-solar-top">
         <Film title="AIA 171" note="coronal loops · NOAA ARs" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} marksAt={aiaMarks} />
+        {side}
       </div>
       <div className="grid items-start gap-2 sm:grid-cols-2">
         <Film title="SUVI 131" note="hot plasma · NOAA ARs" frames={suvi} fallback={suviLatest("131")} play={flareOn} marksAt={suviMarks} />
         <Film title="CCOR-1" note="coronagraph" frames={ccor} fallback={ccorLatest()} play={frontOn} />
       </div>
-    </section>
+    </div>
   );
 }

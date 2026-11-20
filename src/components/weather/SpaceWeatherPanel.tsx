@@ -303,7 +303,14 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           </p>
 
           <div className="ww-solar-now__watch">
-            <LaunchWatch />
+            <LaunchWatch
+              side={
+                <ActiveRegionDesk
+                  regions={activeRegions}
+                  observed={activeRegions[0]?.observed ?? null}
+                />
+              }
+            />
           </div>
 
           <div className="ww-solar-now__chain">
@@ -339,12 +346,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
                   <span className="ml-2 font-normal text-dim">chart · pictures · outlook</span>
                 </button>
               )}
-            </div>
-            <div className="ww-solar-now__spots">
-            <ActiveRegionDesk
-              regions={activeRegions}
-              observed={activeRegions[0]?.observed ?? null}
-            />
             </div>
             <div className="ww-solar-now__extra">
               <FieldLines />

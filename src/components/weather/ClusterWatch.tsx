@@ -13,7 +13,7 @@ export function ClusterWatchCard() {
   );
 
   return (
-    <section className="rounded-lg border border-border bg-panel/80 px-3 py-2">
+    <section className="ww-solar-now__cluster rounded-lg border border-border bg-panel/80 px-3 py-2">
       <h2 className={`text-sm font-semibold ${watch.level === "cluster" ? "text-warn" : "text-fg"}`}>
         Activity cluster
       </h2>
