@@ -133,7 +133,8 @@ export function FlareOutlookDesk() {
           </div>
           <div className="min-w-0">
             <p className="text-[0.9rem] font-medium leading-snug text-fg">
-              {outlook.sentence.split(/(?<=\.)\s+/).slice(0, 2).join(" ")}
+              {outlook.sentence.split(/(?<=\.)\s+/)[0]}
+              {outlook.regionLine ? ` ${outlook.regionLine}` : ""}
             </p>
             <details className="mt-1">
               <summary className="cursor-pointer text-[0.65rem] text-dim">How this number is made</summary>

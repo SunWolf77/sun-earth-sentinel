@@ -1,5 +1,5 @@
 /**
- * Flare window from the GOES long-channel record plus the Earth-facing region.
+ * Flare window from the GOES long-channel record plus the most flare-prone region on the disk.
  *
  * The chance is a small logistic fit on the last 7 days: flux excess, rise,
  * a harmonic (a repeating minute-scale pulse), and Hale class.
@@ -292,16 +292,51 @@ function findPeaks(series: Sample[], floor: number): Sample[] {
   return kept;
 }
 
+/** Higher means more flare-prone. Hale class leads. Growth and flares already logged on the number come next. Facing Earth is not a flare factor. */
+function flareScore(r: ActiveRegion): number {
+  const hale = haleRank(r.hale);
+  const history = Math.min(3, r.xLife * 1.2 + r.mLife * 0.35 + Math.min(r.cLife, 8) * 0.05);
+  const grow = (r.growing ? 1.2 : 0) + (r.reachedDelta ? 1.4 : 0);
+  const area = r.area != null && r.area > 0 ? Math.min(1.5, Math.log10(r.area + 1) / 2) : 0;
+  if (hale <= 0 && history <= 0 && grow <= 0) return -1;
+  return hale * 2 + history + grow + area;
+}
+
 function regionBits(regions: ActiveRegion[]): { rank: number; earth: number; line: string | null } {
-  const lead = regions.find((r) => haleRank(r.hale) > 0 && r.phase !== "off");
+  const on = regions.filter((r) => r.phase !== "off");
+  const ranked = on
+    .map((r) => ({ r, score: flareScore(r) }))
+    .filter((x) => x.score >= 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        haleRank(b.r.hale) - haleRank(a.r.hale) ||
+        b.r.xLife + b.r.mLife - (a.r.xLife + a.r.mLife),
+    );
+  const lead = ranked[0]?.r;
   if (!lead) return { rank: 0, earth: 0, line: null };
   const earth =
-    lead.phase === "direct" ? 1 : lead.phase === "entering" || lead.phase === "leaving" ? 0.7 : lead.phase === "east" ? 0.35 : 0.1;
-  return {
-    rank: haleRank(lead.hale) / 5,
-    earth,
-    line: lead.sentence,
-  };
+    lead.phase === "direct"
+      ? 1
+      : lead.phase === "entering" || lead.phase === "leaving"
+        ? 0.7
+        : lead.phase === "east"
+          ? 0.35
+          : 0.1;
+  const why = [lead.haleLabel];
+  if (lead.reachedDelta) why.push("just reached delta");
+  else if (lead.growing) why.push("magnetic class is growing");
+  if (lead.xLife > 0) why.push(`${lead.xLife} X logged on this number`);
+  else if (lead.mLife > 0) why.push(`${lead.mLife} M logged on this number`);
+  const growing = on.filter((r) => r.region !== lead.region && (r.growing || r.reachedDelta));
+  const growBit = growing
+    .slice(0, 3)
+    .map((r) => `AR${r.region} ${r.haleLabel}${r.reachedDelta ? ", reached delta" : ", class growing"}`)
+    .join("; ");
+  const line = `AR${lead.region} is the most flare-prone on the disk: ${why.join(", ")} (${lead.location}).${
+    growBit ? ` Growing in complexity: ${growBit}.` : ""
+  }`;
+  return { rank: haleRank(lead.hale) / 5, earth, line };
 }
 
 function clampP(p: number): number {

@@ -131,8 +131,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.63: The AIA 171 film and the sunspot list sit side by side at the top of the solar desk.
  * 1.39.64: Kamchatka–Kurils stops at 169°E, so Attu is not that node. Japan stops at Cape Nosappu, so the Kurils are not Japan.
  * 1.39.65: A focused node corridor stays focused. A second click opens that node's board instead of returning to the world view.
+ * 1.39.66: The flare chance names the most flare-prone region on the disk, and any others whose magnetic class is growing.
  */
-export const APP_VERSION = "1.39.65";
+export const APP_VERSION = "1.39.66";
 
 
 
