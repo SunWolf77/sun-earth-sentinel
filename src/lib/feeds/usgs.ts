@@ -580,14 +580,14 @@ export const DRAGON_NODES: DragonNode[] = [
     kind: "seismic",
     bounds: [
       [24, 122],
-      [46.5, 154],
+      [46.5, 146.2],
     ],
     center: [36.5, 138.0],
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/",
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #3 — Japan archipelago (JMA Bosai authority). Tsunami watch first-class on the Japan board. Open full board for Kamchatka (#4) companion, volcano watch, SUPT continuum.",
+      "SES node #3 — Japan archipelago (JMA Bosai authority). East edge is Cape Nosappu, so the Kurils stay with Kamchatka. Tsunami watch first-class on the Japan board.",
     aliases: ["jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
   },
   {
@@ -595,16 +595,21 @@ export const DRAGON_NODES: DragonNode[] = [
     name: "Kamchatka–Kurils",
     role: "Published focus · SES #4 · Japan companion · USGS",
     kind: "seismic",
+    /**
+     * Peninsula, Kurils, and Commander Islands. East edge is 169 so the
+     * Near Islands (Attu) are not counted as this node. The companion board
+     * still draws its catalog box out to 175.
+     */
     bounds: [
-      [42, 145],
-      [62, 175],
+      [42, 146.2],
+      [62, 169],
     ],
     center: [53.0, 158.5],
     monitorUrl: "https://japan-kamchatka-monitor.vercel.app/?node=kamchatka",
     publishedFocus: true,
     watchPriority: true,
     focusNote:
-      "SES node #4 — Kamchatka / Kurils (USGS authority, KVERT volcano links). High tsunami source potential. Hosted on Japan–Kamchatka board.",
+      "SES node #4 — Kamchatka Peninsula, Kurils, and Commander Islands (USGS, KVERT for volcano links). The box stops at 169°E, so Attu and the Near Islands are not this node. High tsunami source potential.",
     aliases: ["km", "kuril", "kurils", "kvert", "okhotsk"],
   },
   {

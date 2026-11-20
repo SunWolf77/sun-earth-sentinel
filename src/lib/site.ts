@@ -129,8 +129,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.61: Solar now shows an activity cluster: M/X in 7 days, new region numbers, and whether the daily X-ray peak is rising. It does not claim a Rossby wave.
  * 1.39.62: NOAA active-region numbers sit on the SUVI 131 disk, on that image's own limb scale.
  * 1.39.63: The AIA 171 film and the sunspot list sit side by side at the top of the solar desk.
+ * 1.39.64: Kamchatka–Kurils stops at 169°E, so Attu is not that node. Japan stops at Cape Nosappu, so the Kurils are not Japan.
  */
-export const APP_VERSION = "1.39.63";
+export const APP_VERSION = "1.39.64";
 
 
 

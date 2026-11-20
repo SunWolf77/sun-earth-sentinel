@@ -27,7 +27,7 @@ const NZ_BOUNDS: LatLonBounds = [
 
 const JP_BOUNDS: LatLonBounds = [
   [24, 122],
-  [46.5, 154],
+  [46.5, 146.2],
 ];
 
 const CL_BOUNDS: LatLonBounds = [
@@ -36,8 +36,8 @@ const CL_BOUNDS: LatLonBounds = [
 ];
 
 const KM_BOUNDS: LatLonBounds = [
-  [42, 145],
-  [62, 175],
+  [42, 146.2],
+  [62, 169],
 ];
 
 const NZ_ZONES: VolcZoneDef[] = [

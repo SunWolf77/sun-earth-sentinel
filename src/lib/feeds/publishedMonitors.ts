@@ -104,7 +104,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     authority: "JMA Bosai (→ USGS fill)",
     aliases: ["japan", "jp", "jma", "tokara", "nansei", "japan-arc", "japan-kamchatka"],
     focusNote:
-      "SES node #3 — Japan archipelago + Nansei / Tokara. JMA Bosai is exclusive domestic authority (Mj + shindo); tsunami watch first-class. Open board for Kamchatka companion.",
+      "SES node #3 — Japan archipelago + Nansei / Tokara. East edge is Cape Nosappu, so the Kurils are not this node. JMA Bosai is the domestic authority.",
   },
   {
     sesNodeId: "kamchatka",
@@ -121,7 +121,7 @@ export const PUBLISHED_MONITORS: PublishedMonitor[] = [
     authority: "USGS FDSN / realtime",
     aliases: ["kamchatka", "km", "kuril", "kurils", "klyuchevskoy"],
     focusNote:
-      "SES node #4 — Kamchatka Peninsula / Kurils (companion board to Japan #3). USGS exclusive; KVERT for volcano status links. High tsunami source potential.",
+      "SES node #4 — Kamchatka Peninsula, Kurils, and Commander Islands. The box stops at 169°E, west of Attu. USGS catalog; KVERT for volcano links.",
   },
   {
     sesNodeId: "iceland",
