@@ -320,9 +320,8 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
       {solarView === "now" && (
         <div className="ww-solar-now">
-          <p className="ww-solar-now__intro text-[0.95rem] leading-snug text-fg">
-            <span className="font-semibold">{impact.title}.</span>{" "}
-            <span className="text-muted">{impact.summary}</span>
+          <p className="ww-solar-now__intro text-[0.75rem] leading-snug text-muted">
+            {impact.title}. {impact.summary}
           </p>
 
           <div className="ww-solar-now__watch">
@@ -357,6 +356,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <ClusterWatchCard />
 
+          <div className="ww-solar-now__folders">
           <div className="ww-solar-now__sheet">
             <SolarFolder title="Day brief" storageKey="ww_solar_brief">
               <DaySheetCard />
@@ -434,6 +434,7 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
               <SolarCycleStrip />
               <EclipseWatch />
             </SolarFolder>
+          </div>
           </div>
         </div>
       )}
@@ -600,9 +601,6 @@ function NowBoard({
         {flareLine && (
           <p className="border-t border-border/70 px-3 py-1.5 text-[0.72rem] leading-snug text-warn">{flareLine}</p>
         )}
-        <p className="border-t border-border/70 px-3 py-1.5 text-[0.65rem] leading-snug text-dim">
-          X-ray is the flare, seen in about 8 minutes. Wind and Bz are the same stream, already at Earth. A southward Bz is what lifts Kp.
-        </p>
       </div>
 
       {scales && (

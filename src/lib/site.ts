@@ -133,8 +133,9 @@ export const PRODUCTION_ORIGIN = "https://wolfwatch.site";
  * 1.39.65: A focused node corridor stays focused. A second click opens that node's board instead of returning to the world view.
  * 1.39.66: The flare chance names the most flare-prone region on the disk, and any others whose magnetic class is growing.
  * 1.39.67: The GOES X-ray chart sits with the disk and the region list. The activity cluster names every new region. The broken field-line plot is gone, and the lower solar desks are folders.
+ * 1.39.68: The solar desk opens on the numbers, the disk, the regions, and the flux chart. SUVI and CCOR, and the lower desks, open as folders.
  */
-export const APP_VERSION = "1.39.67";
+export const APP_VERSION = "1.39.68";
 
 
 

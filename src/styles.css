@@ -3164,12 +3164,10 @@
   gap: 0.75rem;
   grid-template-areas:
     "intro"
-    "watch"
     "chain"
+    "watch"
     "cluster"
-    "sheet"
-    "flare"
-    "extra";
+    "folders";
 }
 .ww-solar-now__intro { grid-area: intro; }
 .ww-solar-now__watch { grid-area: watch; min-width: 0; }
@@ -3178,10 +3176,11 @@
   container: chain / inline-size;
 }
 .ww-solar-now__cluster { grid-area: cluster; min-width: 0; }
-.ww-solar-now__sheet { grid-area: sheet; min-width: 0; }
-.ww-solar-now__flare { grid-area: flare; min-width: 0; }
-.ww-solar-now__extra {
-  grid-area: extra;
+.ww-solar-now__sheet { min-width: 0; }
+.ww-solar-now__flare { min-width: 0; }
+.ww-solar-now__extra { min-width: 0; }
+.ww-solar-now__folders {
+  grid-area: folders;
   display: grid;
   gap: 0.75rem;
   min-width: 0;
@@ -3214,18 +3213,16 @@
   }
   .ww-solar-now {
     grid-template-areas:
-      "intro intro"
-      "watch watch"
-      "chain chain"
-      "cluster cluster"
-      "sheet sheet"
-      "flare flare"
-      "extra extra";
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      "intro intro intro"
+      "chain chain chain"
+      "watch watch watch"
+      "cluster cluster cluster"
+      "folders folders folders";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
   }
-  .ww-solar-now__extra {
-    grid-template-columns: minmax(0, 1fr);
+  .ww-solar-now__folders {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: start;
   }
 }

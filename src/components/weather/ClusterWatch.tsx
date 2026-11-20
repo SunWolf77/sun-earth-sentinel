@@ -18,7 +18,10 @@ export function ClusterWatchCard() {
         Activity cluster
       </h2>
       <p className="mt-1 text-[0.75rem] leading-snug text-fg">{watch.line}</p>
-      <p className="mt-1 text-[0.62rem] leading-snug text-dim">{watch.note}</p>
+      <details className="mt-1">
+        <summary className="cursor-pointer text-[0.62rem] text-dim">What this count is</summary>
+        <p className="mt-1 text-[0.62rem] leading-snug text-dim">{watch.note}</p>
+      </details>
     </section>
   );
 }

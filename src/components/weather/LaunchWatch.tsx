@@ -6,10 +6,10 @@ import { diskLaunches, fetchSuvi131, type StillFrame } from "@/lib/feeds/launchW
 import { fetchAia171, type AiaFrame } from "@/lib/feeds/aia171";
 import { ccorLatest, sdoStill, suviLatest } from "@/lib/feeds/solarMedia";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
-import { liveChartPeriod } from "@/lib/solar/flareOutlook";
 import type { ActiveRegion } from "@/lib/feeds/solarRegions";
 import { haleRank } from "@/lib/feeds/solarRegions";
 import { diskXY, longitudeAt } from "@/lib/solar/diskPoint";
+import { SectionToggle, useSectionOpen } from "@/components/ops/CollapsibleTabs";
 
 const AIA = { cx: 99.6, cy: 99.2, r: 80.9 };
 /** SUVI 131 is a 1280 square. The limb is near 390 px, which is r 61 in this 200-unit frame. */
@@ -166,10 +166,10 @@ export function LaunchWatch({ side }: { side?: ReactNode }) {
   const [aia, setAia] = useState<AiaFrame[]>([]);
   const launches = diskLaunches(xra, regions);
   const live = readLiveFlare(xray, regions);
-  const period = liveChartPeriod(xray).period;
   const hot = launches.some((l) => l.facing && Date.now() - Date.parse(l.at) < 90 * 60_000);
   const flareOn = live?.phase === "rising" || live?.phase === "peak" || hot;
   const frontOn = live?.phase === "peak" || live?.phase === "subsided" || hot;
+  const [filmsOpen, toggleFilms] = useSectionOpen("ww_solar_films", false);
 
   useEffect(() => {
     let cancel = false;
@@ -209,35 +209,39 @@ export function LaunchWatch({ side }: { side?: ReactNode }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-[0.72rem] leading-snug text-muted">
-        {live ? (
-          <span className={live.phase === "peak" || live.phase === "rising" ? "text-warn" : "text-fg"}>
-            {live.line}
-          </span>
-        ) : lead ? (
-          <>
-            <span className={lead.facing ? "font-semibold text-warn" : "font-semibold text-fg"}>
-              {lead.klass}
-              {lead.region ? ` · AR${lead.region}` : ""} · {lead.where}
+      {(live || lead) && (
+        <p className="text-[0.72rem] leading-snug text-muted">
+          {live ? (
+            <span className={live.phase === "peak" || live.phase === "rising" ? "text-warn" : "text-fg"}>
+              {live.line}
             </span>
-            <span className="text-dim"> · {lead.at.slice(5, 16).replace("T", " ")} UTC. </span>
-            Step SUVI 131, then CCOR.
-          </>
-        ) : (
-          <>Loops move in 171. A launch is the brightening, then a front leaving the disk.</>
-        )}
-        {period != null && (
-          <span className="text-dim"> Chart period {period} min in the last 90 minutes. That is a repeat in this chart, not a forecast.</span>
-        )}
-      </p>
+          ) : lead ? (
+            <>
+              <span className={lead.facing ? "font-semibold text-warn" : "font-semibold text-fg"}>
+                {lead.klass}
+                {lead.region ? ` · AR${lead.region}` : ""} · {lead.where}
+              </span>
+              <span className="text-dim"> · {lead.at.slice(5, 16).replace("T", " ")} UTC</span>
+            </>
+          ) : null}
+        </p>
+      )}
       <div className="ww-solar-top">
         <Film title="AIA 171" note="coronal loops · NOAA ARs" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} marksAt={aiaMarks} />
         {side}
       </div>
-      <div className="grid items-start gap-2 sm:grid-cols-2">
-        <Film title="SUVI 131" note="hot plasma · NOAA ARs" frames={suvi} fallback={suviLatest("131")} play={flareOn} marksAt={suviMarks} />
-        <Film title="CCOR-1" note="coronagraph" frames={ccor} fallback={ccorLatest()} play={frontOn} />
-      </div>
+      <section className="rounded-lg border border-border bg-panel/70">
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+          <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-muted">SUVI 131 · CCOR-1</h2>
+          <SectionToggle open={filmsOpen} onClick={toggleFilms} controls="ww_solar_films" dense />
+        </div>
+        {filmsOpen && (
+          <div id="ww_solar_films" className="grid items-start gap-2 border-t border-border p-2 sm:grid-cols-2">
+            <Film title="SUVI 131" note="hot plasma · NOAA ARs" frames={suvi} fallback={suviLatest("131")} play={flareOn} marksAt={suviMarks} />
+            <Film title="CCOR-1" note="coronagraph" frames={ccor} fallback={ccorLatest()} play={frontOn} />
+          </div>
+        )}
+      </section>
     </div>
   );
 }
