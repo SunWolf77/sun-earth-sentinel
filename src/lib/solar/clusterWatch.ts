@@ -102,9 +102,7 @@ export function clusterWatch(input: {
   const named = fresh
     .slice()
     .sort((a, b) => a.region - b.region)
-    .slice(0, 4)
     .map((r) => `AR${r.region}`);
-  const extra = fresh.length > named.length ? ` +${fresh.length - named.length}` : "";
 
   const hot = (input.regions ?? []).filter(
     (r) => fresh.some((f) => f.region === r.region) || flares.some((f) => f.region === r.region),
@@ -119,7 +117,7 @@ export function clusterWatch(input: {
     `${m} M · ${x} X in 7 days`,
     top ? `highest ${top.klass}` : null,
     fresh.length
-      ? `${fresh.length} new region number${fresh.length === 1 ? "" : "s"} in 10 days (${named.join(", ")}${extra})`
+      ? `${fresh.length} new region number${fresh.length === 1 ? "" : "s"} in 10 days (${named.join(", ")})`
       : "no new region numbers in 10 days",
     flux === "short" ? "daily peak file is short" : `daily X-ray peak is ${flux}`,
     stacked ? "several sit in one longitude band" : null,

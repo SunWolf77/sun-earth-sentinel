@@ -39,10 +39,9 @@ import {
   type FocusTarget,
 } from "@/lib/ops/focusNav";
 import { AttentionSparkline } from "@/components/ops/AttentionSparkline";
-import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
+import { CollapsibleTabs, SectionToggle, useSectionOpen } from "@/components/ops/CollapsibleTabs";
 import { ActiveRegionDesk } from "@/components/weather/ActiveRegionDesk";
 import { FarSideWatchDesk } from "@/components/weather/FarSideWatch";
-import { FieldLines } from "@/components/weather/FieldLines";
 import { RegionContinuityDesk } from "@/components/weather/RegionContinuity";
 import { readLiveFlare } from "@/lib/solar/liveFlare";
 import { FlareOutlookDesk } from "@/components/weather/FlareOutlookDesk";
@@ -92,6 +91,31 @@ const SOLAR_VIEWS: { id: SolarView; label: string; hint: string }[] = [
   { id: "context", label: "Context", hint: "How the pieces connect" },
 ];
 
+function SolarFolder({
+  title,
+  storageKey,
+  children,
+}: {
+  title: string;
+  storageKey: string;
+  children: ReactNode;
+}) {
+  const [open, toggle] = useSectionOpen(storageKey, false);
+  return (
+    <section className="rounded-lg border border-border bg-panel/70">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+        <h2 className="text-[0.72rem] font-semibold uppercase tracking-wider text-muted">{title}</h2>
+        <SectionToggle open={open} onClick={toggle} controls={storageKey} dense />
+      </div>
+      {open && (
+        <div id={storageKey} className="space-y-2 border-t border-border px-2 py-2">
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const kp = useObservatory((s) => s.kp);
   const xray = useObservatory((s) => s.xray);
@@ -114,7 +138,6 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
   const kpForecast = useObservatory((s) => s.kpForecast);
   const [channel, setChannel] = useState<SdoChannelId>("0193");
   const [mediaTab, setMediaTab] = useState<MediaTab>("disk");
-  const [closer, setCloser] = useState(false);
   const [solarView, setSolarView] = useState<SolarView>(() => {
     if (typeof window === "undefined") return "now";
     try {
@@ -305,10 +328,13 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
           <div className="ww-solar-now__watch">
             <LaunchWatch
               side={
-                <ActiveRegionDesk
-                  regions={activeRegions}
-                  observed={activeRegions[0]?.observed ?? null}
-                />
+                <div className="flex min-w-0 flex-col gap-2">
+                  <ActiveRegionDesk
+                    regions={activeRegions}
+                    observed={activeRegions[0]?.observed ?? null}
+                  />
+                  <GoesXrayDesk slim onOpenFull={() => selectSolarView("xray")} />
+                </div>
               }
             />
           </div>
@@ -331,110 +357,84 @@ export function SpaceWeatherPanel({ compact = false }: { compact?: boolean }) {
 
           <ClusterWatchCard />
 
-          <DaySheetCard />
+          <div className="ww-solar-now__sheet">
+            <SolarFolder title="Day brief" storageKey="ww_solar_brief">
+              <DaySheetCard />
+            </SolarFolder>
+          </div>
 
           <div className="ww-solar-now__flare space-y-2">
+            <SolarFolder title="Flare outlook" storageKey="ww_solar_outlook">
               <FlareOutlookDesk />
               <FlareAtlasDesk compact onOpenXray={() => selectSolarView("xray")} />
-              {!closer && (
-                <button
-                  type="button"
-                  onClick={() => setCloser(true)}
-                  className="w-full rounded-lg border border-border bg-panel/70 px-2.5 py-1 text-left text-[0.68rem] font-semibold text-primary"
-                >
-                  Closer look
-                  <span className="ml-2 font-normal text-dim">chart · pictures · outlook</span>
-                </button>
-              )}
-            </div>
-            <div className="ww-solar-now__extra">
-              <FieldLines />
+            </SolarFolder>
+          </div>
+
+          <div className="ww-solar-now__extra">
+            <SolarFolder title="Further" storageKey="ww_solar_further">
               <FarSideWatchDesk />
               <RegionContinuityDesk />
-            </div>
-            {closer && (
-              <div className="ww-solar-now__closer space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setCloser(false)}
-                  className="text-[0.68rem] font-semibold text-primary"
-                >
-                  Close closer look
-                </button>
-                <div className="ww-solar-sub rounded-xl border border-border bg-panel/80 p-3">
-              <div className="min-w-0 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <AttentionSparkline showLabel height={22} className="min-w-0" />
-                  {kpUpcoming.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
-                      <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
-                      {kpUpcoming.slice(0, 6).map((p) => {
-                        const k = p.kp;
-                        const tone = k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
-                        const lab = p.time_tag.slice(5, 13).replace("T", " ");
-                        return (
-                          <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
-                            {lab}·{k.toFixed(1)}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-                <p id="ses-solar-protons" className="scroll-mt-20 text-[0.7rem] text-muted">
-                  Protons{" "}
-                  <span className={assessment.protons.sLike ? "font-mono text-warn" : "font-mono text-fg"}>
-                    ≥10 {assessment.protons.p10 != null ? assessment.protons.p10.toFixed(2) : "—"}
-                  </span>
-                  <span className="text-dim"> · </span>
-                  <span className="font-mono text-fg">
-                    ≥50 {assessment.protons.p50 != null ? assessment.protons.p50.toFixed(3) : "—"}
-                  </span>
-                  <span className="text-dim"> · </span>
-                  <span className="font-mono text-fg">
-                    ≥100 {assessment.protons.p100 != null ? assessment.protons.p100.toFixed(3) : "—"}
-                  </span>
-                  <span className="text-dim"> pfu</span>
-                  {peak && (
-                    <>
-                      <span className="text-dim"> · </span>
-                      24 h peak{" "}
-                      <strong className={peak.class.startsWith("M") || peak.class.startsWith("X") ? "text-danger" : "text-gold"}>
-                        {peak.class}
-                      </strong>
-                    </>
-                  )}
-                </p>
-                <GoesXrayDesk compact onOpenFull={() => selectSolarView("xray")} />
-              </div>
-              <div className="min-w-0 space-y-3">
-                {showImages && (
-                  <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <AttentionSparkline showLabel height={22} className="min-w-0" />
+                {kpUpcoming.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
+                    <span className="font-semibold uppercase tracking-wide text-dim">Kp next</span>
+                    {kpUpcoming.slice(0, 6).map((p) => {
+                      const k = p.kp;
+                      const tone = k >= 5 ? "text-danger" : k >= 4 ? "text-warn" : "text-fg";
+                      const lab = p.time_tag.slice(5, 13).replace("T", " ");
+                      return (
+                        <span key={p.time_tag} className={`font-mono text-sm font-semibold tabular-nums ${tone}`} title={p.time_tag}>
+                          {lab}·{k.toFixed(1)}
+                        </span>
+                      );
+                    })}
+                  </div>
                 )}
-                {(highlights.length > 0 || forecast?.issued) && (
-                  <section className="rounded-xl border border-border bg-panel p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">
-                        Next 3 days
-                      </h3>
-                      {forecast?.issued && (
-                        <span className="text-[0.62rem] text-dim">Issued {forecast.issued}</span>
-                      )}
-                    </div>
-                    <ul className="space-y-1.5 text-xs text-muted">
-                      {highlights.map((h, i) => (
-                        <li key={i}>{h}</li>
-                      ))}
-                    </ul>
-                  </section>
+              </div>
+              <p id="ses-solar-protons" className="scroll-mt-20 text-[0.7rem] text-muted">
+                Protons{" "}
+                <span className={assessment.protons.sLike ? "font-mono text-warn" : "font-mono text-fg"}>
+                  ≥10 {assessment.protons.p10 != null ? assessment.protons.p10.toFixed(2) : "—"}
+                </span>
+                <span className="text-dim"> · </span>
+                <span className="font-mono text-fg">
+                  ≥50 {assessment.protons.p50 != null ? assessment.protons.p50.toFixed(3) : "—"}
+                </span>
+                <span className="text-dim"> · </span>
+                <span className="font-mono text-fg">
+                  ≥100 {assessment.protons.p100 != null ? assessment.protons.p100.toFixed(3) : "—"}
+                </span>
+                <span className="text-dim"> pfu</span>
+                {peak && (
+                  <>
+                    <span className="text-dim"> · </span>
+                    24 h peak{" "}
+                    <strong className={peak.class.startsWith("M") || peak.class.startsWith("X") ? "text-danger" : "text-gold"}>
+                      {peak.class}
+                    </strong>
+                  </>
                 )}
-                <SwpcStormWarnings />
-                <SolarCycleStrip />
-                <EclipseWatch />
-              </div>
-            </div>
-              </div>
-            )}
+              </p>
+              {showImages && <GoesLiveFeeds compact onOpenImages={() => selectSolarView("images")} />}
+              {(highlights.length > 0 || forecast?.issued) && (
+                <section className="rounded-xl border border-border bg-panel p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <h3 className="text-[0.7rem] font-medium uppercase tracking-wider text-primary">Next 3 days</h3>
+                    {forecast?.issued && <span className="text-[0.62rem] text-dim">Issued {forecast.issued}</span>}
+                  </div>
+                  <ul className="space-y-1.5 text-xs text-muted">
+                    {highlights.map((h, i) => (
+                      <li key={i}>{h}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              <SwpcStormWarnings />
+              <SolarCycleStrip />
+              <EclipseWatch />
+            </SolarFolder>
+          </div>
         </div>
       )}
 

@@ -3169,8 +3169,7 @@
     "cluster"
     "sheet"
     "flare"
-    "extra"
-    "closer";
+    "extra";
 }
 .ww-solar-now__intro { grid-area: intro; }
 .ww-solar-now__watch { grid-area: watch; min-width: 0; }
@@ -3221,17 +3220,13 @@
       "cluster cluster"
       "sheet sheet"
       "flare flare"
-      "extra extra"
-      "closer closer";
+      "extra extra";
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
   }
   .ww-solar-now__extra {
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-  }
-  .ww-field-lines {
-    grid-column: 1 / -1;
   }
 }
 

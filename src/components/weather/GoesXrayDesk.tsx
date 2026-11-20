@@ -28,6 +28,8 @@ import { CollapsibleTabs } from "@/components/ops/CollapsibleTabs";
 
 type Props = {
   compact?: boolean;
+  /** Chart only, for the top of the desk. Full chart stays one click away. */
+  slim?: boolean;
   onOpenFull?: () => void;
 };
 
@@ -46,7 +48,7 @@ const STATE_TONE: Record<AttentionState, string> = {
   x_active: "border-red-500 bg-red-500/30 text-red-100",
 };
 
-export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
+export function GoesXrayDesk({ compact = false, slim = false, onOpenFull }: Props) {
   const [window, setWindow] = useState<GoesXrayWindow>("1d");
   const [plot, setPlot] = useState<GoesXrayPlot | null>(null);
   const [att, setAtt] = useState<XrayAttentionBundle | null>(null);
@@ -102,7 +104,7 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
   const windows = compact
     ? GOES_XRAY_WINDOWS.filter((w) => w.id === "6h" || w.id === "1d")
     : GOES_XRAY_WINDOWS;
-  const height = compact ? 200 : 280;
+  const height = slim ? 168 : compact ? 200 : 280;
   const sat18 = plot?.primarySat ?? 18;
   const sat19 = plot?.secondarySat ?? 19;
   const live = att?.live ?? null;
@@ -126,7 +128,7 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
             GOES X-ray
           </h3>
           <p className="mt-0.5 text-[0.62rem] text-dim">
-            Log flux · elevation attention · watch the rise — not a forecast
+            {slim ? "Long channel · last day" : "Log flux · elevation attention · watch the rise — not a forecast"}
           </p>
         </div>
         {compact && onOpenFull && (
@@ -136,7 +138,7 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
         )}
       </div>
 
-      {live && (
+      {live && !slim && (
         <div className="mb-2 space-y-1.5 rounded-lg border border-border/80 bg-bg/40 p-2.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <span
@@ -184,6 +186,8 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
         </div>
       )}
 
+      {!slim && (
+        <>
       <CollapsibleTabs
         label="X-ray window"
         storageKey="ww_xray_window_open"
@@ -218,6 +222,8 @@ export function GoesXrayDesk({ compact = false, onOpenFull }: Props) {
           GOES-{sat19}
         </button>
       </div>
+        </>
+      )}
 
       {plot && (
         <div className="mb-2 grid gap-1.5 sm:grid-cols-2">
