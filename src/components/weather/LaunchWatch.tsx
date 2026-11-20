@@ -12,10 +12,12 @@ import { haleRank } from "@/lib/feeds/solarRegions";
 import { diskXY, longitudeAt } from "@/lib/solar/diskPoint";
 
 const AIA = { cx: 99.6, cy: 99.2, r: 80.9 };
+/** SUVI 131 is a 1280 square. The limb is near 390 px, which is r 61 in this 200-unit frame. */
+const SUVI = { cx: 100, cy: 100, r: 61 };
 
-function aiaSpot(r: ActiveRegion, at: number): { x: number; y: number } | null {
+function spot(r: ActiveRegion, at: number, geom: { cx: number; cy: number; r: number }): { x: number; y: number } | null {
   const lon = longitudeAt(r.lon, r.lat, r.observed, at);
-  return diskXY(r.lat, lon, at, AIA);
+  return diskXY(r.lat, lon, at, geom);
 }
 
 function aiaColor(r: ActiveRegion): string {
@@ -192,16 +194,18 @@ export function LaunchWatch() {
   }, []);
 
   const lead = launches[0];
-  const aiaMarks = (time: string | null) => {
+  const marksFor = (geom: { cx: number; cy: number; r: number }) => (time: string | null) => {
     const at = time ? Date.parse(time) : Date.now();
     const when = Number.isFinite(at) ? at : Date.now();
     return regions
       .map((r) => {
-        const p = aiaSpot(r, when);
+        const p = spot(r, when, geom);
         return p ? { region: r.region, x: p.x, y: p.y, color: aiaColor(r) } : null;
       })
       .filter((m): m is { region: number; x: number; y: number; color: string } => m != null);
   };
+  const aiaMarks = marksFor(AIA);
+  const suviMarks = marksFor(SUVI);
 
   return (
     <section className="space-y-2 rounded-xl border border-border bg-panel p-2">
@@ -230,7 +234,7 @@ export function LaunchWatch() {
         <Film title="AIA 171" note="coronal loops · NOAA ARs" frames={aia} fallback={sdoStill("0171", 1024)} play={flareOn} marksAt={aiaMarks} />
       </div>
       <div className="grid items-start gap-2 sm:grid-cols-2">
-        <Film title="SUVI 131" note="hot plasma" frames={suvi} fallback={suviLatest("131")} play={flareOn} />
+        <Film title="SUVI 131" note="hot plasma · NOAA ARs" frames={suvi} fallback={suviLatest("131")} play={flareOn} marksAt={suviMarks} />
         <Film title="CCOR-1" note="coronagraph" frames={ccor} fallback={ccorLatest()} play={frontOn} />
       </div>
     </section>
